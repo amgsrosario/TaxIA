@@ -15,6 +15,7 @@ import com.knowledgeflow.common.error.ApiErrorCode;
 import com.knowledgeflow.common.error.BusinessException;
 import com.knowledgeflow.organizations.entity.Organization;
 import com.knowledgeflow.organizations.repository.OrganizationRepository;
+import com.knowledgeflow.users.repository.UserRepository;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,17 +29,20 @@ public class ClientService {
 
     private final ClientRepository clientRepository;
     private final OrganizationRepository organizationRepository;
+    private final UserRepository userRepository;
     private final ClientMapper clientMapper;
     private final AuditService auditService;
 
     public ClientService(
             ClientRepository clientRepository,
             OrganizationRepository organizationRepository,
+            UserRepository userRepository,
             ClientMapper clientMapper,
             AuditService auditService
     ) {
         this.clientRepository = clientRepository;
         this.organizationRepository = organizationRepository;
+        this.userRepository = userRepository;
         this.clientMapper = clientMapper;
         this.auditService = auditService;
     }
@@ -48,6 +52,7 @@ public class ClientService {
         Organization organization = organizationRepository.findByIdAndDeletedAtIsNull(organizationId)
                 .orElseThrow(() -> new BusinessException(ApiErrorCode.FORBIDDEN, "Organization context is invalid"));
         validateUniqueTaxIdentifier(organizationId, request.taxIdentifier());
+        validateRelationshipManager(request.relationshipManagerId());
 
         Client client = clientRepository.save(new Client(
                 organization,
@@ -55,7 +60,15 @@ public class ClientService {
                 normalizeBlank(request.taxIdentifier()),
                 normalizeBlank(request.contactEmail()),
                 normalizeBlank(request.phone()),
-                normalizeBlank(request.notes())
+                normalizeBlank(request.notes()),
+                request.category(),
+                normalizeBlank(request.sector()),
+                normalizeBlank(request.website()),
+                normalizeBlank(request.addressLine()),
+                normalizeBlank(request.city()),
+                normalizeBlank(request.postalCode()),
+                normalizeBlank(request.country()),
+                request.relationshipManagerId()
         ));
 
         auditService.record(organizationId, userId, AuditAction.CLIENT_CREATED, ENTITY_TYPE, client.getId(),
@@ -74,7 +87,6 @@ public class ClientService {
         Page<Client> clients = status == null
                 ? clientRepository.findByOrganizationIdAndDeletedAtIsNull(organizationId, pageable)
                 : clientRepository.findByOrganizationIdAndStatusAndDeletedAtIsNull(organizationId, status, pageable);
-
         return clients.map(clientMapper::toResponse);
     }
 
@@ -84,13 +96,22 @@ public class ClientService {
         if (isChanged(client.getTaxIdentifier(), request.taxIdentifier())) {
             validateUniqueTaxIdentifier(organizationId, request.taxIdentifier());
         }
+        validateRelationshipManager(request.relationshipManagerId());
 
         client.update(
                 request.name(),
                 normalizeBlank(request.taxIdentifier()),
                 normalizeBlank(request.contactEmail()),
                 normalizeBlank(request.phone()),
-                normalizeBlank(request.notes())
+                normalizeBlank(request.notes()),
+                request.category(),
+                normalizeBlank(request.sector()),
+                normalizeBlank(request.website()),
+                normalizeBlank(request.addressLine()),
+                normalizeBlank(request.city()),
+                normalizeBlank(request.postalCode()),
+                normalizeBlank(request.country()),
+                request.relationshipManagerId()
         );
 
         auditService.record(organizationId, userId, AuditAction.CLIENT_UPDATED, ENTITY_TYPE, client.getId());
@@ -102,7 +123,6 @@ public class ClientService {
     public void archive(UUID organizationId, UUID userId, UUID clientId) {
         Client client = findActiveClient(organizationId, clientId);
         client.archive();
-
         auditService.record(organizationId, userId, AuditAction.CLIENT_ARCHIVED, ENTITY_TYPE, client.getId());
     }
 
@@ -114,10 +134,14 @@ public class ClientService {
     private void validateUniqueTaxIdentifier(UUID organizationId, String taxIdentifier) {
         String normalized = normalizeBlank(taxIdentifier);
         if (normalized != null && clientRepository.existsByOrganizationIdAndTaxIdentifierAndDeletedAtIsNull(
-                organizationId,
-                normalized
-        )) {
+                organizationId, normalized)) {
             throw new BusinessException(ApiErrorCode.CONFLICT, "A client with this tax identifier already exists");
+        }
+    }
+
+    private void validateRelationshipManager(UUID relationshipManagerId) {
+        if (relationshipManagerId != null && !userRepository.existsById(relationshipManagerId)) {
+            throw new BusinessException(ApiErrorCode.NOT_FOUND, "Relationship manager user not found");
         }
     }
 

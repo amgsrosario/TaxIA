@@ -4,6 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.knowledgeflow.audit.repository.AuditEventRepository;
+import com.knowledgeflow.billing.entity.CommercialPlan;
+import com.knowledgeflow.billing.entity.OrganizationPlan;
+import com.knowledgeflow.billing.enums.PlanType;
+import com.knowledgeflow.billing.repository.CommercialPlanRepository;
+import com.knowledgeflow.billing.repository.ConsumptionEventRepository;
+import com.knowledgeflow.billing.repository.OrganizationPlanRepository;
 import com.knowledgeflow.clients.dto.ClientCreateRequest;
 import com.knowledgeflow.clients.dto.ClientDetailResponse;
 import com.knowledgeflow.clients.exception.ClientNotFoundException;
@@ -23,6 +29,7 @@ import com.knowledgeflow.organizations.repository.OrganizationRepository;
 import com.knowledgeflow.organizations.repository.OrganizationUserRepository;
 import com.knowledgeflow.users.entity.User;
 import com.knowledgeflow.users.repository.UserRepository;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,35 +41,19 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest
 class KnowledgeCaseServiceIntegrationTest {
 
-    @Autowired
-    private KnowledgeCaseService knowledgeCaseService;
-
-    @Autowired
-    private ClientService clientService;
-
-    @Autowired
-    private KnowledgeCaseVersionRepository knowledgeCaseVersionRepository;
-
-    @Autowired
-    private KnowledgeCaseRepository knowledgeCaseRepository;
-
-    @Autowired
-    private ClientRepository clientRepository;
-
-    @Autowired
-    private AuditEventRepository auditEventRepository;
-
-    @Autowired
-    private KnowledgeCaseCommentRepository knowledgeCaseCommentRepository;
-
-    @Autowired
-    private OrganizationUserRepository organizationUserRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private OrganizationRepository organizationRepository;
+    @Autowired private KnowledgeCaseService knowledgeCaseService;
+    @Autowired private ClientService clientService;
+    @Autowired private KnowledgeCaseVersionRepository knowledgeCaseVersionRepository;
+    @Autowired private KnowledgeCaseRepository knowledgeCaseRepository;
+    @Autowired private ClientRepository clientRepository;
+    @Autowired private AuditEventRepository auditEventRepository;
+    @Autowired private KnowledgeCaseCommentRepository knowledgeCaseCommentRepository;
+    @Autowired private OrganizationUserRepository organizationUserRepository;
+    @Autowired private UserRepository userRepository;
+    @Autowired private OrganizationRepository organizationRepository;
+    @Autowired private CommercialPlanRepository commercialPlanRepository;
+    @Autowired private OrganizationPlanRepository organizationPlanRepository;
+    @Autowired private ConsumptionEventRepository consumptionEventRepository;
 
     private Organization organization;
     private User user;
@@ -70,6 +61,9 @@ class KnowledgeCaseServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        consumptionEventRepository.deleteAll();
+        organizationPlanRepository.deleteAll();
+        commercialPlanRepository.deleteAll();
         auditEventRepository.deleteAll();
         knowledgeCaseCommentRepository.deleteAll();
         knowledgeCaseVersionRepository.deleteAll();
@@ -85,12 +79,15 @@ class KnowledgeCaseServiceIntegrationTest {
                 "Author User",
                 "hash-not-used"
         ));
+
+        // Give the org an unlimited monthly plan so existing tests can create cases freely
+        CommercialPlan plan = commercialPlanRepository.save(
+                new CommercialPlan("Unlimited Monthly", PlanType.MONTHLY, null, null, null));
+        organizationPlanRepository.save(
+                new OrganizationPlan(organization.getId(), plan, Instant.now().minusSeconds(60), null));
+
         client = clientService.create(organization.getId(), user.getId(), new ClientCreateRequest(
-                "Cliente Parecer",
-                null,
-                null,
-                null,
-                null
+                "Cliente Parecer", null, null, null, null, null, null, null, null, null, null, null, null
         ));
     }
 
@@ -153,12 +150,15 @@ class KnowledgeCaseServiceIntegrationTest {
     @Test
     void createRejectsClientFromAnotherOrganization() {
         Organization otherOrganization = organizationRepository.save(new Organization("Other Org", null));
+
+        // Give the other org a plan too (needed for clientService.create)
+        CommercialPlan plan = commercialPlanRepository.save(
+                new CommercialPlan("Other Org Plan", PlanType.MONTHLY, null, null, null));
+        organizationPlanRepository.save(
+                new OrganizationPlan(otherOrganization.getId(), plan, Instant.now().minusSeconds(60), null));
+
         ClientDetailResponse otherClient = clientService.create(otherOrganization.getId(), user.getId(), new ClientCreateRequest(
-                "Cliente Outra Org",
-                null,
-                null,
-                null,
-                null
+                "Cliente Outra Org", null, null, null, null, null, null, null, null, null, null, null, null
         ));
 
         assertThatThrownBy(() -> knowledgeCaseService.create(organization.getId(), user.getId(), new KnowledgeCaseCreateRequest(

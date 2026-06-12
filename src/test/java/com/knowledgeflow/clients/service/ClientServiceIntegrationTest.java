@@ -6,8 +6,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.knowledgeflow.audit.repository.AuditEventRepository;
 import com.knowledgeflow.clients.dto.ClientCreateRequest;
 import com.knowledgeflow.clients.dto.ClientDetailResponse;
+import com.knowledgeflow.clients.enums.ClientCategory;
 import com.knowledgeflow.clients.enums.ClientStatus;
 import com.knowledgeflow.clients.exception.ClientNotFoundException;
+import com.knowledgeflow.clients.repository.ClientPortalUserRepository;
 import com.knowledgeflow.clients.repository.ClientRepository;
 import com.knowledgeflow.common.error.BusinessException;
 import com.knowledgeflow.cases.repository.KnowledgeCaseRepository;
@@ -29,36 +31,28 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest
 class ClientServiceIntegrationTest {
 
-    @Autowired
-    private ClientService clientService;
-
-    @Autowired
-    private ClientRepository clientRepository;
-
-    @Autowired
-    private KnowledgeCaseVersionRepository knowledgeCaseVersionRepository;
-
-    @Autowired
-    private KnowledgeCaseRepository knowledgeCaseRepository;
-
-    @Autowired
-    private AuditEventRepository auditEventRepository;
-
-    @Autowired
-    private OrganizationRepository organizationRepository;
-
-    @Autowired
-    private OrganizationUserRepository organizationUserRepository;
-
-    @Autowired
-    private UserRepository userRepository;
+    @Autowired private ClientService clientService;
+    @Autowired private ClientRepository clientRepository;
+    @Autowired private ClientPortalUserRepository clientPortalUserRepository;
+    @Autowired private KnowledgeCaseVersionRepository knowledgeCaseVersionRepository;
+    @Autowired private KnowledgeCaseRepository knowledgeCaseRepository;
+    @Autowired private AuditEventRepository auditEventRepository;
+    @Autowired private OrganizationRepository organizationRepository;
+    @Autowired private OrganizationUserRepository organizationUserRepository;
+    @Autowired private UserRepository userRepository;
 
     private Organization organization;
     private User user;
 
+    // Helper to create a minimal ClientCreateRequest
+    private static ClientCreateRequest minimal(String name) {
+        return new ClientCreateRequest(name, null, null, null, null, null, null, null, null, null, null, null, null);
+    }
+
     @BeforeEach
     void setUp() {
         auditEventRepository.deleteAll();
+        clientPortalUserRepository.deleteAll();
         knowledgeCaseVersionRepository.deleteAll();
         knowledgeCaseRepository.deleteAll();
         clientRepository.deleteAll();
@@ -76,29 +70,26 @@ class ClientServiceIntegrationTest {
 
     @Test
     void createClientStoresClientInsideOrganization() {
-        ClientDetailResponse response = clientService.create(organization.getId(), user.getId(), new ClientCreateRequest(
-                "Empresa Exemplo",
-                "PT123456789",
-                "financeiro@example.com",
-                "+351 210 000 000",
-                "Cliente de teste"
-        ));
+        ClientDetailResponse response = clientService.create(organization.getId(), user.getId(),
+                new ClientCreateRequest(
+                        "Empresa Exemplo", "PT123456789", "financeiro@example.com",
+                        "+351 210 000 000", "Cliente de teste",
+                        ClientCategory.COMPANY, "Tecnologia", "https://example.com",
+                        "Rua das Flores 1", "Lisboa", "1000-001", "PT",
+                        null
+                ));
 
         assertThat(response.id()).isNotNull();
         assertThat(response.organizationId()).isEqualTo(organization.getId());
         assertThat(response.name()).isEqualTo("Empresa Exemplo");
         assertThat(response.status()).isEqualTo(ClientStatus.ACTIVE);
+        assertThat(response.category()).isEqualTo(ClientCategory.COMPANY);
+        assertThat(response.city()).isEqualTo("Lisboa");
     }
 
     @Test
     void createClientRecordsAuditEvent() {
-        ClientDetailResponse response = clientService.create(organization.getId(), user.getId(), new ClientCreateRequest(
-                "Auditada Lda",
-                null,
-                null,
-                null,
-                null
-        ));
+        ClientDetailResponse response = clientService.create(organization.getId(), user.getId(), minimal("Auditada Lda"));
 
         var events = auditEventRepository.findByOrganizationIdAndEntityTypeAndEntityIdOrderByOccurredAtDesc(
                 organization.getId(), "Client", response.id());
@@ -111,10 +102,8 @@ class ClientServiceIntegrationTest {
     @Test
     void listOnlyReturnsClientsFromRequestedOrganization() {
         Organization otherOrganization = organizationRepository.save(new Organization("Other Org", null));
-        clientService.create(organization.getId(), user.getId(), new ClientCreateRequest(
-                "Cliente KnowledgeFlow", null, null, null, null));
-        clientService.create(otherOrganization.getId(), user.getId(), new ClientCreateRequest(
-                "Cliente Outra Org", null, null, null, null));
+        clientService.create(organization.getId(), user.getId(), minimal("Cliente KnowledgeFlow"));
+        clientService.create(otherOrganization.getId(), user.getId(), minimal("Cliente Outra Org"));
 
         var page = clientService.list(organization.getId(), null, PageRequest.of(0, 10));
 
@@ -124,20 +113,18 @@ class ClientServiceIntegrationTest {
 
     @Test
     void duplicateTaxIdentifierInsideOrganizationIsRejected() {
-        clientService.create(organization.getId(), user.getId(), new ClientCreateRequest(
-                "Primeiro Cliente", "PT999999990", null, null, null));
+        clientService.create(organization.getId(), user.getId(),
+                new ClientCreateRequest("Primeiro Cliente", "PT999999990", null, null, null, null, null, null, null, null, null, null, null));
 
-        assertThatThrownBy(() -> clientService.create(organization.getId(), user.getId(), new ClientCreateRequest(
-                "Segundo Cliente", "PT999999990", null, null, null)))
+        assertThatThrownBy(() -> clientService.create(organization.getId(), user.getId(),
+                new ClientCreateRequest("Segundo Cliente", "PT999999990", null, null, null, null, null, null, null, null, null, null, null)))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("A client with this tax identifier already exists");
     }
 
     @Test
     void archiveHidesClientFromActiveLookups() {
-        ClientDetailResponse response = clientService.create(organization.getId(), user.getId(), new ClientCreateRequest(
-                "Cliente Arquivado", null, null, null, null));
-
+        ClientDetailResponse response = clientService.create(organization.getId(), user.getId(), minimal("Cliente Arquivado"));
         clientService.archive(organization.getId(), user.getId(), response.id());
 
         assertThatThrownBy(() -> clientService.get(organization.getId(), response.id()))
@@ -148,8 +135,7 @@ class ClientServiceIntegrationTest {
     @Test
     void getRejectsClientFromAnotherOrganization() {
         Organization otherOrganization = organizationRepository.save(new Organization("Other Org", null));
-        ClientDetailResponse response = clientService.create(otherOrganization.getId(), user.getId(), new ClientCreateRequest(
-                "Cliente Outra Org", null, null, null, null));
+        ClientDetailResponse response = clientService.create(otherOrganization.getId(), user.getId(), minimal("Cliente Outra Org"));
 
         assertThatThrownBy(() -> clientService.get(organization.getId(), response.id()))
                 .isInstanceOf(ClientNotFoundException.class);

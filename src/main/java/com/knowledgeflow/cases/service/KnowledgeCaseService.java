@@ -2,6 +2,7 @@ package com.knowledgeflow.cases.service;
 
 import com.knowledgeflow.audit.enums.AuditAction;
 import com.knowledgeflow.audit.service.AuditService;
+import com.knowledgeflow.billing.service.EntitlementService;
 import com.knowledgeflow.clients.entity.Client;
 import com.knowledgeflow.clients.exception.ClientNotFoundException;
 import com.knowledgeflow.clients.repository.ClientRepository;
@@ -46,6 +47,7 @@ public class KnowledgeCaseService {
     private final UserRepository userRepository;
     private final KnowledgeCaseMapper knowledgeCaseMapper;
     private final AuditService auditService;
+    private final EntitlementService entitlementService;
 
     public KnowledgeCaseService(
             KnowledgeCaseRepository knowledgeCaseRepository,
@@ -54,7 +56,8 @@ public class KnowledgeCaseService {
             ClientRepository clientRepository,
             UserRepository userRepository,
             KnowledgeCaseMapper knowledgeCaseMapper,
-            AuditService auditService
+            AuditService auditService,
+            EntitlementService entitlementService
     ) {
         this.knowledgeCaseRepository = knowledgeCaseRepository;
         this.knowledgeCaseVersionRepository = knowledgeCaseVersionRepository;
@@ -63,6 +66,7 @@ public class KnowledgeCaseService {
         this.userRepository = userRepository;
         this.knowledgeCaseMapper = knowledgeCaseMapper;
         this.auditService = auditService;
+        this.entitlementService = entitlementService;
     }
 
     @Transactional
@@ -79,6 +83,11 @@ public class KnowledgeCaseService {
                 request.question(),
                 normalizeBlank(request.content())
         ));
+
+        // Guard: throws BusinessException if org has no active plan or limit is exceeded.
+        // Runs inside this @Transactional so the consumption event is committed atomically.
+        entitlementService.checkAndRecordCaseCreation(organizationId, knowledgeCase.getId());
+
         createVersion(knowledgeCase, KnowledgeCaseVersionSourceType.HUMAN_DRAFT, user);
 
         auditService.record(organizationId, userId, AuditAction.KNOWLEDGE_CASE_CREATED, ENTITY_TYPE,
@@ -178,6 +187,32 @@ public class KnowledgeCaseService {
         saveCommentIfPresent(knowledgeCase, user, AuditAction.KNOWLEDGE_CASE_REJECTED, request);
         auditService.record(organizationId, userId, AuditAction.KNOWLEDGE_CASE_REJECTED,
                 ENTITY_TYPE, knowledgeCaseId);
+        return knowledgeCaseMapper.toDetailResponse(knowledgeCase);
+    }
+
+    /**
+     * Creates a KnowledgeCase from an existing AssistedInteraction (promotion flow).
+     * Does NOT consume an entitlement — promotion is not a new billable case creation.
+     * The caller (AssistedInteractionService) is responsible for marking the interaction as PROMOTED.
+     */
+    @Transactional
+    public KnowledgeCaseDetailResponse createFromInteraction(
+            UUID organizationId, UUID userId,
+            UUID clientId, String title, String question, String content) {
+
+        Client client = clientRepository.findByIdAndOrganizationIdAndDeletedAtIsNull(clientId, organizationId)
+                .orElseThrow(() -> new ClientNotFoundException(clientId));
+        User user = findUser(userId);
+        Organization organization = client.getOrganization();
+
+        KnowledgeCase knowledgeCase = knowledgeCaseRepository.save(new KnowledgeCase(
+                organization, client, title, question, normalizeBlank(content)));
+
+        createVersion(knowledgeCase, KnowledgeCaseVersionSourceType.HUMAN_DRAFT, user);
+
+        auditService.record(organizationId, userId, AuditAction.KNOWLEDGE_CASE_CREATED, ENTITY_TYPE,
+                knowledgeCase.getId(), "promoted=true,title=" + knowledgeCase.getTitle());
+
         return knowledgeCaseMapper.toDetailResponse(knowledgeCase);
     }
 
