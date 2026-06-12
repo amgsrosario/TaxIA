@@ -1,0 +1,21 @@
+package com.knowledgeflow.audit.enums;
+
+public enum AuditAction {
+
+    // Auth
+    USER_LOGIN,
+
+    // Clients
+    CLIENT_CREATED,
+    CLIENT_UPDATED,
+    CLIENT_ARCHIVED,
+
+    // Knowledge Cases
+    KNOWLEDGE_CASE_CREATED,
+    KNOWLEDGE_CASE_UPDATED,
+    KNOWLEDGE_CASE_SUBMITTED_FOR_REVIEW,
+    KNOWLEDGE_CASE_CHANGES_REQUESTED,
+    KNOWLEDGE_CASE_VALIDATED,
+    KNOWLEDGE_CASE_REJECTED,
+    KNOWLEDGE_CASE_ARCHIVED
+}

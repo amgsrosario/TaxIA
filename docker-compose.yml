@@ -1,0 +1,35 @@
+name: knowledgeflow
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: knowledgeflow
+      POSTGRES_USER: knowledgeflow
+      POSTGRES_PASSWORD: knowledgeflow
+    ports:
+      - "15433:5432"
+    volumes:
+      - knowledgeflow-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U knowledgeflow -d knowledgeflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@knowledgeflow.dev
+      PGADMIN_DEFAULT_PASSWORD: knowledgeflow
+    ports:
+      - "5057:80"
+    volumes:
+      - knowledgeflow-pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  knowledgeflow-postgres-data:
+  knowledgeflow-pgadmin-data:

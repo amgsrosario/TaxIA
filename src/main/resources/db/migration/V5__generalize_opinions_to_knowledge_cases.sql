@@ -1,0 +1,13 @@
+ALTER TABLE opinions RENAME TO knowledge_cases;
+ALTER TABLE opinion_versions RENAME TO knowledge_case_versions;
+ALTER TABLE knowledge_case_versions RENAME COLUMN opinion_id TO knowledge_case_id;
+
+ALTER INDEX idx_opinions_organization_id RENAME TO idx_knowledge_cases_organization_id;
+ALTER INDEX idx_opinions_client_id RENAME TO idx_knowledge_cases_client_id;
+ALTER INDEX idx_opinions_organization_status RENAME TO idx_knowledge_cases_organization_status;
+ALTER INDEX idx_opinions_organization_created_at RENAME TO idx_knowledge_cases_organization_created_at;
+ALTER INDEX idx_opinion_versions_opinion_id RENAME TO idx_knowledge_case_versions_case_id;
+ALTER INDEX idx_opinion_versions_created_by_user_id RENAME TO idx_knowledge_case_versions_created_by_user_id;
+
+ALTER TABLE knowledge_case_versions
+    RENAME CONSTRAINT uk_opinion_versions_opinion_number TO uk_knowledge_case_versions_case_number;
