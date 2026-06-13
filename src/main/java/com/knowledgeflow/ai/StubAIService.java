@@ -17,8 +17,8 @@ import org.springframework.stereotype.Service;
 @ConditionalOnMissingBean(name = "realAIService")
 public class StubAIService implements AIService {
 
-    static final String STUB_MODEL = "stub-v1";
-    static final String STUB_ANSWER_PREFIX = "[STUB] Resposta gerada automaticamente para: ";
+    public static final String STUB_MODEL = "stub-v1";
+    public static final String STUB_ANSWER_PREFIX = "[STUB] Resposta gerada automaticamente para: ";
 
     @Override
     public AIResponse complete(AIRequest request) {

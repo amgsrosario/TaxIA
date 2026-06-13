@@ -13,4 +13,6 @@ public interface ClientPortalUserRepository extends JpaRepository<ClientPortalUs
     Optional<ClientPortalUser> findByIdAndOrganizationIdAndDeletedAtIsNull(UUID id, UUID organizationId);
 
     boolean existsByClientIdAndEmailAndDeletedAtIsNull(UUID clientId, String email);
+
+    Optional<ClientPortalUser> findByOrganizationIdAndEmailIgnoreCaseAndDeletedAtIsNull(UUID organizationId, String email);
 }

@@ -1,0 +1,162 @@
+package com.knowledgeflow.clients.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.knowledgeflow.audit.repository.AuditEventRepository;
+import com.knowledgeflow.billing.entity.CommercialPlan;
+import com.knowledgeflow.billing.entity.OrganizationPlan;
+import com.knowledgeflow.billing.enums.PlanType;
+import com.knowledgeflow.billing.repository.CommercialPlanRepository;
+import com.knowledgeflow.billing.repository.ConsumptionEventRepository;
+import com.knowledgeflow.billing.repository.OrganizationPlanRepository;
+import com.knowledgeflow.cases.repository.KnowledgeCaseCommentRepository;
+import com.knowledgeflow.cases.repository.KnowledgeCaseRepository;
+import com.knowledgeflow.cases.repository.KnowledgeCaseVersionRepository;
+import com.knowledgeflow.clients.dto.ClientCreateRequest;
+import com.knowledgeflow.clients.dto.ClientDetailResponse;
+import com.knowledgeflow.clients.dto.ClientPortalAuthResponse;
+import com.knowledgeflow.clients.dto.ClientPortalLoginRequest;
+import com.knowledgeflow.clients.dto.ClientPortalUserCreateRequest;
+import com.knowledgeflow.clients.enums.ClientPortalUserStatus;
+import com.knowledgeflow.clients.repository.ClientPortalUserRepository;
+import com.knowledgeflow.clients.repository.ClientRepository;
+import com.knowledgeflow.common.error.BusinessException;
+import com.knowledgeflow.interactions.repository.AssistedInteractionMessageRepository;
+import com.knowledgeflow.interactions.repository.AssistedInteractionRepository;
+import com.knowledgeflow.organizations.entity.Organization;
+import com.knowledgeflow.organizations.repository.OrganizationRepository;
+import com.knowledgeflow.organizations.repository.OrganizationUserRepository;
+import com.knowledgeflow.users.entity.User;
+import com.knowledgeflow.users.repository.UserRepository;
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+
+@ActiveProfiles("test")
+@SpringBootTest
+class ClientPortalAuthServiceIntegrationTest {
+
+    @Autowired private ClientPortalAuthService clientPortalAuthService;
+    @Autowired private ClientPortalUserService clientPortalUserService;
+    @Autowired private ClientService clientService;
+
+    @Autowired private AssistedInteractionMessageRepository interactionMessageRepository;
+    @Autowired private AssistedInteractionRepository interactionRepository;
+    @Autowired private ConsumptionEventRepository consumptionEventRepository;
+    @Autowired private OrganizationPlanRepository organizationPlanRepository;
+    @Autowired private CommercialPlanRepository commercialPlanRepository;
+    @Autowired private AuditEventRepository auditEventRepository;
+    @Autowired private KnowledgeCaseCommentRepository knowledgeCaseCommentRepository;
+    @Autowired private KnowledgeCaseVersionRepository knowledgeCaseVersionRepository;
+    @Autowired private KnowledgeCaseRepository knowledgeCaseRepository;
+    @Autowired private ClientPortalUserRepository clientPortalUserRepository;
+    @Autowired private ClientRepository clientRepository;
+    @Autowired private OrganizationUserRepository organizationUserRepository;
+    @Autowired private UserRepository userRepository;
+    @Autowired private OrganizationRepository organizationRepository;
+
+    private Organization organization;
+    private User user;
+    private ClientDetailResponse client;
+
+    private static final String PORTAL_EMAIL = "cliente@example.com";
+    private static final String PORTAL_PASSWORD = "senha-segura-123";
+
+    @BeforeEach
+    void setUp() {
+        interactionMessageRepository.deleteAll();
+        interactionRepository.deleteAll();
+        consumptionEventRepository.deleteAll();
+        organizationPlanRepository.deleteAll();
+        commercialPlanRepository.deleteAll();
+        auditEventRepository.deleteAll();
+        knowledgeCaseCommentRepository.deleteAll();
+        knowledgeCaseVersionRepository.deleteAll();
+        knowledgeCaseRepository.deleteAll();
+        clientPortalUserRepository.deleteAll();
+        clientRepository.deleteAll();
+        organizationUserRepository.deleteAll();
+        userRepository.deleteAll();
+        organizationRepository.deleteAll();
+
+        organization = organizationRepository.save(new Organization("Portal Auth Test Org", null));
+        user = userRepository.save(new User(
+                "staff-%s@knowledgeflow.test".formatted(UUID.randomUUID()),
+                "Staff User", "hash-not-used"));
+
+        CommercialPlan plan = commercialPlanRepository.save(
+                new CommercialPlan("Unlimited", PlanType.MONTHLY, null, null, null));
+        organizationPlanRepository.save(
+                new OrganizationPlan(organization.getId(), plan, Instant.now().minusSeconds(60), null));
+
+        client = clientService.create(organization.getId(), user.getId(), new ClientCreateRequest(
+                "Empresa Cliente", null, null, null, null, null, null, null, null, null, null, null, null));
+
+        clientPortalUserService.create(organization.getId(), client.id(),
+                new ClientPortalUserCreateRequest(PORTAL_EMAIL, PORTAL_PASSWORD));
+    }
+
+    @Test
+    void loginWithValidCredentialsReturnsToken() {
+        ClientPortalAuthResponse response = clientPortalAuthService.login(
+                new ClientPortalLoginRequest(organization.getId(), PORTAL_EMAIL, PORTAL_PASSWORD));
+
+        assertThat(response.accessToken()).isNotBlank();
+        assertThat(response.tokenType()).isEqualTo("Bearer");
+        assertThat(response.email()).isEqualTo(PORTAL_EMAIL);
+        assertThat(response.organizationId()).isEqualTo(organization.getId());
+        assertThat(response.clientId()).isEqualTo(client.id());
+        assertThat(response.expiresAt()).isNotNull();
+    }
+
+    @Test
+    void loginWithWrongPasswordIsRejected() {
+        assertThatThrownBy(() -> clientPortalAuthService.login(
+                new ClientPortalLoginRequest(organization.getId(), PORTAL_EMAIL, "senha-errada")))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Invalid email or password");
+    }
+
+    @Test
+    void loginWithUnknownEmailIsRejected() {
+        assertThatThrownBy(() -> clientPortalAuthService.login(
+                new ClientPortalLoginRequest(organization.getId(), "naoexiste@example.com", PORTAL_PASSWORD)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Invalid email or password");
+    }
+
+    @Test
+    void loginWithDeactivatedUserIsRejected() {
+        var portalUsers = clientPortalUserRepository
+                .findByClientIdAndOrganizationIdAndDeletedAtIsNull(client.id(), organization.getId());
+        clientPortalUserService.deactivate(organization.getId(), client.id(), portalUsers.getFirst().getId());
+
+        assertThatThrownBy(() -> clientPortalAuthService.login(
+                new ClientPortalLoginRequest(organization.getId(), PORTAL_EMAIL, PORTAL_PASSWORD)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Invalid email or password");
+    }
+
+    @Test
+    void loginFromWrongOrganizationIsRejected() {
+        Organization otherOrg = organizationRepository.save(new Organization("Other Org", null));
+
+        assertThatThrownBy(() -> clientPortalAuthService.login(
+                new ClientPortalLoginRequest(otherOrg.getId(), PORTAL_EMAIL, PORTAL_PASSWORD)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Invalid email or password");
+    }
+
+    @Test
+    void portalUserStatusIsActiveAfterCreation() {
+        var portalUsers = clientPortalUserRepository
+                .findByClientIdAndOrganizationIdAndDeletedAtIsNull(client.id(), organization.getId());
+        assertThat(portalUsers).hasSize(1);
+        assertThat(portalUsers.getFirst().getStatus()).isEqualTo(ClientPortalUserStatus.ACTIVE);
+    }
+}
