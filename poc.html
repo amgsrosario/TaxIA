@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KnowledgeFlow — POC</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; }
+
+    header {
+      background: #1e293b;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid #334155;
+    }
+    header h1 { font-size: 16px; font-weight: 700; color: #f1f5f9; letter-spacing: -0.3px; }
+    header span { font-size: 12px; color: #64748b; background: #0f172a; padding: 2px 8px; border-radius: 4px; }
+
+    .panels {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: #1e293b;
+      overflow: hidden;
+    }
+
+    .panel {
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 14px 20px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .panel-header .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-blue { background: #3b82f6; }
+    .dot-emerald { background: #10b981; }
+    .panel-header h2 { font-size: 13px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+    .panel-header .badge { margin-left: auto; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+    .badge-connected { background: #064e3b; color: #34d399; }
+    .badge-disconnected { background: #1e293b; color: #64748b; }
+
+    .panel-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* Forms */
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: 12px; color: #64748b; font-weight: 500; }
+    input {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 9px 12px;
+      color: #e2e8f0;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: #3b82f6; }
+    input::placeholder { color: #475569; }
+
+    button {
+      padding: 9px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-emerald { background: #10b981; color: white; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn-ghost { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+    .btn-danger { background: #dc2626; color: white; }
+
+    /* Cards */
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .card-title { font-size: 13px; font-weight: 600; color: #f1f5f9; margin-bottom: 4px; }
+    .card-sub { font-size: 12px; color: #64748b; }
+    .card-row { display: flex; align-items: center; justify-content: space-between; }
+    .card-actions { display: flex; gap: 6px; margin-top: 10px; }
+
+    /* Status badges */
+    .status {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .status-DRAFT { background: #1e293b; color: #64748b; border: 1px solid #334155; }
+    .status-UNDER_REVIEW { background: #1e3a5f; color: #60a5fa; }
+    .status-VALIDATED { background: #064e3b; color: #34d399; }
+    .status-CHANGES_REQUESTED { background: #451a03; color: #fb923c; }
+    .status-REJECTED { background: #450a0a; color: #f87171; }
+    .status-OPEN { background: #1e3a5f; color: #60a5fa; }
+    .status-PROMOTED { background: #1e1a3f; color: #a78bfa; }
+
+    /* User info bar */
+    .user-bar {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+    .avatar-blue { background: #1d4ed8; color: #bfdbfe; }
+    .avatar-emerald { background: #065f46; color: #a7f3d0; }
+    .user-info { flex: 1; }
+    .user-name { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+    .user-meta { font-size: 11px; color: #64748b; }
+    .btn-logout { font-size: 11px; padding: 3px 8px; background: none; border: 1px solid #334155; color: #64748b; border-radius: 4px; }
+
+    /* Section title */
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 2px;
+    }
+
+    /* Chat */
+    .chat-box {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      max-height: 320px;
+    }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-height: 120px; }
+    .msg { max-width: 80%; }
+    .msg-q { align-self: flex-end; background: #1d4ed8; color: #e0f2fe; border-radius: 12px 12px 2px 12px; padding: 8px 12px; font-size: 13px; }
+    .msg-a { align-self: flex-start; background: #0f172a; border: 1px solid #334155; color: #94a3b8; border-radius: 12px 12px 12px 2px; padding: 8px 12px; font-size: 13px; }
+    .chat-input-row { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #334155; }
+    .chat-input-row input { flex: 1; }
+
+    /* Errors */
+    .error { background: #450a0a; border: 1px solid #991b1b; color: #f87171; padding: 8px 12px; border-radius: 6px; font-size: 12px; }
+    .info { background: #1e3a5f; border: 1px solid #1d4ed8; color: #93c5fd; padding: 8px 12px; border-radius: 6px; font-size: 12px; }
+
+    /* Empty state */
+    .empty { text-align: center; color: #475569; font-size: 13px; padding: 32px 0; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    /* Modal overlay */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 24px;
+      width: 400px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .modal h3 { font-size: 15px; font-weight: 700; color: #f1f5f9; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>KnowledgeFlow</h1>
+  <span>POC — localhost:8080</span>
+</header>
+
+<div class="panels">
+
+  <!-- ═══════════════════════════════════════════════════════ BACKOFFICE -->
+  <div class="panel" id="bo-panel">
+    <div class="panel-header">
+      <div class="dot dot-blue"></div>
+      <h2>Backoffice</h2>
+      <span class="badge badge-disconnected" id="bo-badge">Desligado</span>
+    </div>
+    <div class="panel-body" id="bo-body">
+      <!-- login by default -->
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ PORTAL -->
+  <div class="panel" id="portal-panel">
+    <div class="panel-header">
+      <div class="dot dot-emerald"></div>
+      <h2>Portal do Cliente</h2>
+      <span class="badge badge-disconnected" id="portal-badge">Desligado</span>
+    </div>
+    <div class="panel-body" id="portal-body">
+      <!-- login by default -->
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal: New Case -->
+<div class="modal-overlay" id="modal-case">
+  <div class="modal">
+    <h3>Novo Caso</h3>
+    <div class="form-group"><label>Título</label><input id="nc-title" placeholder="Título do caso"></div>
+    <div class="form-group"><label>Pergunta</label><input id="nc-question" placeholder="Questão principal"></div>
+    <div id="nc-error"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('modal-case')">Cancelar</button>
+      <button class="btn-primary" onclick="createCase()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: New Portal Interaction -->
+<div class="modal-overlay" id="modal-interaction">
+  <div class="modal">
+    <h3>Nova Sessão Assistiva</h3>
+    <div class="form-group"><label>Assunto</label><input id="ni-title" placeholder="Ex: Dúvida sobre faturação"></div>
+    <div id="ni-error"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('modal-interaction')">Cancelar</button>
+      <button class="btn-emerald" onclick="createInteraction()">Iniciar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8080/api/v1';
+
+// ── State ──────────────────────────────────────────────────────────────────
+const bo = { token: null, user: null, cases: [], clients: [] };
+const portal = { token: null, user: null, cases: [], interactions: [], activeInteraction: null, messages: [] };
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+async function api(method, path, body, token) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (body)  opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.message || json?.error || `HTTP ${res.status}`);
+  return json;
+}
+
+function statusBadge(s) {
+  const labels = { DRAFT:'Rascunho', UNDER_REVIEW:'Em revisão', VALIDATED:'Validado',
+    CHANGES_REQUESTED:'Alterações pedidas', REJECTED:'Rejeitado', OPEN:'Aberta', PROMOTED:'Promovida', CLOSED:'Fechada' };
+  return `<span class="status status-${s}">${labels[s]||s}</span>`;
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── BACKOFFICE ─────────────────────────────────────────────────────────────
+function renderBO() {
+  const body = document.getElementById('bo-body');
+  const badge = document.getElementById('bo-badge');
+
+  if (!bo.token) {
+    badge.className = 'badge badge-disconnected'; badge.textContent = 'Desligado';
+    body.innerHTML = `
+      <div class="section-title">Iniciar sessão</div>
+      <div class="form-group"><label>Email</label><input id="bo-email" placeholder="admin@empresa.com" type="email"></div>
+      <div class="form-group"><label>Password</label><input id="bo-pass" placeholder="••••••••" type="password"></div>
+      <div id="bo-error"></div>
+      <button class="btn-primary" onclick="boLogin()">Entrar no backoffice</button>
+      <div class="info">Ainda não tens conta? Cria um admin via: <code>POST /api/v1/auth/bootstrap-admin</code></div>
+    `;
+    document.getElementById('bo-pass').addEventListener('keydown', e => { if (e.key==='Enter') boLogin(); });
+    return;
+  }
+
+  badge.className = 'badge badge-connected'; badge.textContent = 'Ligado';
+  const roles = bo.user.roles.join(', ');
+  let html = `
+    <div class="user-bar">
+      <div class="avatar avatar-blue">${bo.user.email[0].toUpperCase()}</div>
+      <div class="user-info">
+        <div class="user-name">${bo.user.fullName || bo.user.email}</div>
+        <div class="user-meta">${roles} · org: ${bo.user.organizationId?.slice(0,8)}…</div>
+      </div>
+      <button class="btn-logout" onclick="boLogout()">Sair</button>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="section-title">Casos (${bo.cases.length})</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-ghost btn-sm" onclick="loadBoCases()">↻ Atualizar</button>
+        <button class="btn-primary btn-sm" onclick="openModal('modal-case')">+ Novo caso</button>
+      </div>
+    </div>
+  `;
+
+  if (bo.cases.length === 0) {
+    html += `<div class="empty">Nenhum caso ainda.<br>Cria o primeiro caso acima.</div>`;
+  } else {
+    bo.cases.forEach(c => {
+      const actions = caseActions(c);
+      html += `
+        <div class="card">
+          <div class="card-row">
+            <div class="card-title">${escHtml(c.title)}</div>
+            ${statusBadge(c.status)}
+          </div>
+          <div class="card-sub" style="margin-top:4px">v${c.currentVersionNumber} · ${new Date(c.createdAt).toLocaleDateString('pt')}</div>
+          ${actions.length ? `<div class="card-actions">${actions.join('')}</div>` : ''}
+        </div>
+      `;
+    });
+  }
+
+  body.innerHTML = html;
+}
+
+function caseActions(c) {
+  const acts = [];
+  const id = c.id;
+  if (c.status === 'DRAFT') {
+    acts.push(`<button class="btn-ghost btn-sm" onclick="caseAction('${id}','submit')">Submeter para revisão</button>`);
+  }
+  if (c.status === 'UNDER_REVIEW') {
+    acts.push(`<button class="btn-emerald btn-sm" onclick="caseAction('${id}','validate')">Validar</button>`);
+    acts.push(`<button class="btn-ghost btn-sm" onclick="caseAction('${id}','request-changes')">Pedir alterações</button>`);
+    acts.push(`<button class="btn-danger btn-sm" onclick="caseAction('${id}','reject')">Rejeitar</button>`);
+  }
+  if (c.status === 'CHANGES_REQUESTED') {
+    acts.push(`<button class="btn-ghost btn-sm" onclick="caseAction('${id}','reopen')">Reabrir</button>`);
+  }
+  return acts;
+}
+
+async function boLogin() {
+  const email = document.getElementById('bo-email').value.trim();
+  const password = document.getElementById('bo-pass').value;
+  document.getElementById('bo-error').innerHTML = '';
+  try {
+    const res = await api('POST', '/auth/login', { email, password });
+    bo.token = res.accessToken;
+    bo.user = res;
+    await loadBoCases();
+    await loadBoClients();
+    renderBO();
+    // auto-fill portal org field if portal not yet logged in
+    const porgField = document.getElementById('portal-org');
+    if (porgField && res.organizationId) porgField.value = res.organizationId;
+  } catch(e) {
+    document.getElementById('bo-error').innerHTML = `<div class="error">${e.message}</div>`;
+  }
+}
+
+function boLogout() {
+  bo.token = null; bo.user = null; bo.cases = []; bo.clients = [];
+  renderBO();
+}
+
+async function loadBoCases() {
+  try {
+    const res = await api('GET', '/knowledge-cases?size=50&sort=createdAt,desc', null, bo.token);
+    bo.cases = res.content || [];
+  } catch(e) { bo.cases = []; }
+}
+
+async function loadBoClients() {
+  try {
+    const res = await api('GET', '/clients?size=50', null, bo.token);
+    bo.clients = res.content || [];
+  } catch(e) { bo.clients = []; }
+}
+
+async function createCase() {
+  const title = document.getElementById('nc-title').value.trim();
+  const question = document.getElementById('nc-question').value.trim();
+  document.getElementById('nc-error').innerHTML = '';
+  if (!title || !question) { document.getElementById('nc-error').innerHTML = '<div class="error">Preenche todos os campos.</div>'; return; }
+  const clientId = bo.clients[0]?.id;
+  if (!clientId) { document.getElementById('nc-error').innerHTML = '<div class="error">Cria primeiro um cliente via API.</div>'; return; }
+  try {
+    await api('POST', '/knowledge-cases', { clientId, title, question }, bo.token);
+    closeModal('modal-case');
+    document.getElementById('nc-title').value = '';
+    document.getElementById('nc-question').value = '';
+    await loadBoCases();
+    renderBO();
+  } catch(e) {
+    document.getElementById('nc-error').innerHTML = `<div class="error">${e.message}</div>`;
+  }
+}
+
+async function caseAction(id, action) {
+  const actionMap = {
+    'submit': '/submit', 'validate': '/validate',
+    'request-changes': '/request-changes', 'reject': '/reject', 'reopen': '/reopen-draft'
+  };
+  try {
+    await api('POST', `/knowledge-cases/${id}${actionMap[action]}`, {}, bo.token);
+    await loadBoCases();
+    renderBO();
+  } catch(e) { alert('Erro: ' + e.message); }
+}
+
+// ── PORTAL ─────────────────────────────────────────────────────────────────
+function renderPortal() {
+  const body = document.getElementById('portal-body');
+  const badge = document.getElementById('portal-badge');
+
+  if (!portal.token) {
+    badge.className = 'badge badge-disconnected'; badge.textContent = 'Desligado';
+    const orgId = bo.user?.organizationId || '';
+    body.innerHTML = `
+      <div class="section-title">Login do cliente</div>
+      <div class="form-group">
+        <label>ID da Organização</label>
+        <input id="portal-org" placeholder="UUID da organização" value="${orgId}">
+      </div>
+      <div class="form-group"><label>Email</label><input id="portal-email" placeholder="cliente@empresa.com" type="email"></div>
+      <div class="form-group"><label>Password</label><input id="portal-pass" placeholder="••••••••" type="password"></div>
+      <div id="portal-error"></div>
+      <button class="btn-emerald" onclick="portalLogin()">Entrar no portal</button>
+      <div class="info">O ID da organização é preenchido automaticamente após o login do backoffice.</div>
+    `;
+    document.getElementById('portal-pass').addEventListener('keydown', e => { if (e.key==='Enter') portalLogin(); });
+    return;
+  }
+
+  badge.className = 'badge badge-connected'; badge.textContent = 'Ligado';
+
+  // If viewing an active interaction
+  if (portal.activeInteraction) {
+    renderPortalChat();
+    return;
+  }
+
+  let html = `
+    <div class="user-bar">
+      <div class="avatar avatar-emerald">${portal.user.email[0].toUpperCase()}</div>
+      <div class="user-info">
+        <div class="user-name">${portal.user.email}</div>
+        <div class="user-meta">Portal · client: ${portal.user.clientId?.slice(0,8)}…</div>
+      </div>
+      <button class="btn-logout" onclick="portalLogout()">Sair</button>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="section-title">Os meus casos validados (${portal.cases.length})</div>
+      <button class="btn-ghost btn-sm" onclick="loadPortalCases()">↻</button>
+    </div>
+  `;
+
+  if (portal.cases.length === 0) {
+    html += `<div class="empty">Nenhum caso validado disponível.</div>`;
+  } else {
+    portal.cases.forEach(c => {
+      html += `
+        <div class="card">
+          <div class="card-row">
+            <div class="card-title">${escHtml(c.title)}</div>
+            ${statusBadge(c.status)}
+          </div>
+          <div class="card-sub" style="margin-top:4px">${new Date(c.createdAt).toLocaleDateString('pt')}</div>
+        </div>
+      `;
+    });
+  }
+
+  html += `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+      <div class="section-title">Sessões assistivas (${portal.interactions.length})</div>
+      <button class="btn-emerald btn-sm" onclick="openModal('modal-interaction')">+ Nova sessão</button>
+    </div>
+  `;
+
+  if (portal.interactions.length === 0) {
+    html += `<div class="empty">Nenhuma sessão. Inicia uma nova.</div>`;
+  } else {
+    portal.interactions.forEach(i => {
+      html += `
+        <div class="card" style="cursor:pointer" onclick="openInteraction('${i.id}')">
+          <div class="card-row">
+            <div class="card-title">${escHtml(i.title)}</div>
+            ${statusBadge(i.status)}
+          </div>
+          <div class="card-sub" style="margin-top:4px">${new Date(i.createdAt).toLocaleDateString('pt')} · Clica para abrir</div>
+        </div>
+      `;
+    });
+  }
+
+  body.innerHTML = html;
+}
+
+function renderPortalChat() {
+  const i = portal.activeInteraction;
+  const body = document.getElementById('portal-body');
+  let msgs = portal.messages.map(m => `
+    <div class="msg msg-q">${escHtml(m.question)}</div>
+    <div class="msg msg-a">${escHtml(m.answer)}</div>
+  `).join('');
+
+  body.innerHTML = `
+    <button class="btn-ghost btn-sm" style="align-self:flex-start" onclick="closeInteraction()">← Voltar</button>
+    <div class="user-bar">
+      <div style="flex:1">
+        <div class="user-name">${escHtml(i.title)}</div>
+        <div class="user-meta">${statusBadge(i.status)}</div>
+      </div>
+    </div>
+    <div class="chat-box">
+      <div class="chat-messages" id="chat-msgs">
+        ${msgs || '<div class="empty" style="padding:20px">Faz a primeira pergunta.</div>'}
+      </div>
+      <div class="chat-input-row">
+        <input id="chat-q" placeholder="Faz a tua pergunta…" ${i.status !== 'OPEN' ? 'disabled' : ''}>
+        <button class="btn-emerald btn-sm" onclick="sendQuestion()" ${i.status !== 'OPEN' ? 'disabled' : ''}>Enviar</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('chat-q').addEventListener('keydown', e => { if (e.key==='Enter') sendQuestion(); });
+  const msgs_div = document.getElementById('chat-msgs');
+  if (msgs_div) msgs_div.scrollTop = msgs_div.scrollHeight;
+}
+
+async function portalLogin() {
+  const organizationId = document.getElementById('portal-org').value.trim();
+  const email = document.getElementById('portal-email').value.trim();
+  const password = document.getElementById('portal-pass').value;
+  document.getElementById('portal-error').innerHTML = '';
+  try {
+    const res = await api('POST', '/client-auth/login', { organizationId, email, password });
+    portal.token = res.accessToken;
+    portal.user = res;
+    await loadPortalCases();
+    await loadPortalInteractions();
+    renderPortal();
+  } catch(e) {
+    document.getElementById('portal-error').innerHTML = `<div class="error">${e.message}</div>`;
+  }
+}
+
+function portalLogout() {
+  portal.token = null; portal.user = null;
+  portal.cases = []; portal.interactions = [];
+  portal.activeInteraction = null; portal.messages = [];
+  renderPortal();
+}
+
+async function loadPortalCases() {
+  try {
+    const res = await api('GET', '/portal/cases?size=50', null, portal.token);
+    portal.cases = res.content || [];
+  } catch(e) { portal.cases = []; }
+}
+
+async function loadPortalInteractions() {
+  try {
+    const res = await api('GET', '/portal/interactions?size=50', null, portal.token);
+    portal.interactions = res.content || [];
+  } catch(e) { portal.interactions = []; }
+}
+
+async function createInteraction() {
+  const title = document.getElementById('ni-title').value.trim();
+  document.getElementById('ni-error').innerHTML = '';
+  if (!title) { document.getElementById('ni-error').innerHTML = '<div class="error">Indica o assunto.</div>'; return; }
+  try {
+    const i = await api('POST', '/portal/interactions', { title }, portal.token);
+    closeModal('modal-interaction');
+    document.getElementById('ni-title').value = '';
+    await loadPortalInteractions();
+    portal.activeInteraction = i;
+    portal.messages = [];
+    renderPortal();
+  } catch(e) {
+    document.getElementById('ni-error').innerHTML = `<div class="error">${e.message}</div>`;
+  }
+}
+
+async function openInteraction(id) {
+  try {
+    const msgs = await api('GET', `/portal/interactions/${id}/messages`, null, portal.token);
+    portal.activeInteraction = portal.interactions.find(i => i.id === id);
+    portal.messages = msgs;
+    renderPortal();
+  } catch(e) { alert('Erro: ' + e.message); }
+}
+
+function closeInteraction() {
+  portal.activeInteraction = null;
+  portal.messages = [];
+  loadPortalInteractions().then(() => renderPortal());
+}
+
+async function sendQuestion() {
+  const q = document.getElementById('chat-q')?.value.trim();
+  if (!q) return;
+  document.getElementById('chat-q').value = '';
+  document.getElementById('chat-q').disabled = true;
+  try {
+    const msg = await api('POST', `/portal/interactions/${portal.activeInteraction.id}/ask`, { question: q }, portal.token);
+    portal.messages.push(msg);
+    renderPortal();
+  } catch(e) {
+    alert('Erro: ' + e.message);
+    if (document.getElementById('chat-q')) document.getElementById('chat-q').disabled = false;
+  }
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+renderBO();
+renderPortal();
+</script>
+</body>
+</html>

@@ -33,8 +33,9 @@ public class AssistedInteraction {
     @JoinColumn(name = "client_id", nullable = false)
     private Client client;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "created_by_user_id", nullable = false)
+    /** Null when the interaction was started by the client from the portal (no org user involved). */
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "created_by_user_id", nullable = true)
     private User createdByUser;
 
     @Column(nullable = false, length = 254)
@@ -55,10 +56,20 @@ public class AssistedInteraction {
 
     protected AssistedInteraction() {}
 
+    /** Constructor for org-user-initiated interactions. */
     public AssistedInteraction(Organization organization, Client client, User createdByUser, String title) {
         this.organization = organization;
         this.client = client;
         this.createdByUser = createdByUser;
+        this.title = title;
+        this.status = AssistedInteractionStatus.OPEN;
+    }
+
+    /** Constructor for portal-initiated interactions (no org user). */
+    public AssistedInteraction(Organization organization, Client client, String title) {
+        this.organization = organization;
+        this.client = client;
+        this.createdByUser = null;
         this.title = title;
         this.status = AssistedInteractionStatus.OPEN;
     }

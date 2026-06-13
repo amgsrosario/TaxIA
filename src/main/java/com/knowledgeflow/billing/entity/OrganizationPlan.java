@@ -55,4 +55,5 @@ public class OrganizationPlan {
     public CommercialPlan getPlan() { return plan; }
     public Instant getStartsAt() { return startsAt; }
     public Instant getEndsAt() { return endsAt; }
+    public Instant getCreatedAt() { return createdAt; }
 }

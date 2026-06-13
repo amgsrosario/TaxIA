@@ -75,6 +75,10 @@ public class ClientPortalUser {
         updatedAt = OffsetDateTime.now();
     }
 
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = newPasswordHash;
+    }
+
     public void deactivate() {
         this.status = ClientPortalUserStatus.INACTIVE;
         this.deletedAt = OffsetDateTime.now();

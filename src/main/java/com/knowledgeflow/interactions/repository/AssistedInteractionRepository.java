@@ -14,4 +14,10 @@ public interface AssistedInteractionRepository extends JpaRepository<AssistedInt
     Page<AssistedInteraction> findByOrganizationIdAndClientId(UUID organizationId, UUID clientId, Pageable pageable);
 
     Page<AssistedInteraction> findByOrganizationId(UUID organizationId, Pageable pageable);
+
+    // Portal — must scope to the authenticated client
+    Optional<AssistedInteraction> findByIdAndOrganizationIdAndClientId(UUID id, UUID organizationId, UUID clientId);
+
+    Page<AssistedInteraction> findByOrganizationIdAndClientIdOrderByCreatedAtDesc(
+            UUID organizationId, UUID clientId, Pageable pageable);
 }

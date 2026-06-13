@@ -1,20 +1,16 @@
-package com.knowledgeflow.interactions.service;
+package com.knowledgeflow.portal;
 
 import com.knowledgeflow.ai.AIRequest;
 import com.knowledgeflow.ai.AIResponse;
 import com.knowledgeflow.ai.AIService;
 import com.knowledgeflow.billing.service.EntitlementService;
-import com.knowledgeflow.cases.dto.KnowledgeCaseDetailResponse;
-import com.knowledgeflow.cases.service.KnowledgeCaseService;
 import com.knowledgeflow.clients.entity.Client;
 import com.knowledgeflow.clients.exception.ClientNotFoundException;
 import com.knowledgeflow.clients.repository.ClientRepository;
 import com.knowledgeflow.common.error.ApiErrorCode;
 import com.knowledgeflow.common.error.BusinessException;
 import com.knowledgeflow.interactions.dto.AssistedInteractionAskRequest;
-import com.knowledgeflow.interactions.dto.AssistedInteractionCreateRequest;
 import com.knowledgeflow.interactions.dto.AssistedInteractionMessageResponse;
-import com.knowledgeflow.interactions.dto.AssistedInteractionPromoteRequest;
 import com.knowledgeflow.interactions.dto.AssistedInteractionResponse;
 import com.knowledgeflow.interactions.entity.AssistedInteraction;
 import com.knowledgeflow.interactions.entity.AssistedInteractionMessage;
@@ -23,75 +19,65 @@ import com.knowledgeflow.interactions.repository.AssistedInteractionMessageRepos
 import com.knowledgeflow.interactions.repository.AssistedInteractionRepository;
 import com.knowledgeflow.organizations.entity.Organization;
 import com.knowledgeflow.organizations.repository.OrganizationRepository;
-import com.knowledgeflow.users.entity.User;
-import com.knowledgeflow.users.repository.UserRepository;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Portal-facing assistive interaction service.
+ * All operations are scoped to the authenticated client — no org user involved.
+ */
 @Service
-public class AssistedInteractionService {
+public class PortalAssistedInteractionService {
 
     private final AssistedInteractionRepository interactionRepository;
     private final AssistedInteractionMessageRepository messageRepository;
     private final ClientRepository clientRepository;
     private final OrganizationRepository organizationRepository;
-    private final UserRepository userRepository;
     private final AIService aiService;
     private final EntitlementService entitlementService;
-    private final KnowledgeCaseService knowledgeCaseService;
 
-    public AssistedInteractionService(
+    public PortalAssistedInteractionService(
             AssistedInteractionRepository interactionRepository,
             AssistedInteractionMessageRepository messageRepository,
             ClientRepository clientRepository,
             OrganizationRepository organizationRepository,
-            UserRepository userRepository,
             AIService aiService,
-            EntitlementService entitlementService,
-            @Lazy KnowledgeCaseService knowledgeCaseService
-    ) {
+            EntitlementService entitlementService) {
         this.interactionRepository = interactionRepository;
         this.messageRepository = messageRepository;
         this.clientRepository = clientRepository;
         this.organizationRepository = organizationRepository;
-        this.userRepository = userRepository;
         this.aiService = aiService;
         this.entitlementService = entitlementService;
-        this.knowledgeCaseService = knowledgeCaseService;
     }
 
     @Transactional
-    public AssistedInteractionResponse create(UUID organizationId, UUID userId,
-                                               AssistedInteractionCreateRequest request) {
+    public AssistedInteractionResponse create(UUID clientId, UUID organizationId, String title) {
         Organization organization = findOrganization(organizationId);
-        Client client = clientRepository.findByIdAndOrganizationIdAndDeletedAtIsNull(
-                        request.clientId(), organizationId)
-                .orElseThrow(() -> new ClientNotFoundException(request.clientId()));
-        User user = findUser(userId);
+        Client client = clientRepository.findByIdAndOrganizationIdAndDeletedAtIsNull(clientId, organizationId)
+                .orElseThrow(() -> new ClientNotFoundException(clientId));
 
         AssistedInteraction interaction = interactionRepository.save(
-                new AssistedInteraction(organization, client, user, request.title()));
+                new AssistedInteraction(organization, client, title));
 
         return toResponse(interaction);
     }
 
     @Transactional
-    public AssistedInteractionMessageResponse ask(UUID organizationId, UUID userId,
+    public AssistedInteractionMessageResponse ask(UUID clientId, UUID organizationId,
                                                    UUID interactionId,
                                                    AssistedInteractionAskRequest request) {
-        AssistedInteraction interaction = findInteraction(organizationId, interactionId);
+        AssistedInteraction interaction = findPortalInteraction(interactionId, organizationId, clientId);
 
         if (interaction.getStatus() != AssistedInteractionStatus.OPEN) {
             throw new BusinessException(ApiErrorCode.CONFLICT,
                     "Interaction is no longer open (status: " + interaction.getStatus() + ")");
         }
 
-        // Guard: check plan + record consumption atomically
         entitlementService.checkAndRecordInteraction(organizationId, interactionId);
 
         AIResponse aiResponse = aiService.complete(new AIRequest(request.question()));
@@ -109,59 +95,28 @@ public class AssistedInteractionService {
     }
 
     @Transactional(readOnly = true)
-    public AssistedInteractionResponse get(UUID organizationId, UUID interactionId) {
-        return toResponse(findInteraction(organizationId, interactionId));
+    public Page<AssistedInteractionResponse> list(UUID clientId, UUID organizationId, Pageable pageable) {
+        return interactionRepository
+                .findByOrganizationIdAndClientIdOrderByCreatedAtDesc(organizationId, clientId, pageable)
+                .map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
-    public Page<AssistedInteractionResponse> list(UUID organizationId, UUID clientId, Pageable pageable) {
-        Page<AssistedInteraction> page = clientId != null
-                ? interactionRepository.findByOrganizationIdAndClientId(organizationId, clientId, pageable)
-                : interactionRepository.findByOrganizationId(organizationId, pageable);
-        return page.map(this::toResponse);
-    }
-
-    @Transactional(readOnly = true)
-    public List<AssistedInteractionMessageResponse> listMessages(UUID organizationId, UUID interactionId) {
-        findInteraction(organizationId, interactionId); // scope check
+    public List<AssistedInteractionMessageResponse> listMessages(UUID clientId, UUID organizationId,
+                                                                  UUID interactionId) {
+        findPortalInteraction(interactionId, organizationId, clientId); // scope check
         return messageRepository.findByInteractionIdOrderByCreatedAtAsc(interactionId)
                 .stream().map(this::toMessageResponse).toList();
     }
 
-    @Transactional
-    public KnowledgeCaseDetailResponse promote(UUID organizationId, UUID userId,
-                                                UUID interactionId,
-                                                AssistedInteractionPromoteRequest request) {
-        AssistedInteraction interaction = findInteraction(organizationId, interactionId);
-
-        if (interaction.getStatus() != AssistedInteractionStatus.OPEN) {
-            throw new BusinessException(ApiErrorCode.CONFLICT,
-                    "Only OPEN interactions can be promoted (current status: " + interaction.getStatus() + ")");
-        }
-
-        String title = request.title() != null ? request.title() : interaction.getTitle();
-
-        KnowledgeCaseDetailResponse knowledgeCase = knowledgeCaseService.createFromInteraction(
-                organizationId, userId,
-                interaction.getClient().getId(),
-                title,
-                request.question(),
-                request.content()
-        );
-
-        interaction.promote(knowledgeCase.id());
-        return knowledgeCase;
-    }
-
     // -------------------------------------------------------------------------
 
-    AssistedInteraction findInteraction(UUID organizationId, UUID interactionId) {
-        return interactionRepository.findByIdAndOrganizationId(interactionId, organizationId)
+    private AssistedInteraction findPortalInteraction(UUID interactionId, UUID organizationId, UUID clientId) {
+        return interactionRepository
+                .findByIdAndOrganizationIdAndClientId(interactionId, organizationId, clientId)
                 .orElseThrow(() -> new BusinessException(ApiErrorCode.NOT_FOUND,
-                        "Assisted interaction not found: " + interactionId));
+                        "Interaction not found: " + interactionId));
     }
-
-    // -------------------------------------------------------------------------
 
     private Organization findOrganization(UUID organizationId) {
         return organizationRepository.findById(organizationId)
@@ -169,18 +124,12 @@ public class AssistedInteractionService {
                         "Organization not found: " + organizationId));
     }
 
-    private User findUser(UUID userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ApiErrorCode.FORBIDDEN,
-                        "Authenticated user is invalid"));
-    }
-
     private AssistedInteractionResponse toResponse(AssistedInteraction i) {
         return new AssistedInteractionResponse(
                 i.getId(),
                 i.getOrganization().getId(),
                 i.getClient().getId(),
-                i.getCreatedByUser() != null ? i.getCreatedByUser().getId() : null,
+                null, // no org user for portal-initiated interactions
                 i.getTitle(),
                 i.getStatus(),
                 i.getPromotedCaseId(),

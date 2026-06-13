@@ -23,4 +23,24 @@ public interface KnowledgeCaseRepository extends JpaRepository<KnowledgeCase, UU
             KnowledgeCaseStatus status,
             Pageable pageable
     );
+
+    // -------------------------------------------------------------------------
+    // Portal — scoped to a specific client
+    // -------------------------------------------------------------------------
+
+    @EntityGraph(attributePaths = {"organization", "client"})
+    Page<KnowledgeCase> findByClientIdAndOrganizationIdAndStatusAndDeletedAtIsNull(
+            UUID clientId,
+            UUID organizationId,
+            KnowledgeCaseStatus status,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"organization", "client"})
+    Optional<KnowledgeCase> findByIdAndClientIdAndOrganizationIdAndStatusAndDeletedAtIsNull(
+            UUID id,
+            UUID clientId,
+            UUID organizationId,
+            KnowledgeCaseStatus status
+    );
 }
