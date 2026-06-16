@@ -200,7 +200,7 @@
 
 <header>
   <h1>KnowledgeFlow</h1>
-  <span>POC — localhost:8080</span>
+  <span>POC — localhost:8081</span>
 </header>
 
 <div class="panels">
@@ -231,16 +231,80 @@
 
 </div>
 
+<!-- Modal: Setup -->
+<div class="modal-overlay" id="modal-setup">
+  <div class="modal" style="width:460px">
+    <h3>Setup inicial</h3>
+    <p style="font-size:12px;color:#64748b">Cria um cliente, um utilizador de portal e ativa o billing numa só ação.</p>
+    <div class="form-group"><label>Nome do cliente</label><input id="su-client-name" placeholder="Ex: Empresa ABC, Lda."></div>
+    <div class="form-group"><label>Email do portal user</label><input id="su-portal-email" placeholder="cliente@empresa.com" type="email"></div>
+    <div class="form-group"><label>Password do portal user</label><input id="su-portal-pass" placeholder="mínimo 8 caracteres" type="password"></div>
+    <div class="form-group"><label>Nome do plano de billing</label><input id="su-plan-name" value="Plano Base"></div>
+    <div class="form-group"><label>Máx. casos</label><input id="su-plan-cases" value="100" type="number"></div>
+    <div class="form-group"><label>Máx. interações AI</label><input id="su-plan-ai" value="500" type="number"></div>
+    <div id="su-log" style="font-size:12px;color:#64748b;min-height:20px;white-space:pre-line"></div>
+    <div id="su-error"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('modal-setup')">Fechar</button>
+      <button class="btn-primary" id="su-btn" onclick="runSetup()">Configurar tudo</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: New Client Portal User -->
+<div class="modal-overlay" id="modal-portal-user">
+  <div class="modal">
+    <h3>Novo utilizador de portal</h3>
+    <div class="form-group"><label>Cliente</label>
+      <select id="pu-client" style="background:#1e293b;border:1px solid #334155;border-radius:6px;padding:9px 12px;color:#e2e8f0;font-size:14px;outline:none"></select>
+    </div>
+    <div class="form-group"><label>Email</label><input id="pu-email" placeholder="cliente@empresa.com" type="email"></div>
+    <div class="form-group"><label>Password</label><input id="pu-pass" placeholder="mínimo 8 caracteres" type="password"></div>
+    <div id="pu-error"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('modal-portal-user')">Cancelar</button>
+      <button class="btn-primary" onclick="createPortalUser()">Criar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal: New Case -->
 <div class="modal-overlay" id="modal-case">
   <div class="modal">
     <h3>Novo Caso</h3>
+    <div class="form-group"><label>Cliente</label>
+      <select id="nc-client" style="background:#1e293b;border:1px solid #334155;border-radius:6px;padding:9px 12px;color:#e2e8f0;font-size:14px;outline:none"></select>
+    </div>
     <div class="form-group"><label>Título</label><input id="nc-title" placeholder="Título do caso"></div>
     <div class="form-group"><label>Pergunta</label><input id="nc-question" placeholder="Questão principal"></div>
     <div id="nc-error"></div>
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeModal('modal-case')">Cancelar</button>
       <button class="btn-primary" onclick="createCase()">Criar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Activate Billing Plan -->
+<div class="modal-overlay" id="modal-billing">
+  <div class="modal">
+    <h3>Ativar plano de billing</h3>
+    <div class="form-group"><label>Nome do plano</label><input id="bp-name" value="Plano Base"></div>
+    <div class="form-group"><label>Tipo</label>
+      <select id="bp-type" style="background:#1e293b;border:1px solid #334155;border-radius:6px;padding:9px 12px;color:#e2e8f0;font-size:14px;outline:none">
+        <option value="MONTHLY">MONTHLY — subscrição mensal</option>
+        <option value="TICKET">TICKET — acesso por caso</option>
+        <option value="INTERACTIONS">INTERACTIONS — pay per use</option>
+        <option value="HYBRID">HYBRID — base + excesso</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Máx. casos</label><input id="bp-cases" value="100" type="number"></div>
+    <div class="form-group"><label>Máx. interações AI/mês</label><input id="bp-ai" value="500" type="number"></div>
+    <div id="bp-log" style="font-size:12px;color:#64748b;min-height:16px;white-space:pre-line"></div>
+    <div id="bp-error"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeModal('modal-billing')">Fechar</button>
+      <button class="btn-primary" id="bp-btn" onclick="activateBilling()">Ativar</button>
     </div>
   </div>
 </div>
@@ -259,7 +323,7 @@
 </div>
 
 <script>
-const API = 'http://localhost:8080/api/v1';
+const API = 'http://localhost:8081/api/v1';
 
 // ── State ──────────────────────────────────────────────────────────────────
 const bo = { token: null, user: null, cases: [], clients: [] };
@@ -315,12 +379,57 @@ function renderBO() {
       </div>
       <button class="btn-logout" onclick="boLogout()">Sair</button>
     </div>
+  `;
+
+  // Setup banner if no clients yet
+  if (bo.clients.length === 0) {
+    html += `
+      <div class="info" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <span>Ainda não há clientes. Faz o setup inicial para começar.</span>
+        <button class="btn-primary btn-sm" onclick="openSetupModal()">Setup →</button>
+      </div>
+    `;
+  }
+
+  // Clients section
+  html += `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="section-title">Clientes (${bo.clients.length})</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-ghost btn-sm" onclick="loadBoClients().then(renderBO)">↻</button>
+        <button class="btn-ghost btn-sm" onclick="openNewPortalUserModal()">+ Portal user</button>
+        <button class="btn-primary btn-sm" onclick="openSetupModal()">Setup</button>
+      </div>
+    </div>
+  `;
+
+  if (bo.clients.length === 0) {
+    html += `<div class="empty">Nenhum cliente.</div>`;
+  } else {
+    bo.clients.forEach(c => {
+      html += `
+        <div class="card">
+          <div class="card-row">
+            <div class="card-title">${escHtml(c.name)}</div>
+            <span style="font-size:11px;color:#475569">${c.id.slice(0,8)}…</span>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  html += `
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="section-title">Billing</div>
+      <button class="btn-ghost btn-sm" onclick="openModal('modal-billing')">Ativar plano</button>
+    </div>
+    <div class="info" style="font-size:12px">Se vires "No active commercial plan", clica em <strong>Ativar plano</strong>.</div>
 
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div class="section-title">Casos (${bo.cases.length})</div>
       <div style="display:flex;gap:6px">
-        <button class="btn-ghost btn-sm" onclick="loadBoCases()">↻ Atualizar</button>
-        <button class="btn-primary btn-sm" onclick="openModal('modal-case')">+ Novo caso</button>
+        <button class="btn-ghost btn-sm" onclick="loadBoCases().then(renderBO)">↻ Atualizar</button>
+        <button class="btn-primary btn-sm" onclick="openCaseModal()">+ Novo caso</button>
       </div>
     </div>
   `;
@@ -401,13 +510,21 @@ async function loadBoClients() {
   } catch(e) { bo.clients = []; }
 }
 
+async function openCaseModal() {
+  await loadBoClients();
+  const sel = document.getElementById('nc-client');
+  if (bo.clients.length === 0) { alert('Cria primeiro um cliente via Setup.'); return; }
+  sel.innerHTML = bo.clients.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+  document.getElementById('nc-error').innerHTML = '';
+  openModal('modal-case');
+}
+
 async function createCase() {
+  const clientId = document.getElementById('nc-client').value;
   const title = document.getElementById('nc-title').value.trim();
   const question = document.getElementById('nc-question').value.trim();
   document.getElementById('nc-error').innerHTML = '';
   if (!title || !question) { document.getElementById('nc-error').innerHTML = '<div class="error">Preenche todos os campos.</div>'; return; }
-  const clientId = bo.clients[0]?.id;
-  if (!clientId) { document.getElementById('nc-error').innerHTML = '<div class="error">Cria primeiro um cliente via API.</div>'; return; }
   try {
     await api('POST', '/knowledge-cases', { clientId, title, question }, bo.token);
     closeModal('modal-case');
@@ -635,6 +752,118 @@ async function sendQuestion() {
   } catch(e) {
     alert('Erro: ' + e.message);
     if (document.getElementById('chat-q')) document.getElementById('chat-q').disabled = false;
+  }
+}
+
+// ── BILLING ────────────────────────────────────────────────────────────────
+async function activateBilling() {
+  const name = document.getElementById('bp-name').value.trim();
+  const planType = document.getElementById('bp-type').value;
+  const maxCases = parseInt(document.getElementById('bp-cases').value) || 100;
+  const maxAi = parseInt(document.getElementById('bp-ai').value) || 500;
+  const log = document.getElementById('bp-log');
+  const btn = document.getElementById('bp-btn');
+  document.getElementById('bp-error').innerHTML = '';
+  log.textContent = '';
+  btn.disabled = true;
+  try {
+    log.textContent = '1/2 — A criar plano…';
+    const plan = await api('POST', '/billing/plans', { name, planType, maxCases, maxInteractions: maxAi }, bo.token);
+    log.textContent += '\n2/2 — A ativar na organização…';
+    await api('POST', `/billing/organizations/${bo.user.organizationId}/plan`, { planId: plan.id, startsAt: new Date().toISOString() }, bo.token);
+    log.textContent += '\n✅ Plano ativo! Já podes criar casos.';
+  } catch(e) {
+    document.getElementById('bp-error').innerHTML = `<div class="error">${e.message}</div>`;
+    btn.disabled = false;
+  }
+}
+
+// ── SETUP ──────────────────────────────────────────────────────────────────
+function openSetupModal() {
+  document.getElementById('su-log').textContent = '';
+  document.getElementById('su-error').innerHTML = '';
+  document.getElementById('su-btn').disabled = false;
+  openModal('modal-setup');
+}
+
+async function runSetup() {
+  const clientName = document.getElementById('su-client-name').value.trim();
+  const portalEmail = document.getElementById('su-portal-email').value.trim();
+  const portalPass = document.getElementById('su-portal-pass').value;
+  const planName = document.getElementById('su-plan-name').value.trim();
+  const maxCases = parseInt(document.getElementById('su-plan-cases').value) || 100;
+  const maxAi = parseInt(document.getElementById('su-plan-ai').value) || 500;
+
+  if (!clientName || !portalEmail || !portalPass) {
+    document.getElementById('su-error').innerHTML = '<div class="error">Preenche nome do cliente, email e password.</div>';
+    return;
+  }
+
+  const log = document.getElementById('su-log');
+  const btn = document.getElementById('su-btn');
+  btn.disabled = true;
+  document.getElementById('su-error').innerHTML = '';
+
+  const step = (msg) => { log.textContent += msg + '\n'; };
+
+  try {
+    // 1. Create client
+    step('1/4 — A criar cliente…');
+    const client = await api('POST', '/clients', { name: clientName }, bo.token);
+    step(`✓ Cliente criado: ${client.id.slice(0,8)}…`);
+
+    // 2. Create portal user
+    step('2/4 — A criar utilizador de portal…');
+    await api('POST', `/clients/${client.id}/portal-users`, { email: portalEmail, password: portalPass }, bo.token);
+    step(`✓ Portal user criado: ${portalEmail}`);
+
+    // 3. Create billing plan
+    step('3/4 — A criar plano de billing…');
+    const plan = await api('POST', '/billing/plans', {
+      name: planName,
+      planType: 'MONTHLY',
+      maxCases,
+      maxInteractions: maxAi
+    }, bo.token);
+    step(`✓ Plano criado: ${plan.id.slice(0,8)}…`);
+
+    // 4. Assign plan to org
+    step('4/4 — A ativar plano na organização…');
+    await api('POST', `/billing/organizations/${bo.user.organizationId}/plan`, { planId: plan.id, startsAt: new Date().toISOString() }, bo.token);
+    step(`✓ Plano ativo na organização!`);
+
+    step('\n✅ Setup completo! Já podes criar casos.');
+    await loadBoClients();
+    renderBO();
+
+    // Auto-fill portal org
+    const porgField = document.getElementById('portal-org');
+    if (porgField) porgField.value = bo.user.organizationId;
+  } catch(e) {
+    document.getElementById('su-error').innerHTML = `<div class="error">${e.message}</div>`;
+    btn.disabled = false;
+  }
+}
+
+function openNewPortalUserModal() {
+  const sel = document.getElementById('pu-client');
+  sel.innerHTML = bo.clients.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+  document.getElementById('pu-error').innerHTML = '';
+  openModal('modal-portal-user');
+}
+
+async function createPortalUser() {
+  const clientId = document.getElementById('pu-client').value;
+  const email = document.getElementById('pu-email').value.trim();
+  const password = document.getElementById('pu-pass').value;
+  if (!email || !password) { document.getElementById('pu-error').innerHTML = '<div class="error">Preenche email e password.</div>'; return; }
+  try {
+    await api('POST', `/clients/${clientId}/portal-users`, { email, password }, bo.token);
+    closeModal('modal-portal-user');
+    document.getElementById('pu-email').value = '';
+    document.getElementById('pu-pass').value = '';
+  } catch(e) {
+    document.getElementById('pu-error').innerHTML = `<div class="error">${e.message}</div>`;
   }
 }
 

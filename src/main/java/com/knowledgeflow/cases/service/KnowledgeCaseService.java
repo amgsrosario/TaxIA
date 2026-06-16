@@ -26,6 +26,7 @@ import com.knowledgeflow.cases.repository.KnowledgeCaseCommentRepository;
 import com.knowledgeflow.cases.repository.KnowledgeCaseRepository;
 import com.knowledgeflow.cases.repository.KnowledgeCaseVersionRepository;
 import com.knowledgeflow.organizations.entity.Organization;
+import com.knowledgeflow.rag.KnowledgeCaseEmbeddingIndexer;
 import com.knowledgeflow.users.entity.User;
 import com.knowledgeflow.users.repository.UserRepository;
 import java.util.List;
@@ -48,6 +49,7 @@ public class KnowledgeCaseService {
     private final KnowledgeCaseMapper knowledgeCaseMapper;
     private final AuditService auditService;
     private final EntitlementService entitlementService;
+    private final KnowledgeCaseEmbeddingIndexer embeddingIndexer;
 
     public KnowledgeCaseService(
             KnowledgeCaseRepository knowledgeCaseRepository,
@@ -57,7 +59,8 @@ public class KnowledgeCaseService {
             UserRepository userRepository,
             KnowledgeCaseMapper knowledgeCaseMapper,
             AuditService auditService,
-            EntitlementService entitlementService
+            EntitlementService entitlementService,
+            KnowledgeCaseEmbeddingIndexer embeddingIndexer
     ) {
         this.knowledgeCaseRepository = knowledgeCaseRepository;
         this.knowledgeCaseVersionRepository = knowledgeCaseVersionRepository;
@@ -67,6 +70,7 @@ public class KnowledgeCaseService {
         this.knowledgeCaseMapper = knowledgeCaseMapper;
         this.auditService = auditService;
         this.entitlementService = entitlementService;
+        this.embeddingIndexer = embeddingIndexer;
     }
 
     @Transactional
@@ -174,6 +178,8 @@ public class KnowledgeCaseService {
         saveCommentIfPresent(knowledgeCase, user, AuditAction.KNOWLEDGE_CASE_VALIDATED, request);
         auditService.record(organizationId, userId, AuditAction.KNOWLEDGE_CASE_VALIDATED,
                 ENTITY_TYPE, knowledgeCaseId);
+        embeddingIndexer.indexValidatedCase(knowledgeCase.getId(), knowledgeCase.getTitle(),
+                knowledgeCase.getQuestion(), knowledgeCase.getContent());
         return knowledgeCaseMapper.toDetailResponse(knowledgeCase);
     }
 

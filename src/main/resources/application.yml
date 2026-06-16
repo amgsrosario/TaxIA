@@ -2,7 +2,7 @@ spring:
   application:
     name: knowledgeflow-backend
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:15433/knowledgeflow}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:15432/knowledgeflow}
     username: ${SPRING_DATASOURCE_USERNAME:knowledgeflow}
     password: ${SPRING_DATASOURCE_PASSWORD:knowledgeflow}
   flyway:
@@ -19,7 +19,7 @@ spring:
           time_zone: UTC
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8081}
 
 management:
   endpoints:
@@ -43,3 +43,12 @@ knowledgeflow:
       issuer: ${KNOWLEDGEFLOW_JWT_ISSUER:knowledgeflow-backend}
       secret: ${KNOWLEDGEFLOW_JWT_SECRET:change-this-development-secret-change-this-development-secret}
       access-token-ttl-minutes: ${KNOWLEDGEFLOW_JWT_ACCESS_TOKEN_TTL_MINUTES:60}
+  ai:
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      model: ${ANTHROPIC_MODEL:claude-haiku-4-5-20251001}
+      max-tokens: ${ANTHROPIC_MAX_TOKENS:1024}
+  rag:
+    embeddings:
+      base-url: ${EMBEDDINGS_SERVICE_URL:http://localhost:8000}
+      top-k: ${RAG_TOP_K:5}

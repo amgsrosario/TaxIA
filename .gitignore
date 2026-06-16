@@ -6,3 +6,5 @@ target/
 .env.*
 !.env.example
 *.log
+application-local.yml
+Chaves*.txt

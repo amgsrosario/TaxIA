@@ -2,13 +2,13 @@ name: knowledgeflow
 
 services:
   db:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: knowledgeflow
       POSTGRES_USER: knowledgeflow
       POSTGRES_PASSWORD: knowledgeflow
     ports:
-      - "15433:5432"
+      - "15432:5432"
     volumes:
       - knowledgeflow-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -29,6 +29,19 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  embeddings:
+    build: ./embeddings-service
+    environment:
+      MODEL_NAME: intfloat/multilingual-e5-base
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
 volumes:
   knowledgeflow-postgres-data:

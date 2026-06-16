@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaxIA — Q&A Builder</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const API = 'http://localhost:8081/api/v1';
+
+const styles = {
+  app: { display: 'flex', flexDirection: 'column', height: '100vh' },
+  header: { background: '#1e293b', borderBottom: '1px solid #334155', padding: '12px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  h1: { fontSize: 16, fontWeight: 700, color: '#f1f5f9' },
+  tag: { fontSize: 12, color: '#64748b', background: '#0f172a', padding: '2px 8px', borderRadius: 4 },
+  body: { flex: 1, display: 'grid', gridTemplateColumns: '1fr 380px', overflow: 'hidden' },
+  main: { display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid #1e293b' },
+  sidebar: { background: '#0a0f1e', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
+  sectionHead: { padding: '14px 20px', background: '#1e293b', borderBottom: '1px solid #334155', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  chat: { flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 },
+  msgWrap: { display: 'flex', flexDirection: 'column', gap: 8 },
+  msgQ: { alignSelf: 'flex-end', background: '#1d4ed8', color: '#e0f2fe', borderRadius: '12px 12px 2px 12px', padding: '10px 14px', fontSize: 14, maxWidth: '75%' },
+  msgA: { alignSelf: 'flex-start', background: '#1e293b', border: '1px solid #334155', color: '#cbd5e1', borderRadius: '12px 12px 12px 2px', padding: '10px 14px', fontSize: 14, maxWidth: '85%', whiteSpace: 'pre-wrap', lineHeight: 1.6 },
+  msgMeta: { fontSize: 11, color: '#475569', alignSelf: 'flex-start', paddingLeft: 4 },
+  inputArea: { padding: 16, borderTop: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: 10 },
+  textarea: { background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 14, resize: 'none', outline: 'none', fontFamily: 'inherit' },
+  inputRow: { display: 'flex', gap: 8, alignItems: 'flex-end' },
+  btn: { padding: '9px 18px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  btnPrimary: { background: '#3b82f6', color: 'white' },
+  btnSm: { padding: '5px 12px', fontSize: 12, borderRadius: 5, border: 'none', cursor: 'pointer', fontWeight: 600 },
+  btnSave: { background: '#059669', color: 'white' },
+  btnGhost: { background: '#1e293b', color: '#94a3b8', border: '1px solid #334155' },
+  btnDanger: { background: '#dc2626', color: 'white' },
+  card: { background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 6 },
+  cardQ: { fontSize: 13, fontWeight: 600, color: '#f1f5f9' },
+  cardA: { fontSize: 12, color: '#64748b', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' },
+  savedList: { flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 },
+  loginWrap: { display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 },
+  loginBox: { background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 32, width: 360, display: 'flex', flexDirection: 'column', gap: 16 },
+  label: { fontSize: 12, color: '#64748b', fontWeight: 500, marginBottom: 4 },
+  input: { background: '#0f172a', border: '1px solid #334155', borderRadius: 6, padding: '9px 12px', color: '#e2e8f0', fontSize: 14, outline: 'none', width: '100%' },
+  error: { background: '#450a0a', border: '1px solid #991b1b', color: '#f87171', padding: '8px 12px', borderRadius: 6, fontSize: 12 },
+  sysPromptToggle: { fontSize: 11, color: '#3b82f6', cursor: 'pointer', userSelect: 'none' },
+  spinner: { display: 'inline-block', width: 16, height: 16, border: '2px solid #334155', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 0.7s linear infinite' },
+};
+
+// inject spinner animation
+const styleEl = document.createElement('style');
+styleEl.textContent = `@keyframes spin { to { transform: rotate(360deg); } }`;
+document.head.appendChild(styleEl);
+
+function App() {
+  const [token, setToken] = React.useState(null);
+  const [email, setEmail] = React.useState('');
+  const [pass, setPass] = React.useState('');
+  const [loginErr, setLoginErr] = React.useState('');
+  const [messages, setMessages] = React.useState([]);
+  const [question, setQuestion] = React.useState('');
+  const [systemPrompt, setSystemPrompt] = React.useState('És um assistente especializado em direito fiscal português e europeu.\nResponde sempre em português de Portugal, de forma clara, precisa e profissional.\nQuando não tiveres certeza, indica-o explicitamente e recomenda consulta a um técnico.');
+  const [showSys, setShowSys] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [saved, setSaved] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem('taxia_qa') || '[]'); } catch { return []; }
+  });
+  const chatRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+  }, [messages, loading]);
+
+  async function login() {
+    setLoginErr('');
+    try {
+      const res = await fetch(`${API}/auth/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Erro de autenticação');
+      setToken(json.accessToken);
+    } catch(e) { setLoginErr(e.message); }
+  }
+
+  async function ask() {
+    const q = question.trim();
+    if (!q || loading) return;
+    setQuestion('');
+    setMessages(m => [...m, { q, a: null, tokens: null }]);
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/admin/ai/ask`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ question: q, systemPrompt })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || `HTTP ${res.status}`);
+      setMessages(m => {
+        const copy = [...m];
+        copy[copy.length - 1] = { q, a: json.answer, tokens: { in: json.inputTokens, out: json.outputTokens, model: json.model } };
+        return copy;
+      });
+    } catch(e) {
+      setMessages(m => {
+        const copy = [...m];
+        copy[copy.length - 1] = { q, a: '⚠️ Erro: ' + e.message, tokens: null };
+        return copy;
+      });
+    }
+    setLoading(false);
+  }
+
+  function saveQA(msg) {
+    const entry = { id: Date.now(), q: msg.q, a: msg.a, savedAt: new Date().toISOString() };
+    const next = [entry, ...saved];
+    setSaved(next);
+    localStorage.setItem('taxia_qa', JSON.stringify(next));
+  }
+
+  function deleteQA(id) {
+    const next = saved.filter(s => s.id !== id);
+    setSaved(next);
+    localStorage.setItem('taxia_qa', JSON.stringify(next));
+  }
+
+  function exportQA() {
+    const blob = new Blob([JSON.stringify(saved, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `taxia-qa-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+  }
+
+  if (!token) {
+    return (
+      <div style={{...styles.app}}>
+        <div style={styles.header}>
+          <span style={styles.h1}>TaxIA — Q&A Builder</span>
+          <span style={styles.tag}>Base de conhecimento</span>
+        </div>
+        <div style={styles.loginWrap}>
+          <div style={styles.loginBox}>
+            <div style={{fontSize: 15, fontWeight: 700, color: '#f1f5f9'}}>Login de administrador</div>
+            <div>
+              <div style={styles.label}>Email</div>
+              <input style={styles.input} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@empresa.com" />
+            </div>
+            <div>
+              <div style={styles.label}>Password</div>
+              <input style={styles.input} type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••"
+                onKeyDown={e => e.key === 'Enter' && login()} />
+            </div>
+            {loginErr && <div style={styles.error}>{loginErr}</div>}
+            <button style={{...styles.btn, ...styles.btnPrimary, width: '100%'}} onClick={login}>Entrar</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.app}>
+      <div style={styles.header}>
+        <span style={styles.h1}>TaxIA — Q&A Builder</span>
+        <div style={{display:'flex',gap:12,alignItems:'center'}}>
+          <span style={styles.tag}>{saved.length} Q&A guardados</span>
+          <button style={{...styles.btnSm, ...styles.btnGhost}} onClick={() => setToken(null)}>Sair</button>
+        </div>
+      </div>
+
+      <div style={styles.body}>
+        {/* Chat */}
+        <div style={styles.main}>
+          <div style={styles.chat} ref={chatRef}>
+            {messages.length === 0 && (
+              <div style={{textAlign:'center',color:'#475569',fontSize:14,padding:'48px 0'}}>
+                Faz a primeira pergunta para começar a construir a base de conhecimento.
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} style={styles.msgWrap}>
+                <div style={styles.msgQ}>{m.q}</div>
+                {m.a === null && loading && i === messages.length - 1
+                  ? <div style={{...styles.msgA, color:'#475569'}}><span style={styles.spinner}></span> A pensar…</div>
+                  : m.a && <>
+                      <div style={styles.msgA}>{m.a}</div>
+                      {m.tokens && (
+                        <div style={{...styles.msgMeta, display:'flex',gap:12,alignItems:'center'}}>
+                          <span>{m.tokens.model} · {m.tokens.in}↑ {m.tokens.out}↓ tokens</span>
+                          <button style={{...styles.btnSm, ...styles.btnSave, padding:'2px 8px', fontSize:11}}
+                            onClick={() => saveQA(m)}>Guardar Q&A</button>
+                        </div>
+                      )}
+                    </>
+                }
+              </div>
+            ))}
+          </div>
+
+          <div style={styles.inputArea}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontSize:11,color:'#475569'}}>System prompt</span>
+              <span style={styles.sysPromptToggle} onClick={() => setShowSys(s => !s)}>
+                {showSys ? 'Fechar ▲' : 'Editar ▼'}
+              </span>
+            </div>
+            {showSys && (
+              <textarea style={{...styles.textarea, fontSize:12, color:'#64748b'}}
+                rows={4} value={systemPrompt} onChange={e => setSystemPrompt(e.target.value)} />
+            )}
+            <div style={styles.inputRow}>
+              <textarea style={{...styles.textarea, flex:1}}
+                rows={2} placeholder="Faz uma pergunta fiscal…" value={question}
+                onChange={e => setQuestion(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); } }} />
+              <button style={{...styles.btn, ...styles.btnPrimary}} onClick={ask} disabled={loading}>
+                {loading ? '…' : 'Enviar'}
+              </button>
+            </div>
+            <div style={{fontSize:11,color:'#334155'}}>Enter para enviar · Shift+Enter para nova linha</div>
+          </div>
+        </div>
+
+        {/* Sidebar — saved Q&A */}
+        <div style={styles.sidebar}>
+          <div style={styles.sectionHead}>
+            <span>Q&A Guardados ({saved.length})</span>
+            {saved.length > 0 && (
+              <button style={{...styles.btnSm, background:'#1e293b', color:'#34d399', border:'1px solid #334155'}}
+                onClick={exportQA}>Exportar JSON</button>
+            )}
+          </div>
+          <div style={styles.savedList}>
+            {saved.length === 0 && (
+              <div style={{textAlign:'center',color:'#334155',fontSize:13,padding:'32px 0'}}>
+                Nenhum Q&A guardado ainda.<br/>Guarda as melhores respostas.
+              </div>
+            )}
+            {saved.map(s => (
+              <div key={s.id} style={styles.card}>
+                <div style={styles.cardQ}>{s.q}</div>
+                <div style={styles.cardA}>{s.a}</div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
+                  <span style={{fontSize:11,color:'#334155'}}>{new Date(s.savedAt).toLocaleDateString('pt')}</span>
+                  <button style={{...styles.btnSm, ...styles.btnDanger, padding:'2px 8px', fontSize:11}}
+                    onClick={() => deleteQA(s.id)}>Remover</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
