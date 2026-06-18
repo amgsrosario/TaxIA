@@ -47,12 +47,12 @@ knowledgeflow:
     primary-provider: ${AI_PRIMARY_PROVIDER:anthropic}
     providers:
       anthropic:
-        enabled: true
+        enabled: ${ANTHROPIC_ENABLED:true}
         api-key: ${ANTHROPIC_API_KEY:}
         model: ${ANTHROPIC_MODEL:claude-haiku-4-5-20251001}
         max-tokens: ${ANTHROPIC_MAX_TOKENS:1024}
       stub:
-        enabled: false
+        enabled: ${STUB_AI_ENABLED:false}
   rag:
     embeddings:
       base-url: ${EMBEDDINGS_SERVICE_URL:http://localhost:8000}

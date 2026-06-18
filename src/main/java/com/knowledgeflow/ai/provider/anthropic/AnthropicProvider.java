@@ -98,8 +98,7 @@ public class AnthropicProvider implements AIProvider {
                             })
                     .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
                             (req, res) -> {
-                                String error = new String(res.getBody().readAllBytes());
-                                log.error("Anthropic API error {}: {}", res.getStatusCode(), error);
+                                log.error("Anthropic API error — status: {}", res.getStatusCode());
                                 throw new AIProviderException("Anthropic API error: " + res.getStatusCode());
                             })
                     .body(MessagesResponse.class);

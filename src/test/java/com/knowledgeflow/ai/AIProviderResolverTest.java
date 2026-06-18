@@ -25,11 +25,10 @@ class AIProviderResolverTest {
     }
 
     @Test
-    void throwsWhenProviderNotEnabled() {
+    void constructorThrowsWhenPrimaryProviderNotInMap() {
         AIProperties props = new AIProperties("openai", Map.of());
-        AIProviderResolver resolver = new AIProviderResolver(Map.of(), props);
 
-        assertThatThrownBy(resolver::resolve)
+        assertThatThrownBy(() -> new AIProviderResolver(Map.of(), props))
                 .isInstanceOf(AIConfigurationException.class)
                 .hasMessageContaining("openai");
     }
@@ -52,12 +51,23 @@ class AIProviderResolverTest {
     }
 
     @Test
-    void errorMessageNamesMissingProvider() {
-        AIProperties props = new AIProperties("nonexistent", Map.of());
-        AIProviderResolver resolver = new AIProviderResolver(Map.of(), props);
+    void errorMessageNamesMissingProviderAndListsAvailable() {
+        StubAIProvider stub = new StubAIProvider();
+        AIProperties props = new AIProperties("openai", Map.of());
 
-        assertThatThrownBy(resolver::resolve)
+        assertThatThrownBy(() -> new AIProviderResolver(Map.of("stub", stub), props))
                 .isInstanceOf(AIConfigurationException.class)
-                .hasMessageContaining("nonexistent");
+                .hasMessageContaining("openai")
+                .hasMessageContaining("stub");
+    }
+
+    @Test
+    void errorMessageIndicatesNoProvidersWhenMapIsEmpty() {
+        AIProperties props = new AIProperties("anthropic", Map.of());
+
+        assertThatThrownBy(() -> new AIProviderResolver(Map.of(), props))
+                .isInstanceOf(AIConfigurationException.class)
+                .hasMessageContaining("anthropic")
+                .hasMessageContaining("nenhum provider");
     }
 }

@@ -1,0 +1,8 @@
+knowledgeflow:
+  ai:
+    primary-provider: stub
+    providers:
+      anthropic:
+        enabled: false
+      stub:
+        enabled: true

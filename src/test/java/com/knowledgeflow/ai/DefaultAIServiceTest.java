@@ -1,6 +1,7 @@
 package com.knowledgeflow.ai;
 
 import com.knowledgeflow.ai.exception.AIAuthenticationException;
+import com.knowledgeflow.ai.exception.AIConfigurationException;
 import com.knowledgeflow.ai.exception.AIProviderException;
 import com.knowledgeflow.ai.exception.AIRateLimitException;
 import com.knowledgeflow.common.error.BusinessException;
@@ -30,6 +31,8 @@ class DefaultAIServiceTest {
         service = new DefaultAIService(resolver);
     }
 
+    // ── Delegação e normalização ──────────────────────────────────────────────
+
     @Test
     void delegatesCompletelyToProvider() {
         AIResponse expected = new AIResponse("mock", "mock-model", "Resposta fiscal", 10, 20, 100L);
@@ -43,8 +46,6 @@ class DefaultAIServiceTest {
 
     @Test
     void doesNotImportProviderSdkClasses() {
-        // The service class must not reference Anthropic or OpenAI SDK types.
-        // Verified at compile time by the absence of those imports.
         assertThat(DefaultAIService.class.getDeclaredFields())
                 .noneMatch(f -> f.getType().getName().contains("anthropic")
                         || f.getType().getName().contains("openai"));
@@ -59,6 +60,23 @@ class DefaultAIServiceTest {
 
         verify(mockProvider).generate(argThat(req -> req.taskType() == AITaskType.STANDARD_RESPONSE));
     }
+
+    @Test
+    void responseNormalisationPreservesAllFields() {
+        AIResponse providerResponse = new AIResponse("anthropic", "claude-haiku", "Conteúdo", 50, 100, 350L);
+        when(mockProvider.generate(any())).thenReturn(providerResponse);
+
+        AIResponse result = service.complete(new AIRequest("Pergunta"));
+
+        assertThat(result.provider()).isEqualTo("anthropic");
+        assertThat(result.modelUsed()).isEqualTo("claude-haiku");
+        assertThat(result.content()).isEqualTo("Conteúdo");
+        assertThat(result.inputTokens()).isEqualTo(50);
+        assertThat(result.outputTokens()).isEqualTo(100);
+        assertThat(result.durationMillis()).isEqualTo(350L);
+    }
+
+    // ── Conversão de erros de provider ───────────────────────────────────────
 
     @Test
     void convertsAuthenticationExceptionToBusinessException() {
@@ -85,17 +103,42 @@ class DefaultAIServiceTest {
     }
 
     @Test
-    void responseNormalisationPreservesAllFields() {
-        AIResponse providerResponse = new AIResponse("anthropic", "claude-haiku", "Conteúdo", 50, 100, 350L);
-        when(mockProvider.generate(any())).thenReturn(providerResponse);
+    void businessExceptionPreservesOriginalCause() {
+        AIProviderException original = new AIAuthenticationException("Invalid key");
+        when(mockProvider.generate(any())).thenThrow(original);
 
-        AIResponse result = service.complete(new AIRequest("Pergunta"));
+        assertThatThrownBy(() -> service.complete(new AIRequest("Pergunta")))
+                .isInstanceOf(BusinessException.class)
+                .hasCause(original);
+    }
 
-        assertThat(result.provider()).isEqualTo("anthropic");
-        assertThat(result.modelUsed()).isEqualTo("claude-haiku");
-        assertThat(result.content()).isEqualTo("Conteúdo");
-        assertThat(result.inputTokens()).isEqualTo(50);
-        assertThat(result.outputTokens()).isEqualTo(100);
-        assertThat(result.durationMillis()).isEqualTo(350L);
+    @Test
+    void businessExceptionMessageIsStableAndDoesNotExposeInternalDetails() {
+        when(mockProvider.generate(any())).thenThrow(new AIProviderException("internal sdk detail xyz-123"));
+
+        assertThatThrownBy(() -> service.complete(new AIRequest("Pergunta")))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageNotContaining("internal sdk detail xyz-123");
+    }
+
+    // ── Tratamento distinto de AIConfigurationException ──────────────────────
+
+    @Test
+    void configurationExceptionPropagatesWithoutConversionToBusinessException() {
+        when(mockProvider.generate(any()))
+                .thenThrow(new AIConfigurationException("Model not configured"));
+
+        assertThatThrownBy(() -> service.complete(new AIRequest("Pergunta")))
+                .isInstanceOf(AIConfigurationException.class)
+                .isNotInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void configurationExceptionIsNotTreatedAsExternalServiceError() {
+        when(mockProvider.generate(any()))
+                .thenThrow(new AIConfigurationException("Model not configured"));
+
+        assertThatThrownBy(() -> service.complete(new AIRequest("Pergunta")))
+                .isNotInstanceOf(BusinessException.class);
     }
 }

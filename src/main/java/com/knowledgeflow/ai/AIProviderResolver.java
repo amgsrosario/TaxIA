@@ -4,10 +4,11 @@ import com.knowledgeflow.ai.exception.AIConfigurationException;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.TreeSet;
 
 /**
  * Resolves the active AIProvider from the configured primary-provider name.
- * Centralises provider selection — no if/else chains elsewhere.
+ * Validates that the configured provider is available at startup — not on the first request.
  */
 @Service
 public class AIProviderResolver {
@@ -16,20 +17,25 @@ public class AIProviderResolver {
     private final String primaryProvider;
 
     public AIProviderResolver(Map<String, AIProvider> providers, AIProperties properties) {
-        if (properties.primaryProvider() == null || properties.primaryProvider().isBlank()) {
-            throw new AIConfigurationException("knowledgeflow.ai.primary-provider is required but not configured");
+        String primary = properties.primaryProvider();
+        if (primary == null || primary.isBlank()) {
+            throw new AIConfigurationException(
+                    "knowledgeflow.ai.primary-provider is required but not configured.");
+        }
+        primary = primary.trim();
+        if (!providers.containsKey(primary)) {
+            String available = providers.isEmpty()
+                    ? "(nenhum provider disponível)"
+                    : String.join(", ", new TreeSet<>(providers.keySet()));
+            throw new AIConfigurationException(
+                    "O provider principal '" + primary + "' não está disponível. " +
+                    "Providers registados: " + available + ".");
         }
         this.providers = providers;
-        this.primaryProvider = properties.primaryProvider();
+        this.primaryProvider = primary;
     }
 
     public AIProvider resolve() {
-        AIProvider provider = providers.get(primaryProvider);
-        if (provider == null) {
-            throw new AIConfigurationException(
-                    "AI provider not found or not enabled: '" + primaryProvider + "'. " +
-                    "Check knowledgeflow.ai.primary-provider and knowledgeflow.ai.providers.<name>.enabled");
-        }
-        return provider;
+        return providers.get(primaryProvider);
     }
 }
