@@ -3,7 +3,7 @@ package com.knowledgeflow.portal;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.knowledgeflow.ai.StubAIService;
+import com.knowledgeflow.ai.provider.stub.StubAIProvider;
 import com.knowledgeflow.audit.repository.AuditEventRepository;
 import com.knowledgeflow.billing.entity.CommercialPlan;
 import com.knowledgeflow.billing.entity.OrganizationPlan;
@@ -127,8 +127,8 @@ class PortalAssistedInteractionServiceIntegrationTest {
                 new AssistedInteractionAskRequest("Qual é o prazo de entrega?"));
 
         assertThat(message.question()).isEqualTo("Qual é o prazo de entrega?");
-        assertThat(message.answer()).startsWith(StubAIService.STUB_ANSWER_PREFIX);
-        assertThat(message.modelUsed()).isEqualTo(StubAIService.STUB_MODEL);
+        assertThat(message.answer()).startsWith(StubAIProvider.STUB_ANSWER_PREFIX);
+        assertThat(message.modelUsed()).isEqualTo(StubAIProvider.STUB_MODEL);
 
         long events = consumptionEventRepository.count();
         assertThat(events).isEqualTo(1);

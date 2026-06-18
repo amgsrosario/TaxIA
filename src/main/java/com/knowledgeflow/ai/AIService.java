@@ -2,14 +2,10 @@ package com.knowledgeflow.ai;
 
 /**
  * Primary AI port. All features that need a model response go through here.
- * Implementations are swappable (Anthropic, OpenAI, local, stub).
+ * Provider selection, error normalisation, and observability are handled by
+ * the implementation — callers only know about AIRequest and AIResponse.
  */
 public interface AIService {
 
-    /**
-     * Send a request to the underlying model and return its response.
-     * Implementations are responsible for timeout, retry, and mapping
-     * provider-specific errors to {@link com.knowledgeflow.common.error.BusinessException}.
-     */
     AIResponse complete(AIRequest request);
 }

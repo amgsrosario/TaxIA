@@ -3,7 +3,7 @@ package com.knowledgeflow.interactions.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.knowledgeflow.ai.StubAIService;
+import com.knowledgeflow.ai.provider.stub.StubAIProvider;
 import com.knowledgeflow.audit.repository.AuditEventRepository;
 import com.knowledgeflow.billing.entity.CommercialPlan;
 import com.knowledgeflow.billing.entity.OrganizationPlan;
@@ -116,8 +116,8 @@ class AssistedInteractionServiceIntegrationTest {
         AssistedInteractionMessageResponse message = service.ask(organization.getId(), user.getId(),
                 interaction.id(), new AssistedInteractionAskRequest("Qual a taxa de IVA aplicável?"));
 
-        assertThat(message.answer()).startsWith(StubAIService.STUB_ANSWER_PREFIX);
-        assertThat(message.modelUsed()).isEqualTo(StubAIService.STUB_MODEL);
+        assertThat(message.answer()).startsWith(StubAIProvider.STUB_ANSWER_PREFIX);
+        assertThat(message.modelUsed()).isEqualTo(StubAIProvider.STUB_MODEL);
         assertThat(message.question()).isEqualTo("Qual a taxa de IVA aplicável?");
     }
 

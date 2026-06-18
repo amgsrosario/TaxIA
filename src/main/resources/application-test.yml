@@ -9,3 +9,15 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+
+knowledgeflow:
+  ai:
+    primary-provider: stub
+    providers:
+      anthropic:
+        enabled: false
+        api-key: not-used-in-tests
+        model: not-used-in-tests
+        max-tokens: 1024
+      stub:
+        enabled: true

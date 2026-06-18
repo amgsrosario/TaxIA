@@ -35,8 +35,8 @@ public class AdminAIController {
 
         String systemPrompt = buildSystemPrompt(request.systemPrompt(), retrievedCases);
         AIResponse response = aiService.complete(new AIRequest(systemPrompt, request.question()));
-        return ResponseEntity.ok(new AskResponse(response.content(), response.modelUsed(),
-                response.inputTokens(), response.outputTokens()));
+        return ResponseEntity.ok(new AskResponse(response.content(), response.provider(),
+                response.modelUsed(), response.inputTokens(), response.outputTokens()));
     }
 
     private String buildSystemPrompt(String basePrompt, List<RagSearchService.RetrievedCase> retrievedCases) {
@@ -69,6 +69,7 @@ public class AdminAIController {
 
     public record AskResponse(
             String answer,
+            String provider,
             String model,
             int inputTokens,
             int outputTokens
