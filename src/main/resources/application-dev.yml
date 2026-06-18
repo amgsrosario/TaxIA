@@ -4,5 +4,7 @@ knowledgeflow:
     providers:
       anthropic:
         enabled: false
+      openai:
+        enabled: false
       stub:
         enabled: true
