@@ -26,19 +26,22 @@ import com.knowledgeflow.cases.repository.KnowledgeCaseCommentRepository;
 import com.knowledgeflow.cases.repository.KnowledgeCaseRepository;
 import com.knowledgeflow.cases.repository.KnowledgeCaseVersionRepository;
 import com.knowledgeflow.organizations.entity.Organization;
-import com.knowledgeflow.rag.KnowledgeCaseEmbeddingIndexer;
+import com.knowledgeflow.rag.CaseEmbeddingIndexer;
 import com.knowledgeflow.users.entity.User;
 import com.knowledgeflow.users.repository.UserRepository;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class KnowledgeCaseService {
 
+    private static final Logger log = LoggerFactory.getLogger(KnowledgeCaseService.class);
     private static final String ENTITY_TYPE = "KnowledgeCase";
 
     private final KnowledgeCaseRepository knowledgeCaseRepository;
@@ -49,7 +52,7 @@ public class KnowledgeCaseService {
     private final KnowledgeCaseMapper knowledgeCaseMapper;
     private final AuditService auditService;
     private final EntitlementService entitlementService;
-    private final KnowledgeCaseEmbeddingIndexer embeddingIndexer;
+    private final CaseEmbeddingIndexer embeddingIndexer;
 
     public KnowledgeCaseService(
             KnowledgeCaseRepository knowledgeCaseRepository,
@@ -60,7 +63,7 @@ public class KnowledgeCaseService {
             KnowledgeCaseMapper knowledgeCaseMapper,
             AuditService auditService,
             EntitlementService entitlementService,
-            KnowledgeCaseEmbeddingIndexer embeddingIndexer
+            CaseEmbeddingIndexer embeddingIndexer
     ) {
         this.knowledgeCaseRepository = knowledgeCaseRepository;
         this.knowledgeCaseVersionRepository = knowledgeCaseVersionRepository;
@@ -178,8 +181,13 @@ public class KnowledgeCaseService {
         saveCommentIfPresent(knowledgeCase, user, AuditAction.KNOWLEDGE_CASE_VALIDATED, request);
         auditService.record(organizationId, userId, AuditAction.KNOWLEDGE_CASE_VALIDATED,
                 ENTITY_TYPE, knowledgeCaseId);
-        embeddingIndexer.indexValidatedCase(knowledgeCase.getId(), knowledgeCase.getTitle(),
-                knowledgeCase.getQuestion(), knowledgeCase.getContent());
+        // Indexação best-effort: falha não deve anular a validação humana.
+        try {
+            embeddingIndexer.indexValidatedCase(knowledgeCase.getId(), knowledgeCase.getTitle(),
+                    knowledgeCase.getQuestion(), knowledgeCase.getContent());
+        } catch (Exception e) {
+            log.warn("Embedding indexing failed for case {} — will require manual reindex: {}", knowledgeCaseId, e.getMessage());
+        }
         return knowledgeCaseMapper.toDetailResponse(knowledgeCase);
     }
 
@@ -220,6 +228,21 @@ public class KnowledgeCaseService {
                 knowledgeCase.getId(), "promoted=true,title=" + knowledgeCase.getTitle());
 
         return knowledgeCaseMapper.toDetailResponse(knowledgeCase);
+    }
+
+    @Transactional
+    public int reindexValidatedCases(UUID organizationId) {
+        List<KnowledgeCase> unindexed = knowledgeCaseRepository.findValidatedWithoutEmbedding(organizationId);
+        int indexed = 0;
+        for (KnowledgeCase kc : unindexed) {
+            try {
+                embeddingIndexer.indexValidatedCase(kc.getId(), kc.getTitle(), kc.getQuestion(), kc.getContent());
+                indexed++;
+            } catch (Exception e) {
+                log.warn("Reindex failed for case {} — skipping: {}", kc.getId(), e.getMessage());
+            }
+        }
+        return indexed;
     }
 
     @Transactional(readOnly = true)

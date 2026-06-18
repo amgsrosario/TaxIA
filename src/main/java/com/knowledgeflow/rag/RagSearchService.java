@@ -15,18 +15,18 @@ import org.springframework.stereotype.Service;
 @EnableConfigurationProperties(EmbeddingProperties.class)
 public class RagSearchService {
 
-    private final EmbeddingClient embeddingClient;
+    private final EmbeddingService embeddingService;
     private final JdbcTemplate jdbcTemplate;
     private final EmbeddingProperties props;
 
-    public RagSearchService(EmbeddingClient embeddingClient, JdbcTemplate jdbcTemplate, EmbeddingProperties props) {
-        this.embeddingClient = embeddingClient;
+    public RagSearchService(EmbeddingService embeddingService, JdbcTemplate jdbcTemplate, EmbeddingProperties props) {
+        this.embeddingService = embeddingService;
         this.jdbcTemplate = jdbcTemplate;
         this.props = props;
     }
 
     public List<RetrievedCase> findSimilar(UUID organizationId, String question) {
-        List<Float> queryEmbedding = embeddingClient.embedQuery(question);
+        List<Float> queryEmbedding = embeddingService.embedQuery(question);
         String vectorLiteral = toVectorLiteral(queryEmbedding);
         int topK = props.topK() > 0 ? props.topK() : 5;
 

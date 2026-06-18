@@ -133,4 +133,12 @@ public class KnowledgeCaseController {
         UUID organizationId = authenticatedUserContext.getRequiredUser().organizationId();
         return ResponseEntity.ok(knowledgeCaseService.listComments(organizationId, id));
     }
+
+    @PostMapping("/reindex")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<java.util.Map<String, Object>> reindex() {
+        UUID organizationId = authenticatedUserContext.getRequiredUser().organizationId();
+        int indexed = knowledgeCaseService.reindexValidatedCases(organizationId);
+        return ResponseEntity.ok(java.util.Map.of("indexed", indexed));
+    }
 }

@@ -5,7 +5,7 @@ import com.knowledgeflow.common.error.ApiErrorCode;
 import com.knowledgeflow.common.error.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -20,7 +20,7 @@ import java.util.List;
  * The bean name "realAIService" causes Spring to skip StubAIService.
  */
 @Service("realAIService")
-@ConditionalOnProperty(name = "knowledgeflow.ai.anthropic.api-key", matchIfMissing = false)
+@ConditionalOnExpression("!'${knowledgeflow.ai.anthropic.api-key:}'.isBlank()")
 @EnableConfigurationProperties(AnthropicProperties.class)
 public class AnthropicAIService implements AIService {
 
