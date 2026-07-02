@@ -27,6 +27,8 @@ import org.springframework.test.context.ActiveProfiles;
 @SpringBootTest
 class AuthServiceIntegrationTest {
 
+    private static final String TEST_BOOTSTRAP_SECRET = "test-bootstrap-secret";
+
     @Autowired
     private AuthService authService;
 
@@ -73,7 +75,7 @@ class AuthServiceIntegrationTest {
                 email,
                 "KnowledgeFlow Admin",
                 "password-123"
-        ));
+        ), TEST_BOOTSTRAP_SECRET);
 
         assertThat(response.accessToken()).isNotBlank();
         assertThat(response.tokenType()).isEqualTo("Bearer");
@@ -91,7 +93,7 @@ class AuthServiceIntegrationTest {
                 email,
                 "Login Admin",
                 "password-123"
-        ));
+        ), TEST_BOOTSTRAP_SECRET);
 
         AuthResponse response = authService.login(new LoginRequest(email, "password-123"));
 
@@ -108,7 +110,7 @@ class AuthServiceIntegrationTest {
                 "first-%s@knowledgeflow.test".formatted(UUID.randomUUID()),
                 "First Admin",
                 "password-123"
-        ));
+        ), TEST_BOOTSTRAP_SECRET);
 
         assertThatThrownBy(() -> authService.bootstrapAdmin(new BootstrapAdminRequest(
                 "KnowledgeFlow Second",
@@ -116,7 +118,31 @@ class AuthServiceIntegrationTest {
                 "second-%s@knowledgeflow.test".formatted(UUID.randomUUID()),
                 "Second Admin",
                 "password-123"
-        ))).isInstanceOf(BusinessException.class)
+        ), TEST_BOOTSTRAP_SECRET)).isInstanceOf(BusinessException.class)
                 .hasMessage("Bootstrap admin can only be used before users exist");
+    }
+
+    @Test
+    void bootstrapAdminRejectsWrongSecret() {
+        assertThatThrownBy(() -> authService.bootstrapAdmin(new BootstrapAdminRequest(
+                "KnowledgeFlow Wrong Secret",
+                null,
+                "wrong-%s@knowledgeflow.test".formatted(UUID.randomUUID()),
+                "Wrong Admin",
+                "password-123"
+        ), "segredo-errado")).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Invalid bootstrap secret");
+    }
+
+    @Test
+    void bootstrapAdminRejectsMissingSecret() {
+        assertThatThrownBy(() -> authService.bootstrapAdmin(new BootstrapAdminRequest(
+                "KnowledgeFlow No Secret",
+                null,
+                "nosecret-%s@knowledgeflow.test".formatted(UUID.randomUUID()),
+                "No Secret Admin",
+                "password-123"
+        ), null)).isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Invalid bootstrap secret");
     }
 }

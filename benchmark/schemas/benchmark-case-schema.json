@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TaxIA Benchmark Case",
+  "description": "Schema de validação para um caso de benchmark da TaxIA.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "category",
+    "difficulty",
+    "systemInstruction",
+    "question",
+    "expectedBehaviours",
+    "forbiddenBehaviours",
+    "requiresHumanValidation"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^TAXIA-[0-9]{3}$",
+      "description": "Identificador único do caso. Formato: TAXIA-NNN."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 120
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "STANDARD_RESPONSE",
+        "DEEP_ANALYSIS",
+        "REVIEW",
+        "CLASSIFICATION",
+        "EXTRACTION"
+      ],
+      "description": "Corresponde aos valores de AITaskType."
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH"]
+    },
+    "systemInstruction": {
+      "type": "string",
+      "minLength": 10
+    },
+    "question": {
+      "type": "string",
+      "minLength": 10
+    },
+    "context": {
+      "type": "string",
+      "description": "Contexto ou excerto normativo opcional fornecido ao modelo."
+    },
+    "expectedBehaviours": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 5 }
+    },
+    "forbiddenBehaviours": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 5 }
+    },
+    "requiresHumanValidation": {
+      "type": "boolean"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notas internas sobre o caso, não enviadas ao modelo."
+    }
+  }
+}

@@ -48,13 +48,22 @@ class OpenAIProviderTest {
     void setUp() {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        provider = new OpenAIProvider(validProps(), builder);
+        provider = new OpenAIProvider(validProps(), httpProps(1), builder);
     }
 
     private AIProperties validProps() {
         return new AIProperties("openai", Map.of(
                 "openai", new AIProperties.ProviderConfig(true, TEST_API_KEY, TEST_MODEL, 1024)
         ));
+    }
+
+    /**
+     * HTTP properties without a timeouts section (keeps the MockRestServiceServer
+     * request factory intact) and with the given number of total attempts.
+     */
+    private com.knowledgeflow.ai.AIHttpProperties httpProps(int maxAttempts) {
+        return new com.knowledgeflow.ai.AIHttpProperties(null, null,
+                new com.knowledgeflow.ai.AIHttpProperties.Retry(maxAttempts, java.time.Duration.ZERO));
     }
 
     /** Returns a well-formed completed response with the given text. */
@@ -85,7 +94,7 @@ class OpenAIProviderTest {
         AIProperties props = new AIProperties("openai", Map.of(
                 "openai", new AIProperties.ProviderConfig(true, "", TEST_MODEL, 1024)
         ));
-        assertThatThrownBy(() -> new OpenAIProvider(props, b))
+        assertThatThrownBy(() -> new OpenAIProvider(props, httpProps(1), b))
                 .isInstanceOf(AIConfigurationException.class)
                 .hasMessageContaining("OPENAI_API_KEY");
     }
@@ -96,7 +105,7 @@ class OpenAIProviderTest {
         AIProperties props = new AIProperties("openai", Map.of(
                 "openai", new AIProperties.ProviderConfig(true, null, TEST_MODEL, 1024)
         ));
-        assertThatThrownBy(() -> new OpenAIProvider(props, b))
+        assertThatThrownBy(() -> new OpenAIProvider(props, httpProps(1), b))
                 .isInstanceOf(AIConfigurationException.class)
                 .hasMessageContaining("OPENAI_API_KEY");
     }
@@ -107,7 +116,7 @@ class OpenAIProviderTest {
         AIProperties props = new AIProperties("openai", Map.of(
                 "openai", new AIProperties.ProviderConfig(true, TEST_API_KEY, "", 1024)
         ));
-        assertThatThrownBy(() -> new OpenAIProvider(props, b))
+        assertThatThrownBy(() -> new OpenAIProvider(props, httpProps(1), b))
                 .isInstanceOf(AIConfigurationException.class)
                 .hasMessageContaining("OPENAI_MODEL");
     }
@@ -118,7 +127,7 @@ class OpenAIProviderTest {
         AIProperties props = new AIProperties("openai", Map.of(
                 "openai", new AIProperties.ProviderConfig(true, TEST_API_KEY, null, 1024)
         ));
-        assertThatThrownBy(() -> new OpenAIProvider(props, b))
+        assertThatThrownBy(() -> new OpenAIProvider(props, httpProps(1), b))
                 .isInstanceOf(AIConfigurationException.class)
                 .hasMessageContaining("OPENAI_MODEL");
     }
@@ -126,14 +135,14 @@ class OpenAIProviderTest {
     @Test
     void constructorThrowsWhenConfigSectionMissing() {
         RestClient.Builder b = RestClient.builder();
-        assertThatThrownBy(() -> new OpenAIProvider(new AIProperties("openai", Map.of()), b))
+        assertThatThrownBy(() -> new OpenAIProvider(new AIProperties("openai", Map.of()), httpProps(1), b))
                 .isInstanceOf(AIConfigurationException.class);
     }
 
     @Test
     void constructorThrowsWhenProvidersMapIsNull() {
         RestClient.Builder b = RestClient.builder();
-        assertThatThrownBy(() -> new OpenAIProvider(new AIProperties("openai", null), b))
+        assertThatThrownBy(() -> new OpenAIProvider(new AIProperties("openai", null), httpProps(1), b))
                 .isInstanceOf(AIConfigurationException.class);
     }
 
@@ -587,5 +596,121 @@ class OpenAIProviderTest {
                 .isInstanceOf(AIUnavailableException.class)
                 .hasCauseInstanceOf(ResourceAccessException.class)
                 .hasRootCauseInstanceOf(ConnectException.class);
+    }
+
+    // ── Retries limitados (só falhas transitórias) ────────────────────────────
+
+    private OpenAIProvider providerWithRetry(RestClient.Builder builder, int maxAttempts) {
+        return new OpenAIProvider(validProps(), httpProps(maxAttempts), builder);
+    }
+
+    @Test
+    void retriesOn429ThenSucceeds() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer retryServer = MockRestServiceServer.bindTo(builder).build();
+        OpenAIProvider retryProvider = providerWithRetry(builder, 3);
+
+        retryServer.expect(requestTo(API_URL))
+                .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+        retryServer.expect(requestTo(API_URL))
+                .andRespond(withSuccess(responseJson("depois do retry"), MediaType.APPLICATION_JSON));
+
+        AIResponse response = retryProvider.generate(new AIRequest("Question"));
+
+        assertThat(response.content()).isEqualTo("depois do retry");
+        retryServer.verify(); // exactamente 2 pedidos
+    }
+
+    @Test
+    void retriesOn503ThenSucceeds() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer retryServer = MockRestServiceServer.bindTo(builder).build();
+        OpenAIProvider retryProvider = providerWithRetry(builder, 3);
+
+        retryServer.expect(requestTo(API_URL))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+        retryServer.expect(requestTo(API_URL))
+                .andRespond(withSuccess(responseJson("recuperado"), MediaType.APPLICATION_JSON));
+
+        AIResponse response = retryProvider.generate(new AIRequest("Question"));
+
+        assertThat(response.content()).isEqualTo("recuperado");
+        retryServer.verify();
+    }
+
+    @Test
+    void exhaustedRetriesRethrowLastTransientFailure() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer retryServer = MockRestServiceServer.bindTo(builder).build();
+        OpenAIProvider retryProvider = providerWithRetry(builder, 3);
+
+        for (int i = 0; i < 3; i++) {
+            retryServer.expect(requestTo(API_URL))
+                    .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS));
+        }
+
+        assertThatThrownBy(() -> retryProvider.generate(new AIRequest("Question")))
+                .isInstanceOf(AIRateLimitException.class);
+        retryServer.verify(); // 3 tentativas, nunca mais
+    }
+
+    @Test
+    void neverRetriesOn400() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer retryServer = MockRestServiceServer.bindTo(builder).build();
+        OpenAIProvider retryProvider = providerWithRetry(builder, 3);
+
+        retryServer.expect(requestTo(API_URL))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST));
+
+        assertThatThrownBy(() -> retryProvider.generate(new AIRequest("Question")))
+                .isInstanceOf(AIProviderException.class);
+        retryServer.verify(); // exactamente 1 pedido — 400 nunca é repetido
+    }
+
+    @Test
+    void neverRetriesOnAuthenticationFailure() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer retryServer = MockRestServiceServer.bindTo(builder).build();
+        OpenAIProvider retryProvider = providerWithRetry(builder, 3);
+
+        retryServer.expect(requestTo(API_URL))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED));
+
+        assertThatThrownBy(() -> retryProvider.generate(new AIRequest("Question")))
+                .isInstanceOf(AIAuthenticationException.class);
+        retryServer.verify(); // exactamente 1 pedido — 401 nunca é repetido
+    }
+
+    @Test
+    void neverRetriesOnMalformedResponse() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer retryServer = MockRestServiceServer.bindTo(builder).build();
+        OpenAIProvider retryProvider = providerWithRetry(builder, 3);
+
+        retryServer.expect(requestTo(API_URL))
+                .andRespond(withSuccess("{\"status\":\"completed\",\"output\":[]}",
+                        MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> retryProvider.generate(new AIRequest("Question")))
+                .isInstanceOf(AIInvalidResponseException.class);
+        retryServer.verify(); // resposta malformada é determinística — 1 pedido
+    }
+
+    @Test
+    void retriesOnTimeoutThenSucceeds() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer retryServer = MockRestServiceServer.bindTo(builder).build();
+        OpenAIProvider retryProvider = providerWithRetry(builder, 2);
+
+        retryServer.expect(requestTo(API_URL))
+                .andRespond(request -> { throw new SocketTimeoutException("Read timed out"); });
+        retryServer.expect(requestTo(API_URL))
+                .andRespond(withSuccess(responseJson("apos timeout"), MediaType.APPLICATION_JSON));
+
+        AIResponse response = retryProvider.generate(new AIRequest("Question"));
+
+        assertThat(response.content()).isEqualTo("apos timeout");
+        retryServer.verify();
     }
 }

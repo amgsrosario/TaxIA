@@ -30,8 +30,12 @@ public class AuthController {
     }
 
     @PostMapping("/bootstrap-admin")
-    public ResponseEntity<AuthResponse> bootstrapAdmin(@Valid @RequestBody BootstrapAdminRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.bootstrapAdmin(request));
+    public ResponseEntity<AuthResponse> bootstrapAdmin(
+            @Valid @RequestBody BootstrapAdminRequest request,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-Bootstrap-Secret", required = false)
+            String bootstrapSecret) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(authService.bootstrapAdmin(request, bootstrapSecret));
     }
 
     @PostMapping("/login")

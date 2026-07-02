@@ -1,6 +1,10 @@
 spring:
   application:
     name: knowledgeflow-backend
+  servlet:
+    multipart:
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:5MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:6MB}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:15432/knowledgeflow}
     username: ${SPRING_DATASOURCE_USERNAME:knowledgeflow}
@@ -25,11 +29,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
   endpoint:
     health:
       probes:
         enabled: true
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %5p ${PID: } --- [%15.15t] [cid:%X{correlationId:-none}] %-40.40logger{39} : %m%n"
 
 springdoc:
   api-docs:
@@ -43,8 +51,30 @@ knowledgeflow:
       issuer: ${KNOWLEDGEFLOW_JWT_ISSUER:knowledgeflow-backend}
       secret: ${KNOWLEDGEFLOW_JWT_SECRET:change-this-development-secret-change-this-development-secret}
       access-token-ttl-minutes: ${KNOWLEDGEFLOW_JWT_ACCESS_TOKEN_TTL_MINUTES:60}
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:8081}
+      allowed-methods: ${CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,PATCH,OPTIONS}
+      allowed-headers: ${CORS_ALLOWED_HEADERS:Authorization,Content-Type,X-Correlation-ID}
+      allow-credentials: ${CORS_ALLOW_CREDENTIALS:false}
+  auth:
+    bootstrap:
+      enabled: ${BOOTSTRAP_ADMIN_ENABLED:false}
+      secret: ${BOOTSTRAP_ADMIN_SECRET:}
+  knowledge:
+    import:
+      max-rows: ${KNOWLEDGE_IMPORT_MAX_ROWS:1000}
   ai:
     primary-provider: ${AI_PRIMARY_PROVIDER:anthropic}
+    http:
+      openai:
+        connect-timeout: ${OPENAI_CONNECT_TIMEOUT:5s}
+        read-timeout: ${OPENAI_READ_TIMEOUT:60s}
+      anthropic:
+        connect-timeout: ${ANTHROPIC_CONNECT_TIMEOUT:5s}
+        read-timeout: ${ANTHROPIC_READ_TIMEOUT:60s}
+      retry:
+        max-attempts: ${AI_RETRY_MAX_ATTEMPTS:3}
+        backoff: ${AI_RETRY_BACKOFF:300ms}
     providers:
       anthropic:
         enabled: ${ANTHROPIC_ENABLED:true}
@@ -62,3 +92,15 @@ knowledgeflow:
     embeddings:
       base-url: ${EMBEDDINGS_SERVICE_URL:http://localhost:8000}
       top-k: ${RAG_TOP_K:5}
+      connect-timeout: ${EMBEDDINGS_CONNECT_TIMEOUT:3s}
+      read-timeout: ${EMBEDDINGS_READ_TIMEOUT:20s}
+      expected-dimension: ${EMBEDDINGS_EXPECTED_DIMENSION:768}
+      retry-max-attempts: ${EMBEDDINGS_RETRY_MAX_ATTEMPTS:3}
+      retry-backoff: ${EMBEDDINGS_RETRY_BACKOFF:200ms}
+  grounding:
+    enabled: ${GROUNDING_ENABLED:true}
+    minimum-fragments: ${GROUNDING_MIN_FRAGMENTS:1}
+    minimum-distinct-sources: ${GROUNDING_MIN_SOURCES:1}
+    minimum-relevance-score: ${GROUNDING_MIN_SCORE:0.0}
+    reject-unsupported-sensitive-claims: ${GROUNDING_REJECT_UNSUPPORTED:true}
+    skip-provider-when-context-insufficient: ${GROUNDING_SKIP_PROVIDER:true}

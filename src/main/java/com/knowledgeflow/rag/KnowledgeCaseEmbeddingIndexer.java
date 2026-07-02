@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
  * or use a dedicated async/outbox-based indexing pipeline.
  */
 @Component
-@org.springframework.context.annotation.Profile("!test")
+@org.springframework.context.annotation.Profile("!(test | pgtest)")
 public class KnowledgeCaseEmbeddingIndexer implements CaseEmbeddingIndexer {
 
     private final EmbeddingService embeddingService;

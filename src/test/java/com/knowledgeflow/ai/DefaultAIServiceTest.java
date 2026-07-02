@@ -28,7 +28,9 @@ class DefaultAIServiceTest {
         when(mockProvider.providerId()).thenReturn("mock");
         resolver = mock(AIProviderResolver.class);
         when(resolver.resolve()).thenReturn(mockProvider);
-        service = new DefaultAIService(resolver);
+        service = new DefaultAIService(resolver,
+                new com.knowledgeflow.common.observability.KnowledgeFlowMetrics(
+                        new io.micrometer.core.instrument.simple.SimpleMeterRegistry()));
     }
 
     // ── Delegação e normalização ──────────────────────────────────────────────

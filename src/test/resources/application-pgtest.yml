@@ -1,0 +1,38 @@
+# Profile activated by @ActiveProfiles("pgtest") in PostgreSQL integration tests.
+# Datasource is overridden at runtime by @ServiceConnection from the Testcontainers container.
+spring:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+knowledgeflow:
+  ai:
+    primary-provider: stub
+    providers:
+      anthropic:
+        enabled: false
+        api-key: not-used-in-pg-tests
+        model: not-used-in-pg-tests
+        max-tokens: 1024
+      openai:
+        enabled: false
+        api-key: not-used-in-pg-tests
+        model: not-used-in-pg-tests
+        max-tokens: 1024
+      stub:
+        enabled: true
+  rag:
+    embeddings:
+      base-url: http://localhost:19999  # intentionally unreachable — embedding stub is used
+      top-k: 5
+  grounding:
+    enabled: true
+    minimum-fragments: 1
+    minimum-distinct-sources: 1
+    minimum-relevance-score: 0.0
+    reject-unsupported-sensitive-claims: true
+    skip-provider-when-context-insufficient: true

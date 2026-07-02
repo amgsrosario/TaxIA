@@ -1,0 +1,64 @@
+[
+  {
+    "_aviso": "Os dados deste ficheiro são exclusivamente fictícios e destinam-se a testes. Não contêm pareceres reais, dados de clientes, informação confidencial nem referências legais verificadas.",
+    "externalKey": "FICTICIO-IVA-001",
+    "question": "Qual é a taxa de IVA aplicável à venda de maçãs sintéticas no planeta Fiscalia?",
+    "answer": "No regime fiscal do planeta Fiscalia, a taxa de IVA aplicável às transmissões de frutas sintéticas é de 9%, salvo quando o comprador seja uma entidade espacial certificada. Esta resposta é inteiramente fictícia.",
+    "topic": "IVA",
+    "subtopic": "Taxas",
+    "jurisdiction": "PT",
+    "riskLevel": "LOW",
+    "requiresHumanValidation": "false",
+    "sourceReference": "Art. 99.º do CFICT (Código Fiscal Imaginário para Testes)",
+    "validFrom": null,
+    "validTo": null,
+    "notes": "Exemplo fictício para validação do formato de importação JSON."
+  },
+  {
+    "externalKey": "FICTICIO-IVA-002",
+    "question": "Quem é obrigado a entregar a declaração fiscal XPTO-42?",
+    "answer": "A declaração fiscal XPTO-42 é fictícia e não existe no ordenamento jurídico português. Existe apenas para demonstrar o formato de importação JSON e CSV deste módulo.",
+    "topic": "IVA",
+    "subtopic": "Obrigações declarativas",
+    "jurisdiction": "PT",
+    "riskLevel": "MEDIUM",
+    "requiresHumanValidation": "false",
+    "sourceReference": "Decreto-Lei n.º 0/0000 (fictício)",
+    "notes": "Exemplo fictício — não usar em produção."
+  },
+  {
+    "externalKey": "FICTICIO-IRC-001",
+    "question": "Qual a taxa de imposto aplicável à empresa Acme Fiscal Lda. para o exercício de 3000?",
+    "answer": "A empresa Acme Fiscal Lda. e o exercício de 3000 são entidades fictícias criadas exclusivamente para teste do módulo de importação. Qualquer semelhança com entidades reais é coincidência.",
+    "topic": "IRC",
+    "subtopic": "Taxas",
+    "jurisdiction": "PT",
+    "riskLevel": "MEDIUM",
+    "requiresHumanValidation": "false",
+    "sourceReference": "Art. 42.º do CFICT (fictício)",
+    "notes": "Dados de teste — sem validade fiscal."
+  },
+  {
+    "externalKey": "FICTICIO-IRS-001",
+    "question": "Um trabalhador da empresa Robots & Co. que recebe salário em moeda de Marte deve declarar esse rendimento em Portugal?",
+    "answer": "Esta questão é inteiramente fictícia. Trabalhadores em Marte não existem, a empresa Robots & Co. é imaginária e a moeda marciana não tem reconhecimento legal. Serve apenas para testar o campo requiresHumanValidation=true.",
+    "topic": "IRS",
+    "subtopic": "Residência fiscal",
+    "jurisdiction": "PT",
+    "riskLevel": "HIGH",
+    "requiresHumanValidation": "true",
+    "sourceReference": "Convenção Fiscal Intergaláctica (fictícia)",
+    "notes": "Exemplo com risco elevado — fictício."
+  },
+  {
+    "externalKey": "FICTICIO-OUTROS-001",
+    "question": "Como funciona o regime simplificado para comerciantes de nuvens?",
+    "answer": "O comércio de nuvens não existe legalmente. Este par pergunta/resposta foi criado exclusivamente para testar o tema OUTROS e o campo de notas neste módulo.",
+    "topic": "OUTROS",
+    "subtopic": "Regime simplificado",
+    "jurisdiction": "PT",
+    "riskLevel": "LOW",
+    "requiresHumanValidation": "false",
+    "notes": "Apenas para teste do campo topic=OUTROS."
+  }
+]

@@ -1,0 +1,44 @@
+[
+  {
+    "externalKey": "PILOTO-JSON-0001",
+    "question": "Qual e o limite ficticio do regime simplificado de teste?",
+    "answer": "O limite ficticio do regime simplificado de teste e de 100 000 unidades de conta.",
+    "topic": "IVA",
+    "subtopic": "Regime de teste",
+    "jurisdiction": "PT",
+    "riskLevel": "LOW",
+    "requiresHumanValidation": "false",
+    "sourceReference": "Manual Ficticio de Procedimentos Internos",
+    "validFrom": "2026-01-01",
+    "validTo": "2027-12-31",
+    "notes": "Exemplo simples para o piloto"
+  },
+  {
+    "externalKey": "PILOTO-JSON-0002",
+    "question": "Qual e o artigo ficticio que regula a materia de ensaio?",
+    "answer": "A materia de ensaio e regulada pelo artigo 99 do Codigo Ficticio de Teste.",
+    "topic": "IRC",
+    "subtopic": "Materia de ensaio",
+    "jurisdiction": "PT",
+    "riskLevel": "MEDIUM",
+    "requiresHumanValidation": "false",
+    "sourceReference": "Codigo Ficticio de Teste, artigo 99",
+    "validFrom": "2026-01-01",
+    "validTo": null,
+    "notes": "Exemplo com artigo ficticio"
+  },
+  {
+    "externalKey": "PILOTO-JSON-0003",
+    "question": "Como se trata o caso ficticio de risco elevado do ensaio?",
+    "answer": "O caso ficticio de risco elevado exige analise individual por um especialista da equipa.",
+    "topic": "OUTROS",
+    "subtopic": "Casos especiais",
+    "jurisdiction": "PT",
+    "riskLevel": "HIGH",
+    "requiresHumanValidation": "true",
+    "sourceReference": "Parecer Interno Ficticio n. 002",
+    "validFrom": "2026-01-01",
+    "validTo": "2026-12-31",
+    "notes": "Exemplo de risco elevado: revisao humana obrigatoria"
+  }
+]

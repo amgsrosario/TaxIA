@@ -1,8 +1,10 @@
 package com.knowledgeflow.ai.provider.openai;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.knowledgeflow.ai.AIHttpProperties;
 import com.knowledgeflow.ai.AIProperties;
 import com.knowledgeflow.ai.AIProvider;
+import com.knowledgeflow.common.resilience.TransientRetry;
 import com.knowledgeflow.ai.AIRequest;
 import com.knowledgeflow.ai.AIResponse;
 import com.knowledgeflow.ai.exception.AIAuthenticationException;
@@ -16,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
@@ -41,8 +44,11 @@ public class OpenAIProvider implements AIProvider {
     private final RestClient restClient;
     private final String model;
     private final int maxOutputTokens;
+    private final int retryMaxAttempts;
+    private final java.time.Duration retryBackoff;
 
-    public OpenAIProvider(AIProperties properties, RestClient.Builder restClientBuilder) {
+    public OpenAIProvider(AIProperties properties, AIHttpProperties httpProperties,
+                          RestClient.Builder restClientBuilder) {
         AIProperties.ProviderConfig config = properties.providers() != null
                 ? properties.providers().get(PROVIDER_ID)
                 : null;
@@ -58,12 +64,33 @@ public class OpenAIProvider implements AIProvider {
         }
         this.model = config.model();
         this.maxOutputTokens = config.maxTokens() != null ? config.maxTokens() : 1024;
+
+        AIHttpProperties.ClientTimeouts timeouts = httpProperties.openaiOrDefault();
+        this.retryMaxAttempts = httpProperties.retryOrDefault().maxAttemptsOrDefault();
+        this.retryBackoff = httpProperties.retryOrDefault().backoffOrDefault();
+
+        // Timeouts are applied only when the http.openai section is configured
+        // (always the case via application.yml). Skipping when absent keeps the
+        // builder's request factory intact for MockRestServiceServer in tests.
+        if (httpProperties.openai() != null) {
+            SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+            requestFactory.setConnectTimeout((int) timeouts.connectTimeoutOrDefault().toMillis());
+            requestFactory.setReadTimeout((int) timeouts.readTimeoutOrDefault().toMillis());
+            restClientBuilder = restClientBuilder.requestFactory(requestFactory);
+        } else {
+            log.warn("No explicit HTTP timeouts configured for OpenAI (knowledgeflow.ai.http.openai) — "
+                    + "using request factory defaults");
+        }
+
         this.restClient = restClientBuilder
                 .baseUrl(API_URL)
+                .requestInterceptor(new com.knowledgeflow.common.web.CorrelationIdPropagation())
                 .defaultHeader("Authorization", "Bearer " + config.apiKey())
                 .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
                 .build();
-        log.info("OpenAIProvider initialized — model: {}", this.model);
+        log.info("OpenAIProvider initialized — model: {}, connectTimeout: {}ms, readTimeout: {}ms, retryMaxAttempts: {}",
+                this.model, timeouts.connectTimeoutOrDefault().toMillis(),
+                timeouts.readTimeoutOrDefault().toMillis(), this.retryMaxAttempts);
     }
 
     @Override
@@ -73,10 +100,22 @@ public class OpenAIProvider implements AIProvider {
 
     @Override
     public AIResponse generate(AIRequest request) {
+        // Retry policy: only transient failures (timeout, 429, 5xx, transport).
+        // Authentication errors, 4xx and malformed responses are never retried.
+        return TransientRetry.call("openai.generate", retryMaxAttempts, retryBackoff,
+                e -> e instanceof AITimeoutException
+                        || e instanceof AIRateLimitException
+                        || e instanceof AIUnavailableException,
+                () -> doGenerate(request));
+    }
+
+    private AIResponse doGenerate(AIRequest request) {
         String instructions = request.systemPrompt() != null ? request.systemPrompt() : DEFAULT_SYSTEM_PROMPT;
         var body = new ResponsesRequest(model, instructions, request.userMessage(), maxOutputTokens);
 
         long start = System.currentTimeMillis();
+        log.debug("OpenAI request — model: {}, taskType: {}, inputLength: {}",
+                model, request.taskType(), request.userMessage() != null ? request.userMessage().length() : 0);
         try {
             ResponsesResponse response = restClient.post()
                     .contentType(MediaType.APPLICATION_JSON)

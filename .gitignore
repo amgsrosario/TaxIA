@@ -8,3 +8,12 @@ target/
 *.log
 application-local.yml
 Chaves*.txt
+benchmark/results/local/*
+!benchmark/results/local/.gitkeep
+
+# Backups e artefactos de base de dados — nunca versionar
+backups/*
+!backups/.gitkeep
+*.dump
+*.backup
+*.sha256

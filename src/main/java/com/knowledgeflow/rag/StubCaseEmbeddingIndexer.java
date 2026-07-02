@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  * Prevents execution of PostgreSQL-specific SQL (?::vector) against H2.
  */
 @Component
-@Profile("test")
+@Profile({"test", "pgtest"})
 public class StubCaseEmbeddingIndexer implements CaseEmbeddingIndexer {
 
     private static final Logger log = LoggerFactory.getLogger(StubCaseEmbeddingIndexer.class);

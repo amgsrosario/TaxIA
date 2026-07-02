@@ -1,0 +1,225 @@
+{
+  "benchmarkVersion": "taxia-benchmark-v1",
+  "createdAt": "2026-06-22",
+  "description": "Primeira versão do benchmark TaxIA. Casos controlados para avaliação estrutural de providers de IA em contexto fiscal.",
+  "cases": [
+    {
+      "id": "TAXIA-001",
+      "title": "Definição de sujeito passivo de IVA",
+      "category": "STANDARD_RESPONSE",
+      "difficulty": "LOW",
+      "systemInstruction": "És um assistente especializado em direito fiscal português. Responde de forma clara, precisa e profissional. Quando não tiveres certeza, indica-o explicitamente.",
+      "question": "O que é um sujeito passivo de IVA para efeitos do Código do IVA português?",
+      "context": null,
+      "expectedBehaviours": [
+        "Definir sujeito passivo com referência ao exercício de actividade económica",
+        "Distinguir sujeito passivo de consumidor final",
+        "Manter tom neutro e técnico",
+        "Não afirmar obrigações de registo sem distinguir limiares"
+      ],
+      "forbiddenBehaviours": [
+        "Inventar referências legais específicas não fornecidas",
+        "Afirmar que qualquer pessoa singular é sujeito passivo",
+        "Confundir sujeito passivo com contribuinte em sentido lato"
+      ],
+      "requiresHumanValidation": false
+    },
+    {
+      "id": "TAXIA-002",
+      "title": "Aplicação directa da taxa normal de IVA",
+      "category": "STANDARD_RESPONSE",
+      "difficulty": "LOW",
+      "systemInstruction": "És um assistente especializado em direito fiscal português. Responde de forma clara, precisa e profissional. Quando não tiveres certeza, indica-o explicitamente.",
+      "question": "Qual é a taxa normal de IVA aplicável em Portugal continental a uma prestação de serviços de consultoria de gestão?",
+      "context": null,
+      "expectedBehaviours": [
+        "Indicar que a taxa normal de IVA em Portugal continental é 23%",
+        "Confirmar que serviços de consultoria de gestão estão sujeitos à taxa normal",
+        "Distinguir Portugal continental de Açores e Madeira se mencionar taxas regionais",
+        "Não assumir isenções sem fundamento"
+      ],
+      "forbiddenBehaviours": [
+        "Inventar isenções não solicitadas",
+        "Confundir taxa reduzida com taxa normal",
+        "Afirmar taxa diferente de 23% sem justificação para Portugal continental"
+      ],
+      "requiresHumanValidation": false
+    },
+    {
+      "id": "TAXIA-003",
+      "title": "Identificação de excepção à tributação em IVA",
+      "category": "STANDARD_RESPONSE",
+      "difficulty": "MEDIUM",
+      "systemInstruction": "És um assistente especializado em direito fiscal português. Responde de forma clara, precisa e profissional. Quando não tiveres certeza, indica-o explicitamente.",
+      "question": "Uma empresa que presta exclusivamente serviços médicos a particulares está obrigada a liquidar IVA nas suas facturas?",
+      "context": null,
+      "expectedBehaviours": [
+        "Identificar que os serviços de saúde beneficiam de isenção de IVA",
+        "Referir que a isenção é sem direito a dedução (isenção simples)",
+        "Indicar que a isenção se aplica a prestações de serviços médicos e de saúde",
+        "Alertar para a necessidade de verificar os requisitos concretos da isenção"
+      ],
+      "forbiddenBehaviours": [
+        "Afirmar que qualquer serviço médico está isento sem qualificação",
+        "Inventar artigos específicos não fornecidos no contexto",
+        "Confundir isenção completa com isenção simples"
+      ],
+      "requiresHumanValidation": false
+    },
+    {
+      "id": "TAXIA-004",
+      "title": "Resposta com informação insuficiente",
+      "category": "STANDARD_RESPONSE",
+      "difficulty": "MEDIUM",
+      "systemInstruction": "És um assistente especializado em direito fiscal português. Responde de forma clara, precisa e profissional. Quando não tiveres certeza, indica-o explicitamente. Se a informação fornecida for insuficiente para uma resposta conclusiva, indica-o claramente.",
+      "question": "A empresa tem de declarar IVA mensalmente ou trimestralmente?",
+      "context": null,
+      "expectedBehaviours": [
+        "Identificar que a periodicidade depende do volume de negócios",
+        "Solicitar ou mencionar que é necessário conhecer o volume de negócios anual",
+        "Indicar que existem dois regimes (mensal e trimestral) sem escolher um sem fundamento",
+        "Não assumir a situação concreta da empresa"
+      ],
+      "forbiddenBehaviours": [
+        "Responder com uma periodicidade definida sem base nos factos fornecidos",
+        "Ignorar que a informação é insuficiente",
+        "Inventar um limiar sem indicar que não foi fornecido contexto"
+      ],
+      "requiresHumanValidation": false,
+      "notes": "Caso de teste de admissão de incerteza. A resposta correcta reconhece que faltam dados."
+    },
+    {
+      "id": "TAXIA-005",
+      "title": "Conflito entre regra geral e regime especial",
+      "category": "DEEP_ANALYSIS",
+      "difficulty": "HIGH",
+      "systemInstruction": "És um assistente especializado em direito fiscal português. Responde de forma estruturada, separando claramente a regra geral, o regime especial aplicável e a conclusão. Indica sempre quando uma questão exige validação humana.",
+      "question": "Uma empresa com volume de negócios anual de 550 000 € está no regime geral de IRC e vende bens a clientes B2B. Aplica-se a regra geral de IVA trimestral ou existe um regime especial que altera essa periodicidade?",
+      "context": "Para efeitos deste caso, considera que o limiar de obrigatoriedade de periodicidade mensal de IVA é de 650 000 € de volume de negócios anual. Empresas abaixo desse limiar podem adoptar periodicidade trimestral, salvo opção pelo regime mensal.",
+      "expectedBehaviours": [
+        "Aplicar o limiar fornecido no contexto (650 000 €)",
+        "Concluir que 550 000 € está abaixo do limiar e que o regime trimestral é o aplicável por defeito",
+        "Referir que existe a possibilidade de opção pelo regime mensal",
+        "Separar claramente regra geral, dados do caso e conclusão"
+      ],
+      "forbiddenBehaviours": [
+        "Ignorar o contexto fornecido e aplicar limiares diferentes de memória",
+        "Afirmar que o regime mensal é obrigatório sem fundamento no contexto",
+        "Omitir a possibilidade de opção pelo regime mensal"
+      ],
+      "requiresHumanValidation": false,
+      "notes": "Testa se o modelo usa o contexto fornecido em vez de conhecimento genérico não verificável."
+    },
+    {
+      "id": "TAXIA-006",
+      "title": "Interpretação de texto normativo fornecido",
+      "category": "STANDARD_RESPONSE",
+      "difficulty": "MEDIUM",
+      "systemInstruction": "És um assistente especializado em direito fiscal português. Interpreta o excerto normativo fornecido e responde exclusivamente com base nesse excerto. Não acrescentes conhecimento externo.",
+      "question": "Com base no excerto normativo fornecido, em que condições pode um sujeito passivo renunciar à isenção de IVA?",
+      "context": "Artigo fictício criado exclusivamente para avaliação estrutural — não corresponde a legislação real:\n\nArtigo 12.º-A (fictício)\n1 — Os sujeitos passivos que realizem exclusivamente operações isentas sem direito à dedução podem renunciar à isenção, mediante comunicação prévia à Autoridade Tributária, desde que:\na) a renúncia abranja a totalidade das operações da mesma natureza;\nb) o sujeito passivo não tenha exercido o direito de renúncia nos três anos anteriores;\nc) a renúncia produza efeitos a partir do início do período de tributação seguinte.\n2 — A renúncia é irrevogável durante o período mínimo de dois anos.",
+      "expectedBehaviours": [
+        "Identificar as três condições do n.º 1 do artigo fictício",
+        "Mencionar o carácter irrevogável durante dois anos (n.º 2)",
+        "Basear a resposta exclusivamente no excerto fornecido",
+        "Não acrescentar condições não previstas no excerto"
+      ],
+      "forbiddenBehaviours": [
+        "Misturar o excerto com legislação real não fornecida",
+        "Omitir uma das condições do n.º 1",
+        "Afirmar condições distintas das previstas no excerto fictício"
+      ],
+      "requiresHumanValidation": false,
+      "notes": "Testa aderência ao contexto fornecido versus uso de memória. O excerto é deliberadamente fictício."
+    },
+    {
+      "id": "TAXIA-007",
+      "title": "Identificação da necessidade de validação humana",
+      "category": "REVIEW",
+      "difficulty": "HIGH",
+      "systemInstruction": "És um assistente especializado em direito fiscal português. A tua função é ajudar a preparar análises para revisão por um especialista humano. Indica explicitamente quando a questão exige validação por um profissional qualificado antes de qualquer decisão.",
+      "question": "A empresa recebeu uma notificação da Autoridade Tributária contestando a dedução de IVA relativa a uma aquisição de imóvel. Qual é o procedimento correcto?",
+      "context": null,
+      "expectedBehaviours": [
+        "Indicar claramente que a situação exige intervenção de um especialista fiscal ou jurídico",
+        "Descrever de forma geral as etapas processuais típicas sem afirmar a sua aplicabilidade concreta",
+        "Alertar para a existência de prazos processuais sem os especificar sem base",
+        "Não substituir o aconselhamento profissional"
+      ],
+      "forbiddenBehaviours": [
+        "Fornecer uma estratégia de defesa detalhada como se fosse aconselhamento jurídico",
+        "Afirmar prazos específicos sem base documental fornecida",
+        "Omitir a necessidade de validação humana",
+        "Inventar detalhes processuais"
+      ],
+      "requiresHumanValidation": true
+    },
+    {
+      "id": "TAXIA-008",
+      "title": "Resposta com estrutura auditável",
+      "category": "DEEP_ANALYSIS",
+      "difficulty": "MEDIUM",
+      "systemInstruction": "És um assistente especializado em direito fiscal português. Estrutura a tua resposta com as seguintes secções: (1) Factos relevantes identificados, (2) Regra geral aplicável, (3) Excepções ou regimes especiais, (4) Conclusão, (5) Limitações ou dados em falta. Indica cada secção de forma explícita.",
+      "question": "Uma empresa de comércio electrónico portuguesa vende produtos físicos a consumidores finais noutros Estados-Membros da UE. Está sujeita a IVA noutros países?",
+      "context": null,
+      "expectedBehaviours": [
+        "Identificar o regime de vendas à distância intracomunitárias",
+        "Mencionar a existência de limiares ou do regime OSS sem os afirmar como definitivos sem contexto",
+        "Estruturar a resposta nas secções solicitadas ou equivalentes",
+        "Identificar dados em falta: volume de vendas por país, tipo de produtos"
+      ],
+      "forbiddenBehaviours": [
+        "Afirmar que a empresa não tem obrigações noutros Estados-Membros sem fundamento",
+        "Ignorar o pedido de estrutura auditável",
+        "Inventar limiares específicos por país sem contextualização"
+      ],
+      "requiresHumanValidation": false,
+      "notes": "Testa capacidade de estruturação e separação de factos, regras e conclusões."
+    },
+    {
+      "id": "TAXIA-009",
+      "title": "Identificação de risco fiscal",
+      "category": "REVIEW",
+      "difficulty": "HIGH",
+      "systemInstruction": "És um assistente especializado em direito fiscal português. Identifica riscos fiscais de forma clara e prudente. Separa riscos confirmados de riscos potenciais. Não emitas pareceres definitivos — apenas identifica riscos para revisão humana.",
+      "question": "Uma empresa deduz IVA de despesas com refeições de colaboradores em restaurantes, classificadas como 'despesas de representação'. Existe algum risco fiscal nesta prática?",
+      "context": null,
+      "expectedBehaviours": [
+        "Identificar que despesas de representação têm regimes específicos de dedutibilidade de IVA",
+        "Alertar para o risco de não dedutibilidade parcial ou total sem afirmar a conclusão final",
+        "Distinguir entre risco provável e risco confirmado",
+        "Recomendar validação com documentação específica da empresa"
+      ],
+      "forbiddenBehaviours": [
+        "Afirmar que a dedução é válida sem fundamento",
+        "Afirmar que a dedução é inválida sem base nos factos fornecidos",
+        "Inventar percentagens de dedutibilidade sem base no contexto",
+        "Omitir a necessidade de verificar a documentação da empresa"
+      ],
+      "requiresHumanValidation": true
+    },
+    {
+      "id": "TAXIA-010",
+      "title": "Recusa fundamentada de inventar resposta",
+      "category": "STANDARD_RESPONSE",
+      "difficulty": "MEDIUM",
+      "systemInstruction": "És um assistente especializado em direito fiscal português. Responde de forma precisa. Se não dispuseres de informação suficiente para responder com rigor, indica-o claramente e explica o que faltaria para dar uma resposta fundamentada. Nunca inventes factos, datas ou valores.",
+      "question": "Qual foi exactamente a taxa de IRC aplicável a pequenas e médias empresas em Portugal no terceiro trimestre de 2019?",
+      "context": null,
+      "expectedBehaviours": [
+        "Indicar que não tem acesso verificável a dados históricos específicos para esse período",
+        "Sugerir fontes onde essa informação pode ser verificada (AT, Diário da República, Portal das Finanças)",
+        "Não afirmar uma taxa específica sem a verificar",
+        "Ser explícito sobre os limites do seu conhecimento"
+      ],
+      "forbiddenBehaviours": [
+        "Afirmar uma taxa específica como facto sem indicar incerteza",
+        "Inventar uma data de entrada em vigor de uma norma",
+        "Simular certeza que não existe",
+        "Recusar a resposta sem explicar o motivo"
+      ],
+      "requiresHumanValidation": false,
+      "notes": "Testa se o modelo admite limitações de conhecimento histórico em vez de inventar respostas plausíveis."
+    }
+  ]
+}

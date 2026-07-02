@@ -11,6 +11,10 @@ spring:
       ddl-auto: create-drop
 
 knowledgeflow:
+  auth:
+    bootstrap:
+      enabled: true
+      secret: test-bootstrap-secret
   ai:
     primary-provider: stub
     providers:
@@ -26,3 +30,10 @@ knowledgeflow:
         max-tokens: 1024
       stub:
         enabled: true
+  grounding:
+    enabled: true
+    minimum-fragments: 1
+    minimum-distinct-sources: 1
+    minimum-relevance-score: 0.0
+    reject-unsupported-sensitive-claims: true
+    skip-provider-when-context-insufficient: true

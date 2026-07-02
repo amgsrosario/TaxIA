@@ -10,10 +10,10 @@ import org.springframework.stereotype.Component;
  * Returns a fixed zero-vector so tests never call the real microservice.
  */
 @Component
-@Profile("test")
+@Profile({"test", "pgtest"})
 public class StubEmbeddingService implements EmbeddingService {
 
-    private static final int DIMENSION = 384;
+    private static final int DIMENSION = 768;
     private static final List<Float> ZERO_VECTOR = Collections.nCopies(DIMENSION, 0.0f);
 
     @Override

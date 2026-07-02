@@ -1,6 +1,7 @@
 package com.knowledgeflow.ai.provider.anthropic;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.knowledgeflow.ai.AIHttpProperties;
 import com.knowledgeflow.ai.AIProperties;
 import com.knowledgeflow.ai.AIProvider;
 import com.knowledgeflow.ai.AIRequest;
@@ -10,14 +11,20 @@ import com.knowledgeflow.ai.exception.AIConfigurationException;
 import com.knowledgeflow.ai.exception.AIInvalidResponseException;
 import com.knowledgeflow.ai.exception.AIProviderException;
 import com.knowledgeflow.ai.exception.AIRateLimitException;
+import com.knowledgeflow.ai.exception.AITimeoutException;
 import com.knowledgeflow.ai.exception.AIUnavailableException;
+import com.knowledgeflow.common.resilience.TransientRetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
+import java.net.SocketTimeoutException;
+import java.net.http.HttpTimeoutException;
 import java.util.List;
 
 @Component("anthropic")
@@ -38,8 +45,10 @@ public class AnthropicProvider implements AIProvider {
     private final RestClient restClient;
     private final String model;
     private final int maxTokens;
+    private final int retryMaxAttempts;
+    private final java.time.Duration retryBackoff;
 
-    public AnthropicProvider(AIProperties properties) {
+    public AnthropicProvider(AIProperties properties, AIHttpProperties httpProperties) {
         AIProperties.ProviderConfig config = properties.providers() != null
                 ? properties.providers().get(PROVIDER_ID)
                 : null;
@@ -54,13 +63,25 @@ public class AnthropicProvider implements AIProvider {
         }
         this.model = config.model();
         this.maxTokens = config.maxTokens() != null ? config.maxTokens() : 1024;
+
+        AIHttpProperties.ClientTimeouts timeouts = httpProperties.anthropicOrDefault();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout((int) timeouts.connectTimeoutOrDefault().toMillis());
+        requestFactory.setReadTimeout((int) timeouts.readTimeoutOrDefault().toMillis());
+        this.retryMaxAttempts = httpProperties.retryOrDefault().maxAttemptsOrDefault();
+        this.retryBackoff = httpProperties.retryOrDefault().backoffOrDefault();
+
         this.restClient = RestClient.builder()
                 .baseUrl(API_URL)
+                .requestFactory(requestFactory)
+                .requestInterceptor(new com.knowledgeflow.common.web.CorrelationIdPropagation())
                 .defaultHeader("x-api-key", config.apiKey())
                 .defaultHeader("anthropic-version", ANTHROPIC_VERSION)
                 .defaultHeader("content-type", MediaType.APPLICATION_JSON_VALUE)
                 .build();
-        log.info("AnthropicProvider initialized — model: {}", this.model);
+        log.info("AnthropicProvider initialized — model: {}, connectTimeout: {}ms, readTimeout: {}ms, retryMaxAttempts: {}",
+                this.model, timeouts.connectTimeoutOrDefault().toMillis(),
+                timeouts.readTimeoutOrDefault().toMillis(), this.retryMaxAttempts);
     }
 
     @Override
@@ -70,6 +91,16 @@ public class AnthropicProvider implements AIProvider {
 
     @Override
     public AIResponse generate(AIRequest request) {
+        // Retry policy: only transient failures (timeout, 429, 5xx, transport).
+        // Authentication errors, 4xx and malformed responses are never retried.
+        return TransientRetry.call("anthropic.generate", retryMaxAttempts, retryBackoff,
+                e -> e instanceof AITimeoutException
+                        || e instanceof AIRateLimitException
+                        || e instanceof AIUnavailableException,
+                () -> doGenerate(request));
+    }
+
+    private AIResponse doGenerate(AIRequest request) {
         String system = request.systemPrompt() != null ? request.systemPrompt() : DEFAULT_SYSTEM_PROMPT;
         var body = new MessagesRequest(
                 model,
@@ -92,7 +123,8 @@ public class AnthropicProvider implements AIProvider {
                             (req, res) -> {
                                 throw new AIRateLimitException("Anthropic rate limit exceeded");
                             })
-                    .onStatus(status -> status.value() == 503 || status.value() == 504,
+                    .onStatus(status -> status.value() == 500 || status.value() == 502
+                            || status.value() == 503 || status.value() == 504,
                             (req, res) -> {
                                 throw new AIUnavailableException("Anthropic service temporarily unavailable: " + res.getStatusCode());
                             })
@@ -119,10 +151,28 @@ public class AnthropicProvider implements AIProvider {
 
         } catch (AIProviderException e) {
             throw e;
+        } catch (ResourceAccessException e) {
+            if (isTimeoutCause(e)) {
+                log.error("Anthropic request timed out — {}", e.getMessage());
+                throw new AITimeoutException("Anthropic request timed out", e);
+            }
+            log.error("Anthropic transport error — {}", e.getMessage());
+            throw new AIUnavailableException("Anthropic service unreachable", e);
         } catch (Exception e) {
             log.error("Unexpected error calling Anthropic API", e);
             throw new AIProviderException("Unexpected error calling Anthropic API", e);
         }
+    }
+
+    // Traverse the cause chain to distinguish real timeouts from other transport failures.
+    private static boolean isTimeoutCause(Throwable t) {
+        while (t != null) {
+            if (t instanceof SocketTimeoutException || t instanceof HttpTimeoutException) {
+                return true;
+            }
+            t = t.getCause();
+        }
+        return false;
     }
 
     // ── DTOs ─────────────────────────────────────────────────────────────────

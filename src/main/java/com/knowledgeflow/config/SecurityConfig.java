@@ -37,7 +37,9 @@ import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class,
+        com.knowledgeflow.security.CorsProperties.class,
+        com.knowledgeflow.auth.AuthBootstrapProperties.class})
 public class SecurityConfig {
 
     @Bean
@@ -95,14 +97,28 @@ public class SecurityConfig {
         return converter;
     }
 
-    /** Permissive CORS for local development (POC, Swagger, etc.). */
+    /**
+     * Property-driven CORS (knowledgeflow.security.cors.*).
+     * Explicit origins by default; wildcard only as an explicit opt-in and
+     * never combined with credentials (fails fast at startup).
+     */
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsConfigurationSource corsConfigurationSource(
+            com.knowledgeflow.security.CorsProperties corsProperties) {
+        if (corsProperties.isWildcard() && corsProperties.allowCredentials()) {
+            throw new IllegalStateException(
+                    "CORS misconfiguration: wildcard origins cannot be combined with allow-credentials=true");
+        }
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(false);
+        if (corsProperties.isWildcard()) {
+            config.setAllowedOriginPatterns(List.of("*"));
+        } else {
+            config.setAllowedOrigins(corsProperties.allowedOriginsOrDefault());
+        }
+        config.setAllowedMethods(corsProperties.allowedMethodsOrDefault());
+        config.setAllowedHeaders(corsProperties.allowedHeadersOrDefault());
+        config.setAllowCredentials(corsProperties.allowCredentials());
+        config.setExposedHeaders(List.of("X-Correlation-ID"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
         return source;
