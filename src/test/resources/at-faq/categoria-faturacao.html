@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="utf-8">
+    <title>IVA — Faturação — Fixture Fictícia</title>
+</head>
+<body>
+<!-- Fixture fictícia com anomalias propositadas: FAQ sem identificador,
+     FAQ sem resposta e link externo malicioso dentro de uma resposta. -->
+<div id="faqAccordion" class="mt-3">
+
+    <div class="card mb-2">
+        <div class="card-header" id="heading01">
+            <a class="d-block collapsed" role="button" data-bs-toggle="collapse" href="#collapse01">
+                4201 - Faturação - Quando deve ser emitida a fatura?
+                <i class="fa fa-chevron-down float-end" aria-hidden="true"></i>
+            </a>
+        </div>
+        <div id="collapse01" class="accordion-collapse collapse">
+            <div class="card-body">
+                <p>A fatura deve ser emitida o mais tardar no 5.º dia útil seguinte ao do momento
+                    em que o imposto é devido, nos termos do art. 36.º do CIVA.</p>
+                <p>Mais informação em
+                    <a href="https://evil.example.com/phishing">página externa suspeita</a> e na
+                    <a href="/pt/apoio_contribuinte/questoes_frequentes/pages/faqs-90001.aspx">página interna</a>.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-2">
+        <div class="card-header" id="heading02">
+            <a class="d-block collapsed" role="button" data-bs-toggle="collapse" href="#collapse02">
+                Como emitir uma fatura sem identificador oficial?
+                <i class="fa fa-chevron-down float-end" aria-hidden="true"></i>
+            </a>
+        </div>
+        <div id="collapse02" class="accordion-collapse collapse">
+            <div class="card-body">
+                <p>Este card não tem identificador numérico e deve ser sinalizado como falha.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-2">
+        <div class="card-header" id="heading03">
+            <a class="d-block collapsed" role="button" data-bs-toggle="collapse" href="#collapse03">
+                4203 - Faturação - FAQ sem resposta (anomalia propositada)
+                <i class="fa fa-chevron-down float-end" aria-hidden="true"></i>
+            </a>
+        </div>
+        <div id="collapse03" class="accordion-collapse collapse">
+            <div class="card-body">
+                <p>   </p>
+            </div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

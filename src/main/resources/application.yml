@@ -63,6 +63,18 @@ knowledgeflow:
   knowledge:
     import:
       max-rows: ${KNOWLEDGE_IMPORT_MAX_ROWS:1000}
+  ingestion:
+    at-faq:
+      # Pilot of automated ingestion of the AT public FAQs (Etapa 10A).
+      # Disabled by default — no HTTP request is made unless explicitly enabled.
+      enabled: ${AT_FAQ_INGESTION_ENABLED:false}
+      max-items: ${AT_FAQ_MAX_ITEMS:80}
+      max-pages: ${AT_FAQ_MAX_PAGES:10}
+      delay-ms: ${AT_FAQ_DELAY_MS:1500}
+      connect-timeout: ${AT_FAQ_CONNECT_TIMEOUT:5s}
+      read-timeout: ${AT_FAQ_READ_TIMEOUT:20s}
+      max-run-duration: ${AT_FAQ_MAX_RUN_DURATION:10m}
+      user-agent: ${AT_FAQ_USER_AGENT:TaxIA-Research-Pilot/1.0}
   ai:
     primary-provider: ${AI_PRIMARY_PROVIDER:anthropic}
     http:

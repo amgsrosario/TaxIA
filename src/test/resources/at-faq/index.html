@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="utf-8">
+    <title>Questões Frequentes — Fixture Fictícia</title>
+</head>
+<body>
+<!-- Fixture fictícia que replica a estrutura do acordeão do índice de FAQs.
+     Conteúdo inventado para testes — não é conteúdo real da AT. -->
+<div id="accordion">
+
+    <div class="card">
+        <div class="card-header" id="heading02">
+            <a class="d-block" role="button" data-bs-toggle="collapse" href="#collapse02">
+                IRC
+                <i class="fa fa-chevron-down float-end" aria-hidden="true"></i>
+            </a>
+        </div>
+        <div id="collapse02" class="accordion-collapse collapse">
+            <div class="card-body">
+                <ul class="submenu-itens">
+                    <li>
+                        <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                        Enquadramento Legal
+                        <ul class="submenu-itens-sub">
+                            <li>
+                                <!-- Mesmo rótulo "Taxas", mas fora da área IVA: nunca deve ser seguido -->
+                                <a href="/pt/apoio_contribuinte/questoes_frequentes/pages/faqs-80001.aspx"
+                                   title="Taxas">Taxas</a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header" id="heading03">
+            <a class="d-block" role="button" data-bs-toggle="collapse" href="#collapse03">
+                IVA
+                <i class="fa fa-chevron-down float-end" aria-hidden="true"></i>
+            </a>
+        </div>
+        <div id="collapse03" class="accordion-collapse collapse">
+            <div class="card-body">
+                <ul class="submenu-itens">
+                    <li>
+                        <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                        Enquadramento Legal
+                        <ul class="submenu-itens-sub">
+                            <li>
+                                <!-- URL relativa: deve ser resolvida contra a base -->
+                                <a href="/pt/apoio_contribuinte/questoes_frequentes/pages/faqs-90001.aspx"
+                                   title="Direito à Dedução">Direito à Dedução</a>
+                            </li>
+                            <li>
+                                <a href="/pt/apoio_contribuinte/questoes_frequentes/pages/faqs-90002.aspx"
+                                   title="Taxas">Taxas</a>
+                            </li>
+                            <li>
+                                <!-- Não autorizada: fora do âmbito do piloto -->
+                                <a href="/pt/apoio_contribuinte/questoes_frequentes/pages/faqs-90003.aspx"
+                                   title="Isenções (Exceto art. 53.º)">Isenções (Exceto art. 53.º)</a>
+                            </li>
+                            <li>
+                                <!-- Duplicada (mesma página de Taxas, URL absoluta) -->
+                                <a href="BASE_URL/pt/apoio_contribuinte/questoes_frequentes/pages/faqs-90002.aspx"
+                                   title="Taxas">Taxas</a>
+                            </li>
+                            <li>
+                                <!-- Host externo com rótulo autorizado: tem de ser rejeitado -->
+                                <a href="https://evil.example.com/pt/apoio_contribuinte/questoes_frequentes/pages/faqs-99999.aspx"
+                                   title="Taxas">Taxas</a>
+                            </li>
+                            <li>
+                                <!-- Fora do prefixo de caminho autorizado: rejeitada -->
+                                <a href="/outra/seccao/faqs-90007.aspx" title="Taxas">Taxas</a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                        Faturação
+                        <ul class="submenu-itens-sub">
+                            <li>
+                                <a href="/pt/apoio_contribuinte/questoes_frequentes/pages/faqs-90004.aspx"
+                                   title="Enquadramento Legal">Enquadramento Legal</a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                        Pagamentos
+                        <ul class="submenu-itens-sub">
+                            <li>
+                                <!-- Grupo não autorizado -->
+                                <a href="/pt/apoio_contribuinte/questoes_frequentes/pages/faqs-90005.aspx"
+                                   title="Débito Direto">Débito Direto</a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

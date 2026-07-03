@@ -307,7 +307,9 @@ class FlywayV13ToV14UpgradeIT {
     @Order(8)
     @DisplayName("TC-UP-08: Flyway aplica exactamente 1 migration (V14) no upgrade")
     void tc08_applyV14() {
-        var result = flywayWithTarget(null).migrate();
+        // target=14: this IT proves the V13→V14 upgrade path specifically;
+        // later migrations (V15+) are covered by their own tests.
+        var result = flywayWithTarget("14").migrate();
         assertThat(result.migrationsExecuted)
                 .as("Exactly 1 migration (V14) should be applied in the upgrade step")
                 .isEqualTo(1);
@@ -488,7 +490,7 @@ class FlywayV13ToV14UpgradeIT {
     @Order(17)
     @DisplayName("TC-UP-17: Segunda execução de Flyway.migrate() aplica 0 migrations (idempotente)")
     void tc17_secondMigrationIsIdempotent() {
-        var result = flywayWithTarget(null).migrate();
+        var result = flywayWithTarget("14").migrate();
         assertThat(result.migrationsExecuted)
                 .as("Second migrate() call should apply zero migrations")
                 .isZero();
@@ -502,7 +504,7 @@ class FlywayV13ToV14UpgradeIT {
     @Order(18)
     @DisplayName("TC-UP-18: Flyway.validate() passa — schema em estado consistente com V1→V14")
     void tc18_flywayValidatePasses() {
-        assertThatCode(() -> flywayWithTarget(null).validate())
+        assertThatCode(() -> flywayWithTarget("14").validate())
                 .as("Flyway validate() should pass — all migration checksums must match")
                 .doesNotThrowAnyException();
     }
