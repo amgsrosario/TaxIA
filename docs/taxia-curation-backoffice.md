@@ -68,9 +68,17 @@ Utilizador ADMIN criado na Etapa 9B.1: `piloto.admin@taxia.local`
 
 ### Guard rails implementados
 
+- **Alterações não guardadas bloqueiam todas as mudanças de estado** (banner
+  explícito + botões desactivados) — mudar de estado com texto por gravar
+  descartava-o silenciosamente (bug corrigido em 2026-07-06; confirmado por
+  auditoria: 0 eventos `KNOWLEDGE_QA_UPDATED` antes da correcção);
+- "Guardar alterações" usa a **resposta do PATCH** como fonte de verdade — o
+  ecrã mostra exactamente o que o backend confirmou ter persistido;
+- "Passar para revisão" exige `short_answer` **guardada na BD** (não basta o
+  texto no formulário);
 - "Validar" fica **desactivado** (com explicação visível) enquanto faltar:
-  resposta curada, pelo menos uma fonte, fonte com URL ou referência legal,
-  ou o estado PENDING_REVIEW;
+  `short_answer` guardada, pelo menos uma fonte, fonte com URL ou referência
+  legal, o estado PENDING_REVIEW, ou houver alterações por gravar;
 - validação de casos **HIGH/CRITICAL** exige escrever `VALIDAR` no diálogo;
 - arquivar exige escrever `ARQUIVAR`; rejeitar pede motivo;
 - botões de **publicar, reindexar e ask/IA não existem** na UI e o cliente API

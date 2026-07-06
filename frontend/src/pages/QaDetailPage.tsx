@@ -80,6 +80,25 @@ export function QaDetailPage() {
     notes: "",
   });
 
+  function formFrom(d: KnowledgeQaDetail): CurationForm {
+    return {
+      shortAnswer: d.shortAnswer ?? "",
+      technicalAnswer: d.technicalAnswer ?? "",
+      notes: d.notes ?? "",
+      riskLevel: d.riskLevel,
+      topic: d.topic ?? "",
+      subtopic: d.subtopic ?? "",
+      validFrom: d.validFrom ?? "",
+      validTo: d.validTo ?? "",
+    };
+  }
+
+  /** Aplica a resposta do servidor como única fonte de verdade (detalhe + formulário). */
+  function applyDetail(d: KnowledgeQaDetail) {
+    setDetail(d);
+    setForm(formFrom(d));
+  }
+
   const load = useCallback(() => {
     if (!id) return;
     setLoading(true);
@@ -87,16 +106,7 @@ export function QaDetailPage() {
     getQaDetail(id)
       .then((d) => {
         setDetail(d);
-        setForm({
-          shortAnswer: d.shortAnswer ?? "",
-          technicalAnswer: d.technicalAnswer ?? "",
-          notes: d.notes ?? "",
-          riskLevel: d.riskLevel,
-          topic: d.topic ?? "",
-          subtopic: d.subtopic ?? "",
-          validFrom: d.validFrom ?? "",
-          validTo: d.validTo ?? "",
-        });
+        setForm(formFrom(d));
       })
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : "Erro ao carregar o caso."),
@@ -120,16 +130,34 @@ export function QaDetailPage() {
   if (!detail || !form || !id) return null;
 
   const isArchived = detail.curationStatus === "ARCHIVED";
-  const highRisk = form.riskLevel === "HIGH" || form.riskLevel === "CRITICAL";
-  const curatedAnswer = (form.technicalAnswer || form.shortAnswer).trim();
+  const highRisk = detail.riskLevel === "HIGH" || detail.riskLevel === "CRITICAL";
+
+  // ── Alterações não guardadas ───────────────────────────────────────────────
+  // Mudanças de estado com texto por gravar perdiam-no silenciosamente
+  // (o reload repunha o formulário a partir da BD). Enquanto houver
+  // diferenças entre o formulário e o que está persistido, TODAS as acções
+  // de estado ficam bloqueadas.
+  const baseline = formFrom(detail);
+  const dirty = (Object.keys(baseline) as (keyof CurationForm)[]).some(
+    (k) => form[k] !== baseline[k],
+  );
+
+  // ── Guard rails avaliados sobre os valores PERSISTIDOS (nunca o formulário) ─
+  const persistedShortAnswer = (detail.shortAnswer ?? "").trim();
   const hasSources = detail.sources.length > 0;
   const hasUsableSource = detail.sources.some(
     (s) => (s.url && s.url.trim() !== "") || (s.legalReference && s.legalReference.trim() !== ""),
   );
 
-  // ── Guard rails de validação (avaliados ANTES de permitir a acção) ────────
+  const reviewBlockers: string[] = [];
+  if (dirty) reviewBlockers.push("Há alterações não guardadas — guarde primeiro.");
+  if (!persistedShortAnswer)
+    reviewBlockers.push("Falta a resposta curada curta (guardada) antes de passar para revisão.");
+
   const validationBlockers: string[] = [];
-  if (!curatedAnswer) validationBlockers.push("Falta a resposta curada (curta ou técnica).");
+  if (dirty) validationBlockers.push("Há alterações não guardadas — guarde primeiro.");
+  if (!persistedShortAnswer)
+    validationBlockers.push("Falta a resposta curada curta (guardada na base de dados).");
   if (!hasSources) validationBlockers.push("O caso não tem nenhuma fonte associada.");
   if (hasSources && !hasUsableSource)
     validationBlockers.push("Nenhuma fonte tem URL ou referência legal suficiente.");
@@ -169,11 +197,22 @@ export function QaDetailPage() {
     }
   }
 
-  const saveCuration = () =>
-    run(
-      () => updateCuration(id, buildCurationPayload(form, detail)),
-      "Alterações de curadoria guardadas.",
-    );
+  // Guardar usa a resposta do PATCH como fonte de verdade — o que fica no ecrã
+  // é exactamente o que o backend confirmou ter persistido.
+  const saveCuration = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const saved = await updateCuration(id, buildCurationPayload(form, detail));
+      applyDetail(saved);
+      setNotice("Alterações de curadoria guardadas na base de dados.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Erro inesperado ao guardar.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submitSource = () => {
     if (!sourceForm.title.trim()) {
@@ -414,7 +453,22 @@ export function QaDetailPage() {
 
       <div className="card">
         <h2>Acções de estado</h2>
-        {validationBlockers.length > 0 && (
+        {dirty && (
+          <div className="banner warning">
+            <strong>Alterações não guardadas.</strong> Guarde primeiro — mudar de
+            estado sem guardar descartaria o texto escrito.
+          </div>
+        )}
+        {reviewBlockers.length > 0 &&
+          (detail.curationStatus === "IMPORTED" || detail.curationStatus === "NEEDS_UPDATE") && (
+          <div className="banner info">
+            <strong>Passagem para revisão bloqueada:</strong>
+            <ul style={{ margin: "6px 0 0 18px" }}>
+              {reviewBlockers.map((b) => <li key={b}>{b}</li>)}
+            </ul>
+          </div>
+        )}
+        {validationBlockers.length > 0 && detail.curationStatus === "PENDING_REVIEW" && (
           <div className="banner info">
             <strong>Validação bloqueada:</strong>
             <ul style={{ margin: "6px 0 0 18px" }}>
@@ -424,7 +478,11 @@ export function QaDetailPage() {
         )}
         <div className="actions-row">
           <button
-            disabled={busy || (detail.curationStatus !== "IMPORTED" && detail.curationStatus !== "NEEDS_UPDATE")}
+            disabled={
+              busy ||
+              reviewBlockers.length > 0 ||
+              (detail.curationStatus !== "IMPORTED" && detail.curationStatus !== "NEEDS_UPDATE")
+            }
             onClick={() => setPendingAction({ kind: "pending-review" })}
           >
             Passar para revisão
@@ -438,21 +496,21 @@ export function QaDetailPage() {
           </button>
           <button
             className="danger"
-            disabled={busy || detail.curationStatus !== "PENDING_REVIEW"}
+            disabled={busy || dirty || detail.curationStatus !== "PENDING_REVIEW"}
             onClick={() => setPendingAction({ kind: "reject" })}
           >
             Rejeitar
           </button>
           <button
             className="secondary"
-            disabled={busy || (detail.curationStatus !== "VALIDATED" && detail.curationStatus !== "PENDING_REVIEW")}
+            disabled={busy || dirty || (detail.curationStatus !== "VALIDATED" && detail.curationStatus !== "PENDING_REVIEW")}
             onClick={() => setPendingAction({ kind: "outdated" })}
           >
             Precisa de actualização
           </button>
           <button
             className="secondary"
-            disabled={busy || !["REJECTED", "OUTDATED", "NEEDS_UPDATE"].includes(detail.curationStatus)}
+            disabled={busy || dirty || !["REJECTED", "OUTDATED", "NEEDS_UPDATE"].includes(detail.curationStatus)}
             onClick={() => setPendingAction({ kind: "archive" })}
           >
             Arquivar
