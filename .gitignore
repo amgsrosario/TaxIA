@@ -23,3 +23,7 @@ Chaves AnthropicAIService.txt
 pilot/input/
 pilot/working/
 pilot/reports/
+
+# Frontend backoffice
+frontend/node_modules/
+frontend/dist/

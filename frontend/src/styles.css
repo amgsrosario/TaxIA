@@ -1,0 +1,304 @@
+/* TaxIA Backoffice — estética sóbria institucional (navy / branco / dourado) */
+
+:root {
+  --navy: #1c2f4a;
+  --navy-dark: #14233a;
+  --navy-soft: #35496b;
+  --gold: #b08d4f;
+  --gold-soft: #d9c39a;
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --border: #e3e7ee;
+  --text: #24303f;
+  --text-muted: #6b7787;
+  --danger: #a0343e;
+  --success: #2f7a4d;
+  --warning: #8a6d1f;
+  --radius: 6px;
+  font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+h1, h2, h3 { color: var(--navy); font-weight: 600; }
+h1 { font-size: 1.35rem; }
+h2 { font-size: 1.1rem; }
+h3 { font-size: 0.95rem; }
+
+a { color: var(--navy-soft); }
+
+/* ── Layout ─────────────────────────────────────────────── */
+
+.app-shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 220px;
+  background: var(--navy);
+  color: #eef1f6;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 14px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sidebar .brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.sidebar .brand span { color: var(--gold-soft); }
+
+.sidebar .org {
+  font-size: 0.78rem;
+  color: #b9c2d2;
+  margin-bottom: 18px;
+  word-break: break-all;
+}
+
+.sidebar nav a {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  color: #dfe5ee;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.sidebar nav a.active,
+.sidebar nav a:hover { background: var(--navy-soft); color: #fff; }
+
+.sidebar .spacer { flex: 1; }
+
+.sidebar .user {
+  font-size: 0.8rem;
+  color: #b9c2d2;
+  border-top: 1px solid var(--navy-soft);
+  padding-top: 12px;
+  word-break: break-all;
+}
+
+.main {
+  flex: 1;
+  padding: 24px 32px;
+  max-width: 1200px;
+}
+
+/* ── Formulários e botões ───────────────────────────────── */
+
+label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+
+input, select, textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: 2px solid var(--gold-soft);
+  border-color: var(--gold);
+}
+
+textarea { resize: vertical; min-height: 90px; }
+
+button {
+  font: inherit;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: var(--navy);
+  color: #fff;
+}
+
+button:hover:not(:disabled) { background: var(--navy-soft); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+button.secondary {
+  background: var(--surface);
+  color: var(--navy);
+  border-color: var(--border);
+}
+button.secondary:hover:not(:disabled) { background: var(--bg); }
+
+button.danger { background: var(--danger); }
+button.danger:hover:not(:disabled) { background: #7f2831; }
+
+button.gold { background: var(--gold); }
+button.gold:hover:not(:disabled) { background: #97783f; }
+
+/* ── Cartões e tabelas ──────────────────────────────────── */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+
+table { width: 100%; border-collapse: collapse; background: var(--surface); }
+
+th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--border);
+}
+
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+
+tr.clickable { cursor: pointer; }
+tr.clickable:hover { background: #f2f5f9; }
+
+/* ── Badges de estado e risco ───────────────────────────── */
+
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.badge.status-IMPORTED       { background: #eef1f6; color: var(--navy-soft); }
+.badge.status-PENDING_REVIEW { background: #fdf3dd; color: var(--warning); }
+.badge.status-VALIDATED      { background: #e5f2ea; color: var(--success); }
+.badge.status-NEEDS_UPDATE   { background: #fdeee0; color: #9a5b1f; }
+.badge.status-OUTDATED       { background: #f0e9e0; color: #7a6242; }
+.badge.status-REJECTED       { background: #f9e5e7; color: var(--danger); }
+.badge.status-ARCHIVED       { background: #e9e9ec; color: #5d6470; }
+
+.badge.risk-LOW      { background: #e5f2ea; color: var(--success); }
+.badge.risk-MEDIUM   { background: #eef1f6; color: var(--navy-soft); }
+.badge.risk-HIGH     { background: #fdf3dd; color: var(--warning); }
+.badge.risk-CRITICAL { background: #f9e5e7; color: var(--danger); }
+
+/* ── Mensagens ──────────────────────────────────────────── */
+
+.banner {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+}
+
+.banner.error   { background: #f9e5e7; color: var(--danger); border: 1px solid #eec6ca; }
+.banner.success { background: #e5f2ea; color: var(--success); border: 1px solid #c4dfd0; }
+.banner.info    { background: #eef1f6; color: var(--navy-soft); border: 1px solid var(--border); }
+.banner.warning { background: #fdf3dd; color: var(--warning); border: 1px solid #ecd9a8; }
+
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px 0;
+}
+
+/* ── Login ──────────────────────────────────────────────── */
+
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, var(--navy) 0%, var(--navy-dark) 100%);
+}
+
+.login-card {
+  width: 360px;
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 32px;
+  box-shadow: 0 8px 30px rgba(10, 20, 40, 0.35);
+}
+
+.login-card .brand { font-size: 1.6rem; font-weight: 700; color: var(--navy); }
+.login-card .brand span { color: var(--gold); }
+.login-card .subtitle { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 22px; }
+.login-card form > div { margin-bottom: 14px; }
+.login-card button { width: 100%; margin-top: 6px; }
+
+/* ── Detalhe / curadoria ────────────────────────────────── */
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 1000px) { .detail-grid { grid-template-columns: 1fr; } }
+
+.field-block { margin-bottom: 12px; }
+.field-block .value {
+  white-space: pre-wrap;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}
+
+.meta-row { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 0.85rem; }
+.meta-row .item span { color: var(--text-muted); }
+
+.actions-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-grid .full { grid-column: 1 / -1; }
+
+/* ── Diálogo de confirmação ─────────────────────────────── */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 25, 45, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+
+.dialog {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 24px;
+  width: 440px;
+  max-width: 92vw;
+  box-shadow: 0 10px 36px rgba(10, 20, 40, 0.4);
+}
+
+.dialog h3 { margin-top: 0; }
+.dialog .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+.filters > div { min-width: 150px; }
+.filters .grow { flex: 1; min-width: 220px; }
+
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.muted { color: var(--text-muted); font-size: 0.85rem; }
