@@ -82,6 +82,22 @@ class KnowledgeQuestionAnswerCurationServiceTest {
                 .hasMessageContaining("HIGH");
     }
 
+    // 13b. validate() só com technicalAnswer (sem shortAnswer) → rejeitado
+    //      (regra editorial: a shortAnswer curada é obrigatória para validar)
+    @Test
+    void validate_technicalAnswerOnly_withoutShortAnswer_throwsBusinessException() {
+        KnowledgeQuestionAnswer qa = savedQa("Só técnica?", "Resposta original.");
+        qa.updateCuration(null, null, "Fundamentação técnica sem resposta curta.",
+                null, null, "PT", KnowledgeRiskLevel.LOW, false, null, null, null);
+        qa.markPendingReview();
+        qaRepository.save(qa);
+        addSource(qa);
+
+        assertThatThrownBy(() -> curationService.validate(org.getId(), userId, "revisor", qa.getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("shortAnswer");
+    }
+
     // 14. setCanonical() quando já existe canónico no mesmo topic → conflito
     @Test
     void setCanonical_whenAnotherCanonicalExists_throwsConflict() {
@@ -99,7 +115,8 @@ class KnowledgeQuestionAnswerCurationServiceTest {
     @Test
     void eligibility_expiredValidTo_notEligibleForRag() {
         KnowledgeQuestionAnswer qa = savedQa("Questão expirada?", "Resposta expirada.");
-        qa.updateCuration(null, "Resposta expirada.", null, null, null, "PT", KnowledgeRiskLevel.LOW, false,
+        qa.updateCuration(null, "Resposta expirada.", "Resposta expirada. Fundamentação técnica.",
+                null, null, "PT", KnowledgeRiskLevel.LOW, false,
                 null, LocalDate.now().minusDays(1), null);
         qa.markPendingReview();
         qaRepository.save(qa);

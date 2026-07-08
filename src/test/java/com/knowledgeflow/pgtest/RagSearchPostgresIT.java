@@ -85,6 +85,7 @@ class RagSearchPostgresIT {
     private static final UUID QA_OUTDATED_ID  = UUID.fromString("c1000000-0000-0000-0000-000000000027");
     private static final UUID QA_FUTURE_ID    = UUID.fromString("c1000000-0000-0000-0000-000000000028");
     private static final UUID QA_OLD_VER_ID   = UUID.fromString("c1000000-0000-0000-0000-000000000029");
+    private static final UUID QA_SHORT_ONLY_ID = UUID.fromString("c1000000-0000-0000-0000-000000000030");
     private static final UUID QA_ORGB_ID      = UUID.fromString("c2000000-0000-0000-0000-000000000020");
 
     // =========================================================================
@@ -149,6 +150,7 @@ class RagSearchPostgresIT {
             WHERE kqa.organization_id = ?
               AND kqa.curation_status = 'VALIDATED'
               AND kqa.published_at IS NOT NULL
+              AND kqa.technical_answer IS NOT NULL
               AND (kqa.valid_to IS NULL OR kqa.valid_to >= CURRENT_DATE)
               AND (kqa.valid_from IS NULL OR kqa.valid_from <= CURRENT_DATE)
             ORDER BY similarity DESC
@@ -316,6 +318,15 @@ class RagSearchPostgresIT {
         jdbc.update(
                 "UPDATE knowledge_question_answers SET previous_version_id = ? WHERE id = ?",
                 QA_OLD_VER_ID, QA_VALID_ID);
+
+        // QA_SHORT_ONLY: publicado ANTES da regra editorial, só com short_answer
+        // (technical_answer NULL) e com embedding → o SQL tem de o excluir.
+        insertQa(QA_SHORT_ONLY_ID, ORG_A,
+                "Pergunta legada só com resposta curta?",
+                "Resposta original legada.",
+                null, null, "Resposta curta legada sem fundamentação técnica.",
+                "VALIDATED", now, null, null, null, now, now);
+        insertQaEmbedding(QA_SHORT_ONLY_ID, VEC_HIGH);
 
         // QA_ORGB: VALIDATED + published in ORG_B → excluded by organization_id filter
         insertQa(QA_ORGB_ID, ORG_B,
@@ -590,6 +601,15 @@ class RagSearchPostgresIT {
     void tc19_orgBQaExcluded() {
         List<Map<String, Object>> results = search(ORG_A, 10);
         assertThat(hasSourceQaId(results, QA_ORGB_ID)).isFalse();
+    }
+
+    @Test @Order(21)
+    @DisplayName("TC-RS-21: Q&A publicado sem technical_answer (legado) é excluído do RAG")
+    void tc21_shortAnswerOnlyQaExcluded() {
+        // Regra editorial: short_answer sozinha nunca sustenta conteúdo no RAG,
+        // mesmo que a entrada esteja VALIDATED + publicada + com embedding.
+        List<Map<String, Object>> results = search(ORG_A, 10);
+        assertThat(hasSourceQaId(results, QA_SHORT_ONLY_ID)).isFalse();
     }
 
     @Test @Order(20)

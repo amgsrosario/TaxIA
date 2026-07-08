@@ -107,12 +107,79 @@ class KnowledgeQuestionAnswerPublicationServiceTest {
     }
 
     // -------------------------------------------------------------------------
+    // Regra editorial: technicalAnswer obrigatória para publicação/embeddings
+    // -------------------------------------------------------------------------
+
+    // (a) shortAnswer sem technicalAnswer → publicação bloqueada
+    @Test
+    void publish_shortAnswerOnly_isBlocked() {
+        KnowledgeQuestionAnswer qa =
+                savedShortOnlyValidatedQaWithSource("Só resposta curta?", "Resposta curta validada.");
+
+        assertThatThrownBy(() -> publicationService.publish(org.getId(), userId, "pub@taxia.pt", qa.getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("technicalAnswer");
+
+        var unchanged = qaRepository.findById(qa.getId()).get();
+        assertThat(unchanged.isPublished()).isFalse();
+        assertThat(unchanged.getPublishedAt()).isNull();
+    }
+
+    // (b) shortAnswer + technicalAnswer → fluxo normal segue
+    @Test
+    void publish_withShortAndTechnicalAnswer_succeeds() {
+        KnowledgeQuestionAnswer qa = savedValidatedQaWithSource("Com ambas?", "Resposta completa.");
+        assertThat(qa.getShortAnswer()).isNotBlank();
+        assertThat(qa.getTechnicalAnswer()).isNotBlank();
+
+        publicationService.publish(org.getId(), userId, "pub@taxia.pt", qa.getId());
+
+        assertThat(qaRepository.findById(qa.getId()).get().isPublished()).isTrue();
+    }
+
+    // Reindex de publicado legado sem technicalAnswer → bloqueado (sem novo embedding)
+    @Test
+    void reindex_withoutTechnicalAnswer_isBlocked() {
+        KnowledgeQuestionAnswer qa = savedValidatedQaWithSource("Legado?", "Resposta legada.");
+        publicationService.publish(org.getId(), userId, "pub@taxia.pt", qa.getId());
+
+        // Simula entrada publicada antes da regra: technicalAnswer removida a posteriori.
+        var published = qaRepository.findById(qa.getId()).get();
+        published.updateCuration(null, published.getShortAnswer(), null,
+                published.getTopic(), published.getSubtopic(), published.getJurisdiction(),
+                published.getRiskLevel(), published.isRequiresHumanValidation(),
+                published.getValidFrom(), published.getValidTo(), published.getNotes());
+        qaRepository.save(published);
+
+        assertThatThrownBy(() -> publicationService.reindex(org.getId(), userId, qa.getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("technicalAnswer");
+    }
+
+    // (d) IMPORTED → PENDING_REVIEW continua a funcionar sem technicalAnswer
+    @Test
+    void pendingReview_withoutTechnicalAnswer_stillAllowed() {
+        var qa = new KnowledgeQuestionAnswer(org, "Sem técnica?", "Original.", "test", null);
+        qa.updateCuration(null, "Só curta.", null, KnowledgeTopic.IVA, null, "PT",
+                KnowledgeRiskLevel.LOW, false, null, null, null);
+        qa = qaRepository.save(qa);
+
+        qa.markPendingReview();
+        qaRepository.save(qa);
+
+        assertThat(qaRepository.findById(qa.getId()).get().getCurationStatus())
+                .isEqualTo(KnowledgeCurationStatus.PENDING_REVIEW);
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
     private KnowledgeQuestionAnswer savedValidatedQa(String question, String answer) {
         var qa = new KnowledgeQuestionAnswer(org, question, answer, "test", null);
-        qa.updateCuration(null, answer, null, KnowledgeTopic.IVA, null, "PT",
+        // Publicação exige shortAnswer E technicalAnswer (regra editorial TaxIA).
+        qa.updateCuration(null, answer, answer + " Fundamentação técnica completa.",
+                KnowledgeTopic.IVA, null, "PT",
                 KnowledgeRiskLevel.LOW, false, null, null, null);
         qa.markPendingReview();
         qa.validate("revisor");
@@ -121,6 +188,19 @@ class KnowledgeQuestionAnswerPublicationServiceTest {
 
     private KnowledgeQuestionAnswer savedValidatedQaWithSource(String question, String answer) {
         var qa = savedValidatedQa(question, answer);
+        curationService.addSource(org.getId(), userId, qa.getId(), new SourceReferenceRequest(
+                KnowledgeSourceType.LEGISLATION, "CIVA", null, null, null, null, null, null, null));
+        return qaRepository.findById(qa.getId()).get();
+    }
+
+    /** Caso VALIDATED apenas com shortAnswer — proibido publicar. */
+    private KnowledgeQuestionAnswer savedShortOnlyValidatedQaWithSource(String question, String answer) {
+        var qa = new KnowledgeQuestionAnswer(org, question, answer, "test", null);
+        qa.updateCuration(null, answer, null, KnowledgeTopic.IVA, null, "PT",
+                KnowledgeRiskLevel.LOW, false, null, null, null);
+        qa.markPendingReview();
+        qa.validate("revisor");
+        qa = qaRepository.save(qa);
         curationService.addSource(org.getId(), userId, qa.getId(), new SourceReferenceRequest(
                 KnowledgeSourceType.LEGISLATION, "CIVA", null, null, null, null, null, null, null));
         return qaRepository.findById(qa.getId()).get();

@@ -105,6 +105,13 @@ public class KnowledgeQuestionAnswerPublicationService {
             throw new BusinessException(ApiErrorCode.INVALID_STATE_TRANSITION,
                     "Only published entries can be reindexed — use publish for entry %s".formatted(id));
         }
+        // Entradas publicadas antes desta regra podem não ter resposta técnica:
+        // nunca regenerar embeddings para conteúdo sem technicalAnswer.
+        if (qa.getTechnicalAnswer() == null || qa.getTechnicalAnswer().isBlank()) {
+            throw new BusinessException(ApiErrorCode.VALIDATION_ERROR,
+                    "Entry %s has no technicalAnswer — reindexing is blocked (unpublish and complete curation first)"
+                            .formatted(id));
+        }
 
         String topicLabel = qa.getTopic() != null ? qa.getTopic().name() : null;
         indexer.index(qa.getId(), qa.getOriginalQuestion(), activeAnswer(qa), topicLabel);
@@ -234,6 +241,9 @@ public class KnowledgeQuestionAnswerPublicationService {
     private String eligibilityReason(KnowledgeQuestionAnswer qa) {
         if (qa.getCurationStatus() != com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus.VALIDATED) {
             return "status is " + qa.getCurationStatus();
+        }
+        if (qa.getTechnicalAnswer() == null || qa.getTechnicalAnswer().isBlank()) {
+            return "a technicalAnswer is required for publication (shortAnswer alone is never enough)";
         }
         if (qa.getValidTo() != null && qa.getValidTo().isBefore(java.time.LocalDate.now())) {
             return "validTo expired on " + qa.getValidTo();

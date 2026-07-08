@@ -174,7 +174,7 @@ class KnowledgeQaComplianceTest {
     @Test
     void publish_highRisk_validatedWithHumanValidationFlag_eligible() {
         KnowledgeQuestionAnswer qa = savedQa("Q?", "A.");
-        qa.updateCuration(null, "A.", null, KnowledgeTopic.IVA, null, "PT",
+        qa.updateCuration(null, "A.", "A. Fundamentação técnica.", KnowledgeTopic.IVA, null, "PT",
                 KnowledgeRiskLevel.HIGH, true, null, null, null);
         qa.markPendingReview();
         qaRepository.save(qa);
@@ -222,7 +222,7 @@ class KnowledgeQaComplianceTest {
     @Test
     void eligibility_expiredEntry_notEligible() {
         KnowledgeQuestionAnswer qa = savedValidatedQaWithSource("Q?", "A.");
-        qa.updateCuration(null, "A.", null, KnowledgeTopic.IVA, null, "PT",
+        qa.updateCuration(null, "A.", "A. Fundamentação técnica.", KnowledgeTopic.IVA, null, "PT",
                 KnowledgeRiskLevel.LOW, false, null, LocalDate.now().minusDays(1), null);
         qaRepository.save(qa);
         assertThat(qa.isEligibleForRag()).isFalse();
@@ -484,9 +484,12 @@ class KnowledgeQaComplianceTest {
         assertThat(qaRepository.findById(qa.getId()).get().getCurationStatus())
                 .isEqualTo(KnowledgeCurationStatus.PENDING_REVIEW);
 
-        // 3. Set short answer (required for validation)
+        // 3. Set curated answers (shortAnswer required for validation;
+        //    technicalAnswer required for publication)
         var req = new com.knowledgeflow.knowledge.dto.KnowledgeQaCurationRequest(
-                null, "A taxa fictícia é de 9%.", null, null, null, null, null, null, null, null, null);
+                null, "A taxa fictícia é de 9%.",
+                "A taxa fictícia é de 9%, nos termos do artigo fictício aplicável.",
+                null, null, null, null, null, null, null, null);
         curationService.updateCuration(org.getId(), userId, qa.getId(), req);
 
         // 4. Add source
@@ -561,7 +564,9 @@ class KnowledgeQaComplianceTest {
 
     private KnowledgeQuestionAnswer savedValidatedQa(String question, String answer) {
         var qa = new KnowledgeQuestionAnswer(org, question, answer, "test", null);
-        qa.updateCuration(null, answer, null, KnowledgeTopic.IVA, null, "PT",
+        // Regra editorial: publicação/RAG exigem também a technicalAnswer.
+        qa.updateCuration(null, answer, answer + " Fundamentação técnica.",
+                KnowledgeTopic.IVA, null, "PT",
                 KnowledgeRiskLevel.LOW, false, null, null, null);
         qa.markPendingReview();
         qa.validate("revisor");

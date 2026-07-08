@@ -321,9 +321,16 @@ export function QaDetailPage() {
             <textarea
               value={form.technicalAnswer}
               onChange={(e) => setForm({ ...form, technicalAnswer: e.target.value })}
-              placeholder="Fundamentação técnica detalhada (opcional)"
+              placeholder="Fundamentação técnica (obrigatória para publicação futura)"
               disabled={busy}
             />
+            {!(detail.technicalAnswer ?? "").trim() && (
+              <div className="banner info" style={{ marginTop: 6 }}>
+                Sem resposta técnica guardada: o caso pode ser validado, mas a
+                publicação e o RAG ficarão bloqueados pelo backend até existir
+                fundamentação técnica completa.
+              </div>
+            )}
           </div>
           <div className="field-block">
             <label>Notas de curadoria</label>

@@ -272,8 +272,9 @@ public class KnowledgeQuestionAnswer {
     public boolean isEligibleForRag() {
         if (curationStatus != KnowledgeCurationStatus.VALIDATED) return false;
         if (originalQuestion == null || originalQuestion.isBlank()) return false;
-        String activeAnswer = technicalAnswer != null ? technicalAnswer : shortAnswer;
-        if (activeAnswer == null || activeAnswer.isBlank()) return false;
+        // Regra editorial: casos fiscais/jurídicos só entram no RAG com resposta
+        // técnica completa — a shortAnswer sozinha nunca sustenta publicação.
+        if (technicalAnswer == null || technicalAnswer.isBlank()) return false;
         if (validTo != null && validTo.isBefore(LocalDate.now())) return false;
         if ((riskLevel == KnowledgeRiskLevel.HIGH || riskLevel == KnowledgeRiskLevel.CRITICAL)
                 && (reviewedBy == null || reviewedBy.isBlank())) return false;
@@ -303,10 +304,11 @@ public class KnowledgeQuestionAnswer {
     }
 
     private void requireValidatedAnswer() {
-        String active = technicalAnswer != null ? technicalAnswer : shortAnswer;
-        if (active == null || active.isBlank()) {
+        // A shortAnswer curada é obrigatória em qualquer avanço relevante de
+        // curadoria; a technicalAnswer só é exigida mais tarde, na publicação.
+        if (shortAnswer == null || shortAnswer.isBlank()) {
             throw new BusinessException(ApiErrorCode.VALIDATION_ERROR,
-                    "A validated answer (shortAnswer or technicalAnswer) is required before validation");
+                    "A curated shortAnswer is required before validation");
         }
     }
 

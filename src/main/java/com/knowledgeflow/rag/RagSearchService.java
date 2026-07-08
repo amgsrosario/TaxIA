@@ -75,6 +75,7 @@ public class RagSearchService {
                 WHERE kqa.organization_id = ?
                   AND kqa.curation_status = 'VALIDATED'
                   AND kqa.published_at IS NOT NULL
+                  AND kqa.technical_answer IS NOT NULL
                   AND (kqa.valid_to IS NULL OR kqa.valid_to >= CURRENT_DATE)
                   AND (kqa.valid_from IS NULL OR kqa.valid_from <= CURRENT_DATE)
                 ORDER BY similarity DESC
