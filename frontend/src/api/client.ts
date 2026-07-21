@@ -192,6 +192,14 @@ export function addSource(
   );
 }
 
+/** Remove uma fonte errada. O backend recusa deixar um caso validado/publicado sem fontes. */
+export function removeSource(id: string, sourceId: string): Promise<void> {
+  return request<void>(
+    "DELETE",
+    `/api/v1/admin/knowledge/qa/${id}/sources/${sourceId}`,
+  );
+}
+
 // NOTA DELIBERADA: os endpoints de publicação (/publish, /unpublish, /reindex)
 // e de IA (/admin/ai/ask) EXISTEM no backend mas NÃO têm função neste cliente.
 // Nesta etapa o backoffice não publica, não cria embeddings e não chama

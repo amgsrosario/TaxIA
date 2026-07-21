@@ -209,6 +209,7 @@ public class KnowledgeQuestionAnswerCurationService {
             UUID organizationId, UUID actingUserId, UUID qaId, SourceReferenceRequest req) {
 
         KnowledgeQuestionAnswer qa = requireOwned(organizationId, qaId);
+        requireValidUrl(req.url());
 
         KnowledgeSourceReference src = new KnowledgeSourceReference(qa, req.sourceType(), req.title());
         src.update(req.sourceType(), req.title(), req.legalReference(), req.url(),
@@ -227,6 +228,49 @@ public class KnowledgeQuestionAnswerCurationService {
         requireOwned(organizationId, qaId);
         return sourceRepository.findByQuestionAnswerId(qaId)
                 .stream().map(SourceReferenceResponse::from).toList();
+    }
+
+    /**
+     * Removes a source reference from a Q&A entry.
+     * <p>
+     * The module is append-only by design, so removal exists to correct wrong
+     * entries — never to strip evidence from knowledge already in use: a
+     * VALIDATED or published entry may never be left without any source.
+     */
+    @Transactional
+    public void removeSource(UUID organizationId, UUID actingUserId, UUID qaId, UUID sourceId) {
+        KnowledgeQuestionAnswer qa = requireOwned(organizationId, qaId);
+
+        KnowledgeSourceReference src = sourceRepository.findById(sourceId)
+                .filter(s -> s.getQuestionAnswer().getId().equals(qaId))
+                .orElseThrow(() -> new BusinessException(ApiErrorCode.NOT_FOUND,
+                        // A source belonging to another entry answers NOT_FOUND, exactly
+                        // like a missing id — existence is never revealed.
+                        "Source reference not found: " + sourceId));
+
+        boolean inUse = qa.getCurationStatus() == KnowledgeCurationStatus.VALIDATED || qa.isPublished();
+        if (inUse && sourceRepository.countByQuestionAnswerId(qaId) <= 1) {
+            throw new BusinessException(ApiErrorCode.VALIDATION_ERROR,
+                    "Cannot remove the last source of a validated or published entry — "
+                            + "add the correct source first");
+        }
+
+        sourceRepository.delete(src);
+
+        auditService.record(organizationId, actingUserId,
+                AuditAction.KNOWLEDGE_QA_SOURCE_REMOVED, "KnowledgeQuestionAnswer", qaId,
+                "externalKey=%s sourceId=%s sourceType=%s title=%s".formatted(
+                        qa.getExternalKey(), sourceId, src.getSourceType(), src.getTitle()));
+    }
+
+    /** Source URLs must carry an explicit http/https scheme — no free text, no other schemes. */
+    private void requireValidUrl(String url) {
+        if (url == null || url.isBlank()) return; // URL is optional
+        String trimmed = url.trim();
+        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+            throw new BusinessException(ApiErrorCode.VALIDATION_ERROR,
+                    "Source url must start with http:// or https:// — received: " + trimmed);
+        }
     }
 
     // -------------------------------------------------------------------------

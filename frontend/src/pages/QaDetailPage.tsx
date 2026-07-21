@@ -8,6 +8,7 @@ import {
   markOutdated,
   markPendingReview,
   rejectQa,
+  removeSource,
   updateCuration,
   validateQa,
 } from "../api/client";
@@ -17,6 +18,7 @@ import type {
   KnowledgeRiskLevel,
   KnowledgeSourceType,
   KnowledgeTopic,
+  SourceReference,
 } from "../api/types";
 import { RiskBadge, StatusBadge } from "../components/Badges";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -70,6 +72,7 @@ export function QaDetailPage() {
   const [busy, setBusy] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [sourceToRemove, setSourceToRemove] = useState<SourceReference | null>(null);
 
   const [form, setForm] = useState<CurationForm | null>(null);
   const [sourceForm, setSourceForm] = useState<SourceForm>({
@@ -242,6 +245,26 @@ export function QaDetailPage() {
     );
   };
 
+  /** Remoção de fonte: só após confirmação explícita; recarrega a lista no fim. */
+  async function confirmRemoveSource() {
+    const target = sourceToRemove;
+    if (!target || !id) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await removeSource(id, target.id);
+      setNotice(`Fonte "${target.title}" removida.`);
+      load();
+    } catch (err) {
+      // Ex.: última fonte de caso validado/publicado — o backend bloqueia.
+      setError(err instanceof ApiError ? err.message : "Erro ao remover a fonte.");
+    } finally {
+      setBusy(false);
+      setSourceToRemove(null);
+    }
+  }
+
   function executePendingAction() {
     if (!pendingAction) return;
     const reviewer = session?.email ?? "curador";
@@ -394,7 +417,10 @@ export function QaDetailPage() {
         ) : (
           <table>
             <thead>
-              <tr><th>Tipo</th><th>Título</th><th>Referência legal</th><th>URL</th><th>Notas</th></tr>
+              <tr>
+                <th>Tipo</th><th>Título</th><th>Referência legal</th><th>URL</th>
+                <th>Notas</th><th>Acções</th>
+              </tr>
             </thead>
             <tbody>
               {detail.sources.map((s) => (
@@ -408,6 +434,15 @@ export function QaDetailPage() {
                       : <span className="badge risk-HIGH">URL pendente</span>}
                   </td>
                   <td className="muted">{s.notes ?? "—"}</td>
+                  <td>
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => setSourceToRemove(s)}
+                    >
+                      Remover
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -416,8 +451,8 @@ export function QaDetailPage() {
 
         <h3 style={{ marginTop: 18 }}>Adicionar fonte</h3>
         <p className="muted">
-          O backend não expõe edição de fontes existentes — correcções fazem-se
-          adicionando uma fonte completa e correcta.
+          O backend não expõe edição de fontes existentes — corrigir uma fonte
+          faz-se adicionando a versão correcta e removendo a errada.
         </p>
         <div className="form-grid">
           <div>
@@ -537,6 +572,25 @@ export function QaDetailPage() {
           onCancel={() => setPendingAction(null)}
         >
           <p>O caso <strong>{detail.externalKey}</strong> fica em PENDING_REVIEW, pronto para curadoria final.</p>
+        </ConfirmDialog>
+      )}
+
+      {sourceToRemove && (
+        <ConfirmDialog
+          title="Remover fonte?"
+          confirmLabel="Remover fonte"
+          danger
+          onConfirm={confirmRemoveSource}
+          onCancel={() => setSourceToRemove(null)}
+        >
+          <p>
+            Vai remover a fonte <strong>{sourceToRemove.title}</strong> (
+            {sourceToRemove.sourceType}) do caso <strong>{detail.externalKey}</strong>.
+          </p>
+          <p className="muted">
+            A remoção é definitiva e fica auditada. O backend recusa deixar um caso
+            validado ou publicado sem qualquer fonte.
+          </p>
         </ConfirmDialog>
       )}
 

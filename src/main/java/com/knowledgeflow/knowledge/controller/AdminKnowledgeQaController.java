@@ -28,6 +28,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -185,6 +186,16 @@ public class AdminKnowledgeQaController {
     public List<SourceReferenceResponse> listSources(@PathVariable UUID id) {
         AuthenticatedUser user = authContext.getRequiredUser();
         return curationService.listSources(user.organizationId(), id);
+    }
+
+    /** Removes a wrong source. Never allowed to leave a validated/published entry sourceless. */
+    @DeleteMapping("/{id}/sources/{sourceId}")
+    public ResponseEntity<Void> removeSource(
+            @PathVariable UUID id,
+            @PathVariable UUID sourceId) {
+        AuthenticatedUser user = authContext.getRequiredUser();
+        curationService.removeSource(user.organizationId(), user.userId(), id, sourceId);
+        return ResponseEntity.noContent().build();
     }
 
     // -------------------------------------------------------------------------

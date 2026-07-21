@@ -3,6 +3,7 @@ package com.knowledgeflow.knowledge.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.knowledgeflow.audit.enums.AuditAction;
 import com.knowledgeflow.audit.repository.AuditEventRepository;
 import com.knowledgeflow.common.error.BusinessException;
 import com.knowledgeflow.knowledge.dto.SourceReferenceRequest;
@@ -161,6 +162,152 @@ class KnowledgeQuestionAnswerCurationServiceTest {
                 KnowledgeSourceType.LEGISLATION, "CIVA Art. 18.º", "Art. 18.º CIVA", null, null, null, null, null, null));
 
         assertThat(sourceRepository.countByQuestionAnswerId(qa.getId())).isEqualTo(1);
+    }
+
+    // -------------------------------------------------------------------------
+    // Remoção de fontes + validação de URL
+    // -------------------------------------------------------------------------
+
+    // 19. remover fonte de caso IMPORTED funciona
+    @Test
+    void removeSource_onImportedCase_removesIt() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso importado?", "Resposta.");
+        addSource(qa);
+        UUID sourceId = sourceRepository.findByQuestionAnswerId(qa.getId()).get(0).getId();
+
+        curationService.removeSource(org.getId(), userId, qa.getId(), sourceId);
+
+        assertThat(sourceRepository.countByQuestionAnswerId(qa.getId())).isZero();
+    }
+
+    // 20. remover fonte que não pertence ao caso → NOT_FOUND
+    @Test
+    void removeSource_belongingToAnotherCase_throwsNotFound() {
+        KnowledgeQuestionAnswer qaA = savedQa("Caso A?", "Resposta A.");
+        KnowledgeQuestionAnswer qaB = savedQa("Caso B?", "Resposta B.");
+        addSource(qaB);
+        UUID sourceOfB = sourceRepository.findByQuestionAnswerId(qaB.getId()).get(0).getId();
+
+        assertThatThrownBy(() ->
+                curationService.removeSource(org.getId(), userId, qaA.getId(), sourceOfB))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("not found");
+
+        // A fonte do caso B permanece intacta.
+        assertThat(sourceRepository.countByQuestionAnswerId(qaB.getId())).isEqualTo(1);
+    }
+
+    // 21. remover fonte inexistente → NOT_FOUND
+    @Test
+    void removeSource_nonExistentSource_throwsNotFound() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso?", "Resposta.");
+
+        assertThatThrownBy(() ->
+                curationService.removeSource(org.getId(), userId, qa.getId(), UUID.randomUUID()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("not found");
+    }
+
+    // 22. remover a ÚLTIMA fonte de caso VALIDATED → bloqueado
+    @Test
+    void removeSource_lastSourceOfValidatedCase_isBlocked() {
+        KnowledgeQuestionAnswer qa = savedQaWithAnswer("Caso a validar?", "Resposta.");
+        qa.markPendingReview();
+        qaRepository.save(qa);
+        addSource(qa);
+        curationService.validate(org.getId(), userId, "revisor", qa.getId());
+        UUID sourceId = sourceRepository.findByQuestionAnswerId(qa.getId()).get(0).getId();
+
+        assertThatThrownBy(() ->
+                curationService.removeSource(org.getId(), userId, qa.getId(), sourceId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("last source");
+
+        assertThat(sourceRepository.countByQuestionAnswerId(qa.getId())).isEqualTo(1);
+    }
+
+    // 22b. num caso VALIDATED com 2 fontes, remover uma é permitido (não fica sem fontes)
+    @Test
+    void removeSource_nonLastSourceOfValidatedCase_isAllowed() {
+        KnowledgeQuestionAnswer qa = savedQaWithAnswer("Caso com duas fontes?", "Resposta.");
+        qa.markPendingReview();
+        qaRepository.save(qa);
+        addSource(qa);
+        curationService.addSource(org.getId(), userId, qa.getId(), new SourceReferenceRequest(
+                KnowledgeSourceType.OFFICIAL_FAQ, "FAQ duplicada", null,
+                "https://exemplo.local/faq", null, null, null, null, null));
+        curationService.validate(org.getId(), userId, "revisor", qa.getId());
+        UUID sourceId = sourceRepository.findByQuestionAnswerId(qa.getId()).get(0).getId();
+
+        curationService.removeSource(org.getId(), userId, qa.getId(), sourceId);
+
+        assertThat(sourceRepository.countByQuestionAnswerId(qa.getId())).isEqualTo(1);
+    }
+
+    // 23. remoção fica auditada
+    @Test
+    void removeSource_isAudited() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso auditado?", "Resposta.");
+        addSource(qa);
+        UUID sourceId = sourceRepository.findByQuestionAnswerId(qa.getId()).get(0).getId();
+
+        curationService.removeSource(org.getId(), userId, qa.getId(), sourceId);
+
+        assertThat(auditEventRepository.findAll())
+                .anyMatch(e -> e.getAction() == AuditAction.KNOWLEDGE_QA_SOURCE_REMOVED
+                        && e.getEntityId().equals(qa.getId()));
+    }
+
+    // 24. criar fonte com URL sem esquema → rejeitado
+    @Test
+    void addSource_withUrlWithoutScheme_throwsValidationError() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso URL inválida?", "Resposta.");
+
+        assertThatThrownBy(() -> curationService.addSource(org.getId(), userId, qa.getId(),
+                new SourceReferenceRequest(KnowledgeSourceType.OFFICIAL_FAQ, "FAQ", null,
+                        "info.portaldasfinancas.gov.pt/faq", null, null, null, null, null)))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("http://");
+
+        assertThat(sourceRepository.countByQuestionAnswerId(qa.getId())).isZero();
+    }
+
+    // 24b. esquema não suportado → rejeitado
+    @Test
+    void addSource_withUnsupportedScheme_throwsValidationError() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso esquema errado?", "Resposta.");
+
+        assertThatThrownBy(() -> curationService.addSource(org.getId(), userId, qa.getId(),
+                new SourceReferenceRequest(KnowledgeSourceType.OFFICIAL_FAQ, "FAQ", null,
+                        "ftp://exemplo.local/doc.pdf", null, null, null, null, null)))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    // 25. fonte sem URL continua permitida (URL é opcional)
+    @Test
+    void addSource_withoutUrl_isAllowed() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso sem URL?", "Resposta.");
+
+        curationService.addSource(org.getId(), userId, qa.getId(), new SourceReferenceRequest(
+                KnowledgeSourceType.INTERNAL_OPINION, "Parecer interno", "CIVA art. 19.º",
+                null, null, null, null, null, null));
+
+        assertThat(sourceRepository.countByQuestionAnswerId(qa.getId())).isEqualTo(1);
+    }
+
+    // 26. http:// e https:// são aceites
+    @Test
+    void addSource_withHttpAndHttpsUrls_isAllowed() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso URLs válidas?", "Resposta.");
+
+        curationService.addSource(org.getId(), userId, qa.getId(), new SourceReferenceRequest(
+                KnowledgeSourceType.OFFICIAL_FAQ, "FAQ https", null,
+                "https://info.portaldasfinancas.gov.pt/faq", null, null, null, null, null));
+        curationService.addSource(org.getId(), userId, qa.getId(), new SourceReferenceRequest(
+                KnowledgeSourceType.LEGISLATION, "Legislação http", null,
+                "http://exemplo.local/lei", null, null, null, null, null));
+
+        assertThat(sourceRepository.countByQuestionAnswerId(qa.getId())).isEqualTo(2);
     }
 
     // -------------------------------------------------------------------------
