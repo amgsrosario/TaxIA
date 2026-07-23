@@ -1,7 +1,6 @@
 package com.knowledgeflow.knowledge.rag;
 
 import com.knowledgeflow.rag.EmbeddingService;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -30,24 +29,23 @@ public class KnowledgeQaEmbeddingIndexerImpl implements KnowledgeQaEmbeddingInde
 
     @Override
     public void index(UUID qaId, String question, String answer, String topic) {
-        // Build passage text: question + validated answer
+        // The passage (question + validated answer) is what gets embedded; the
+        // retrieval content itself comes from knowledge_question_answers at query
+        // time (RagSearchService), so only the vector is stored here.
         String passage = buildPassage(question, answer, topic);
         List<Float> embedding = embeddingService.embedPassage(passage);
         String vectorLiteral = toVectorLiteral(embedding);
 
+        // Columns match the V14 schema: id and indexed_at carry DB defaults.
         jdbcTemplate.update("""
-                INSERT INTO knowledge_qa_embeddings (id, knowledge_qa_id, chunk_text, embedding, created_at)
-                VALUES (?::uuid, ?::uuid, ?, ?::vector, ?)
+                INSERT INTO knowledge_qa_embeddings (knowledge_qa_id, embedding)
+                VALUES (?::uuid, ?::vector)
                 ON CONFLICT (knowledge_qa_id) DO UPDATE
-                  SET chunk_text = EXCLUDED.chunk_text,
-                      embedding  = EXCLUDED.embedding,
-                      created_at = EXCLUDED.created_at
+                  SET embedding  = EXCLUDED.embedding,
+                      indexed_at = NOW()
                 """,
-                UUID.randomUUID().toString(),
                 qaId.toString(),
-                passage,
-                vectorLiteral,
-                OffsetDateTime.now());
+                vectorLiteral);
 
         log.debug("Indexed QA embedding qaId={}", qaId);
     }
