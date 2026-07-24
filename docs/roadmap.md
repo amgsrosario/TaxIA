@@ -157,6 +157,65 @@ Introduce domain configuration for TaxIA without contaminating platform core:
 
 Future verticals may provide equivalent configuration for agriculture, engineering or compliance.
 
+## Próxima fase — Produto de consultoria fiscal assistida
+
+> Fase orientada pela visão de produto em
+> [taxia-product-vision.md](taxia-product-vision.md) (commit `5ec27ee`).
+> Base técnica já validada: curadoria, publicação aplicacional e RAG; correcção
+> do indexer em `b79f7b8`; 2 casos MEDIUM publicados (`AT-FAQ-5930`, `AT-FAQ-2721`)
+> e 2 casos HIGH validados mas **não** publicados (`AT-FAQ-0959`, `AT-FAQ-4624`).
+
+Objectivo da fase: passar de "IA que responde" para **consultoria fiscal assistida**
+— respostas documentadas, com fontes, confiança, risco e revisão humana.
+
+### Bloco A — Modelo de resposta documentada *(primeiro)*
+
+Definir o formato da resposta TaxIA ao utilizador final/profissional. Deve prever:
+resposta curta; explicação técnica; fundamentos legais; fontes usadas; condições;
+exclusões; alertas; nível de suporte; grau de confiança; necessidade de revisão
+humana; e a distinção entre resposta **informativa**, **validada** e resposta com
+**revisão obrigatória**.
+
+### Bloco B — Metadados de qualidade/confiança *(depois)*
+
+Preparar backend/DTOs/resposta RAG para transportar sinais de qualidade.
+Candidatos de **desenho** (não implementação imediata): `support_level`;
+`source_quality`; `answer_confidence`; `legal_basis_strength`;
+`requires_professional_review`; `client_visibility`; `last_source_checked_at`;
+`disclaimer_level`.
+
+### Bloco C — Política de visibilidade e risco
+
+Definir como `LOW`/`MEDIUM`/`HIGH` aparecem ao utilizador:
+
+- `LOW`: potencial resposta informativa/documentada;
+- `MEDIUM`: resposta validada normal;
+- `HIGH`: resposta com revisão humana recomendada ou obrigatória;
+- separar **publicação técnica no RAG** de **visibilidade ao cliente**;
+- casos `HIGH` podem ser pesquisáveis, mas **nunca** apresentados como resposta
+  autónoma final.
+
+### Bloco D — Ingestão massiva controlada *(por último nesta fase)*
+
+Preparar importação em volume de FAQs oficiais/fontes públicas **sem** publicação
+automática indiscriminada. Deve prever: ingestão industrial; deduplicação;
+detecção de alterações; classificação automática; rascunho automático; fila de
+revisão; publicação controlada; relatórios por categoria/fonte/risco.
+
+### Prioridade
+
+1. Desenhar o **modelo de resposta documentada** (Bloco A).
+2. Definir **metadados de qualidade/confiança** (Bloco B).
+3. Ajustar **backend/frontend** para expor esses sinais.
+4. Avançar para **ingestão massiva controlada** (Bloco D).
+5. Só depois ponderar **publicação alargada**.
+
+### Nota de decisão
+
+**Não publicar os casos HIGH (`AT-FAQ-0959`, `AT-FAQ-4624`) como próximo passo
+automático.** Antes disso, definir política explícita de visibilidade e revisão
+humana (Bloco C).
+
 ## Deferred Complexity
 
 Do not introduce yet:
