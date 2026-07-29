@@ -196,6 +196,12 @@ Candidatos de **desenho** (não implementação imediata): `support_level`;
 > demo / interno-admin / curadoria**. A demo é limitada comercialmente, nunca na
 > qualidade da resposta. Ver [taxia-core-principles.md](taxia-core-principles.md)
 > (Princípio 1-A).
+>
+> Documento-base do Bloco C:
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md). A **Decisão
+> C1** (visibilidade externa = profissional; níveis `EXTERNAL`/`DEMO`/`INTERNAL`/
+> `CURATION_ONLY`) está **fechada**; as decisões **C2+** serão decididas
+> **sequencialmente**.
 
 
 Definir como `LOW`/`MEDIUM`/`HIGH` aparecem ao utilizador:

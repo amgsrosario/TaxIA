@@ -169,6 +169,7 @@ controladas**. O objectivo é escalar a recolha e a pré-curadoria mantendo
 - [taxia-boundary-answer.md](taxia-boundary-answer.md) — Resposta-limite (último patamar automático).
 - [taxia-response-model.md](taxia-response-model.md) — modelo de resposta documentada.
 - [taxia-documented-response-dto.md](taxia-documented-response-dto.md) — contrato técnico da resposta.
+- [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) — política de risco e visibilidade (Bloco C).
 - [roadmap.md](roadmap.md) — roadmap e fase de consultoria assistida.
 - [grounding-policy.md](grounding-policy.md) — política de *grounding* e suporte.
 
