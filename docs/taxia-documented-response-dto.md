@@ -41,6 +41,7 @@ podem mudar na implementação.
 
 | Campo | Tipo | Notas |
 |-------|------|-------|
+| `answerType` | `AnswerType` | **Forma da resposta ao utilizador** — campo central, mais alto que `supportStatus` (ver [secção 6-A](#6-a-answertype-a-forma-da-resposta)) |
 | `answerSummary` | `string` | Resposta curta (bloco A) |
 | `technicalExplanation` | `string` | Enquadramento técnico (bloco B) |
 | `legalBasis` | `LegalBasisDto[]` | Fundamento legal (bloco C) |
@@ -112,6 +113,7 @@ podem mudar na implementação.
 ## 6. Enums sugeridos
 
 ```text
+AnswerType:         CONSULTA_DOCUMENTADA | CONSULTA_DOCUMENTADA_COM_LIMITACOES | RESPOSTA_LIMITE | PEDIDO_DE_PARECER
 SupportLevel:       NONE | WEAK | PARTIAL | STRONG
 ConfidenceLevel:    LOW | MEDIUM | HIGH
 RiskLevel:          LOW | MEDIUM | HIGH
@@ -127,6 +129,34 @@ AnswerMode:         CLIENT | PROFESSIONAL | ADMIN
 `AnswerSupportStatus` **não** é novo — é o enum já existente (`SUPPORTED`,
 `PARTIALLY_SUPPORTED`, `INSUFFICIENT_CONTEXT`, `REQUIRES_HUMAN_REVIEW`,
 `REJECTED_UNSUPPORTED`), mantido no contrato.
+
+`AnswerType` é a **decisão de produto** sobre a forma de resposta ao utilizador
+(ver [taxia-boundary-answer.md](taxia-boundary-answer.md)).
+
+## 6-A. `answerType`: a forma da resposta
+
+O `answerType` é o **campo central** do contrato e situa-se num nível **mais alto**
+que o `supportStatus`:
+
+- **`supportStatus`** explica o **suporte técnico** — quão bem o contexto RAG
+  sustenta a resposta (sinal do *grounding*).
+- **`answerType`** define a **forma de resposta ao utilizador** — a decisão de
+  produto sobre *como* a TaxIA responde.
+
+Um mesmo `supportStatus` pode dar origem a `answerType` diferentes, conforme risco,
+visibilidade, frescura das fontes e modo. Orientação inicial (a afinar):
+
+| `supportStatus` | `answerType` provável |
+|-----------------|-----------------------|
+| `SUPPORTED` | `CONSULTA_DOCUMENTADA` (sem garantia absoluta de 100%) |
+| `PARTIALLY_SUPPORTED` | `CONSULTA_DOCUMENTADA_COM_LIMITACOES` |
+| `REQUIRES_HUMAN_REVIEW` | `CONSULTA_DOCUMENTADA_COM_LIMITACOES`, `RESPOSTA_LIMITE` ou `PEDIDO_DE_PARECER`, conforme contexto |
+| `INSUFFICIENT_CONTEXT` | `RESPOSTA_LIMITE` |
+| `REJECTED_UNSUPPORTED` | `RESPOSTA_LIMITE` ou `PEDIDO_DE_PARECER` (sem conclusão fiscal) |
+
+Quando os sinais divergem, aplica-se a **regra mais restritiva** (princípio 6 de
+[taxia-core-principles.md](taxia-core-principles.md)): na dúvida, desce-se para a
+forma menos conclusiva (`RESPOSTA_LIMITE` ou `PEDIDO_DE_PARECER`).
 
 ## 7. Mapeamento a partir do estado actual
 

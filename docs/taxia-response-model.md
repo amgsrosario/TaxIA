@@ -54,6 +54,35 @@ resposta; revisão humana; visibilidade recomendada.
 **H. Próximos passos** — pedir documentos; pedir factos adicionais; encaminhar
 para consultor; deixar claro que a resposta é orientação.
 
+## 3-A. Formas de resposta (a Resposta-limite não é erro)
+
+A estrutura acima aplica-se em graus diferentes conforme a **forma de resposta**.
+São quatro, do maior para o menor grau de conclusão:
+
+1. **Consulta documentada** — blocos A–H com fundamentação legal normal.
+2. **Consulta documentada com limitações** — os mesmos blocos, com condições,
+   exclusões e limites reforçados.
+3. **Resposta-limite** — **último patamar automático** antes do Pedido de parecer.
+4. **Pedido de parecer** — sai do circuito automático (intervenção humana obrigatória).
+
+A **Resposta-limite** é uma forma de resposta de pleno direito, não uma mensagem de
+erro: **"não concluir" também pode ser uma resposta útil**. Usa-se quando a TaxIA
+não pode concluir com segurança (suporte/contexto insuficientes, factos em falta,
+fontes fracas ou pergunta demasiado concreta). Estrutura padrão:
+
+- **Estado da resposta** — declaração de que não há conclusão final;
+- **Motivo da limitação** — por que não é possível concluir com segurança;
+- **Elementos em falta** — factos/documentos em falta;
+- **Enquadramento geral** — quadro legal/documental, sem o aplicar ao caso concreto;
+- **Fontes relevantes** — referências rastreáveis do enquadramento;
+- **Documentos/factos a juntar** — o que o utilizador deve reunir;
+- **Recomendação de Pedido de parecer** — quando a questão exigir apreciação concreta;
+- **Indicador de segurança** — sinalização de resposta limitada e não vinculativa.
+
+A Resposta-limite reutiliza os campos do modelo (fontes, condições, alertas,
+`support_level`, `review_requirement`), mas **omite conclusão** e **explicita o que
+falta**. Documento dedicado: [taxia-boundary-answer.md](taxia-boundary-answer.md).
+
 ## 4. Campos funcionais sugeridos
 
 Nomes **funcionais**, ainda não técnicos definitivos (não são colunas nem campos

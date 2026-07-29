@@ -43,6 +43,28 @@ Escala conceptual:
   fontes e limitações;
 - **incerteza elevada** → limitação forte ou encaminhamento para Pedido de parecer.
 
+Esta escala materializa-se numa **sequência oficial de formas de resposta**, do
+maior para o menor grau de conclusão:
+
+1. **Consulta documentada** — resposta com fundamentação legal normal;
+2. **Consulta documentada com limitações** — resposta com mais condições,
+   exclusões e fontes, e limites explícitos;
+3. **Resposta-limite** — último patamar automático: não conclui, explica o que
+   falta, dá o enquadramento geral e recomenda Pedido de parecer;
+4. **Pedido de parecer** — circuito com intervenção humana obrigatória.
+
+## 3-A. A Resposta-limite é o último patamar automático
+
+Quando a TaxIA **não pode concluir com segurança**, não inventa, não extrapola nem
+apresenta conclusão fiscal: emite uma **Resposta-limite**. Esta declara que não é
+possível concluir com segurança, explica os elementos em falta, apresenta apenas o
+enquadramento geral suportado por fontes e recomenda Pedido de parecer quando a
+questão exigir apreciação concreta.
+
+A Resposta-limite é **visão oficial da TaxIA**, não um *fallback* técnico:
+"não concluir" também é uma resposta útil. Ver
+[taxia-boundary-answer.md](taxia-boundary-answer.md).
+
 ## 4. A resposta automática nunca é 100% garantida
 
 Mesmo quando bem suportada, a resposta automática deve indicar que:
@@ -114,6 +136,7 @@ controladas**. O objectivo é escalar a recolha e a pré-curadoria mantendo
 ## 11. Relação com documentos existentes
 
 - [taxia-product-vision.md](taxia-product-vision.md) — visão de produto.
+- [taxia-boundary-answer.md](taxia-boundary-answer.md) — Resposta-limite (último patamar automático).
 - [taxia-response-model.md](taxia-response-model.md) — modelo de resposta documentada.
 - [taxia-documented-response-dto.md](taxia-documented-response-dto.md) — contrato técnico da resposta.
 - [roadmap.md](roadmap.md) — roadmap e fase de consultoria assistida.

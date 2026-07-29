@@ -186,6 +186,12 @@ Candidatos de **desenho** (não implementação imediata): `support_level`;
 
 ### Bloco C — Política de visibilidade e risco
 
+> **Antes** de fixar a política de risco/visibilidade, incorporar a **Resposta-limite**
+> como forma oficial de resposta (o último patamar automático antes do Pedido de
+> parecer) e o campo `answerType`. Ver
+> [taxia-boundary-answer.md](taxia-boundary-answer.md).
+
+
 Definir como `LOW`/`MEDIUM`/`HIGH` aparecem ao utilizador:
 
 - `LOW`: potencial resposta informativa/documentada;
