@@ -154,6 +154,15 @@ conclusão precipitada. O Pedido de parecer (circuito com intervenção humana
 obrigatória) continua a ser o passo seguinte para questões concretas, sensíveis ou
 de risco elevado.
 
+> **Sem fila de revisão humana invisível (Decisão C3).** A Resposta-limite **não**
+> coloca o caso numa "fila de revisão humana" à espera de validação para ser
+> apresentada: é ela própria uma saída automática apresentável ao utilizador
+> profissional. Quando a análise exige mesmo intervenção humana, a saída correcta é
+> **encaminhar para Pedido de parecer** — não transformar a Resposta-limite num
+> parecer nem simular uma revisão interna do circuito automático. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C3) e
+> [taxia-response-model.md](taxia-response-model.md) (secção 3-B).
+
 ## I. Relação com a ingestão massiva
 
 Conhecimento importado em massa **pode não bastar** para responder a uma pergunta

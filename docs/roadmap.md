@@ -166,15 +166,18 @@ Future verticals may provide equivalent configuration for agriculture, engineeri
 > e 2 casos HIGH validados mas **não** publicados (`AT-FAQ-0959`, `AT-FAQ-4624`).
 
 Objectivo da fase: passar de "IA que responde" para **consultoria fiscal assistida**
-— respostas documentadas, com fontes, confiança, risco e revisão humana.
+— respostas documentadas, com fontes, confiança, risco e, quando aplicável,
+encaminhamento para Pedido de parecer (a intervenção humana caso a caso vive nesse
+circuito — ver Decisão C3).
 
 ### Bloco A — Modelo de resposta documentada *(primeiro)*
 
 Definir o formato da resposta TaxIA ao utilizador final/profissional. Deve prever:
 resposta curta; explicação técnica; fundamentos legais; fontes usadas; condições;
-exclusões; alertas; nível de suporte; grau de confiança; necessidade de revisão
-humana; e a distinção entre resposta **informativa**, **validada** e resposta com
-**revisão obrigatória**.
+exclusões; alertas; nível de suporte; grau de confiança; necessidade de
+encaminhamento para Pedido de parecer (`parecerRequirement`, ver C3); e a distinção
+entre resposta **informativa**, **validada** e resposta que **exige Pedido de
+parecer**.
 
 ### Bloco B — Metadados de qualidade/confiança *(depois)*
 
@@ -200,16 +203,20 @@ Candidatos de **desenho** (não implementação imediata): `support_level`;
 > Documento-base do Bloco C:
 > [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md). Decisões
 > **fechadas**: **C1** (visibilidade externa = profissional; níveis
-> `EXTERNAL`/`DEMO`/`INTERNAL`/`CURATION_ONLY`) e **C2** (`risk_level` condiciona
-> a prudência mas não decide sozinho o `answerType`). As decisões **C3+** serão
-> decididas **sequencialmente**.
+> `EXTERNAL`/`DEMO`/`INTERNAL`/`CURATION_ONLY`), **C2** (`risk_level` condiciona
+> a prudência mas não decide sozinho o `answerType`) e **C3** (intervenção humana
+> caso a caso apenas no **Pedido de parecer**; `reviewRequirement` passa a
+> `parecerRequirement` — `NONE`/`SUGGESTED`/`REQUIRED` — sem fila de revisão humana
+> invisível no circuito automático). As decisões **C4+** serão decididas
+> **sequencialmente**.
 
 
 Definir como `LOW`/`MEDIUM`/`HIGH` aparecem ao utilizador:
 
 - `LOW`: potencial resposta informativa/documentada;
 - `MEDIUM`: resposta validada normal;
-- `HIGH`: resposta com revisão humana recomendada ou obrigatória;
+- `HIGH`: resposta com `parecerRequirement` `SUGGESTED` ou `REQUIRED`
+  (encaminhamento para Pedido de parecer — ver C3);
 - separar **publicação técnica no RAG** de **visibilidade ao cliente**;
 - casos `HIGH` podem ser pesquisáveis, mas **nunca** apresentados como resposta
   autónoma final.
@@ -232,8 +239,8 @@ revisão; publicação controlada; relatórios por categoria/fonte/risco.
 ### Nota de decisão
 
 **Não publicar os casos HIGH (`AT-FAQ-0959`, `AT-FAQ-4624`) como próximo passo
-automático.** Antes disso, definir política explícita de visibilidade e revisão
-humana (Bloco C).
+automático.** Antes disso, definir política explícita de visibilidade e de
+encaminhamento para Pedido de parecer (Bloco C — Decisões C1, C2 e C3).
 
 ## Deferred Complexity
 

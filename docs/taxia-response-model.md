@@ -20,7 +20,9 @@ grau de confiança, risco e necessidade de revisão humana, em vez de um texto
 - Deve **mostrar fundamento** (legal e documental).
 - Deve **distinguir certeza, suporte e risco** — são coisas diferentes.
 - Deve **indicar quando falta contexto**.
-- Deve **indicar quando é necessária revisão humana**.
+- Deve **indicar quando é necessário encaminhar para Pedido de parecer**
+  (intervenção humana), sem criar uma "fila de revisão humana invisível" no
+  circuito automático — ver [nota sobre `parecer_requirement`](#3-b-parecer_requirement-não-é-fila-de-revisão-humana).
 - Deve **separar a resposta ao cliente dos dados técnicos internos**.
 
 > **Posicionamento (obrigatório):** a TaxIA é apoio à decisão e não substitui
@@ -49,7 +51,7 @@ mudam a resposta; exclusões expressas; casos que exigem dados adicionais.
 necessidade de validação humana.
 
 **G. Qualidade da resposta** — nível de suporte; grau de confiança; maturidade da
-resposta; revisão humana; visibilidade recomendada.
+resposta; necessidade de Pedido de parecer; visibilidade recomendada.
 
 **H. Próximos passos** — pedir documentos; pedir factos adicionais; encaminhar
 para consultor; deixar claro que a resposta é orientação.
@@ -80,8 +82,33 @@ fontes fracas ou pergunta demasiado concreta). Estrutura padrão:
 - **Indicador de segurança** — sinalização de resposta limitada e não vinculativa.
 
 A Resposta-limite reutiliza os campos do modelo (fontes, condições, alertas,
-`support_level`, `review_requirement`), mas **omite conclusão** e **explicita o que
+`support_level`, `parecer_requirement`), mas **omite conclusão** e **explicita o que
 falta**. Documento dedicado: [taxia-boundary-answer.md](taxia-boundary-answer.md).
+
+## 3-B. `parecer_requirement` não é fila de revisão humana *(Decisão C3)*
+
+Fora do circuito de **Pedido de parecer**, a TaxIA **não exige intervenção humana
+caso a caso** para apresentar uma resposta ao utilizador profissional. O circuito
+automático de pesquisa/documentação **resolve-se sozinho** através do `answerType`
+(Consulta documentada / Consulta documentada com limitações / Resposta-limite /
+Pedido de parecer). Nenhuma resposta automática fica em estado **"pendente de
+revisão humana"** — a intervenção humana pertence **apenas** ao serviço de Pedido
+de parecer.
+
+Por isso o campo antes chamado `review_requirement` passa a `parecer_requirement`:
+ele indica **se a resposta deve encaminhar para Pedido de parecer**, não a
+existência de uma fila interna de revisão. Valores:
+
+- **`NONE`** — apresentar sem encaminhamento especial;
+- **`SUGGESTED`** — apresentar, mas sugerir Pedido de parecer;
+- **`REQUIRED`** — não fechar a conclusão; encaminhar para Pedido de parecer
+  (podendo apresentar Resposta-limite ou enquadramento preparatório).
+
+> **Curadoria interna ≠ revisão da resposta.** A curadoria humana da base de
+> conhecimento (validar, publicar, arquivar casos) continua a existir como
+> governação interna — mas **não** deve ser confundida com uma revisão humana da
+> resposta concreta apresentada ao utilizador no circuito automático. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C3).
 
 ## 4. Campos funcionais sugeridos
 
@@ -100,7 +127,7 @@ de DTO nesta fase):
 | G | `support_level` | Quão bem o contexto sustenta a resposta |
 | G | `confidence_level` | Fiabilidade estimada |
 | G | `risk_level` | Risco fiscal do tema |
-| G | `review_requirement` | Necessidade de revisão humana |
+| G | `parecer_requirement` | Necessidade de encaminhar para Pedido de parecer (não revisão humana invisível) |
 | G | `visibility_level` | A quem pode ser mostrada |
 | G | `freshness_status` | Actualidade da fonte |
 | D/G | `last_checked_at` | Data da última confirmação da fonte |
@@ -113,7 +140,7 @@ de DTO nesta fase):
 support_level:       NONE | WEAK | PARTIAL | STRONG
 confidence_level:    LOW | MEDIUM | HIGH
 risk_level:          LOW | MEDIUM | HIGH
-review_requirement:  NONE | RECOMMENDED | REQUIRED
+parecer_requirement:  NONE | SUGGESTED | REQUIRED
 visibility_level:    INTERNAL_ONLY | PROFESSIONAL_ONLY | CLIENT_VISIBLE | CLIENT_VISIBLE_WITH_WARNING
 freshness_status:    CURRENT | NEEDS_RECHECK | STALE | UNKNOWN
 disclaimer_level:    NONE | LIGHT | STANDARD | STRONG
@@ -134,15 +161,15 @@ visível. Ver [taxia-core-principles.md](taxia-core-principles.md) (Princípio 1
 |---|---|---|
 | Resposta documentada, fundamentação, estrutura | **Sim** | **Sim** |
 | Fontes e alertas | **Sim** (sempre) | **Sim** |
-| Necessidade de revisão | **Indicada quando aplicável** | Indicada |
+| Necessidade de Pedido de parecer | **Indicada quando aplicável** | Indicada |
 | Detalhe técnico | Completo | Completo |
 | Notas de curadoria | Não expor | Pode mostrar |
 | Estado editorial / scores | Não expor | Pode mostrar |
 
 Regra-chave: a vista externa **nunca** expõe ruído interno de curadoria (notas,
 scores, estado editorial), mas **mantém a mesma qualidade profissional** e mostra
-sempre fontes, alertas e a necessidade de revisão quando aplicável. "Linguagem
-clara" significa rigor bem comunicado — **não** menos técnico.
+sempre fontes, alertas e a necessidade de Pedido de parecer quando aplicável.
+"Linguagem clara" significa rigor bem comunicado — **não** menos técnico.
 
 ## 7. Relação com os estados actuais
 
@@ -168,13 +195,13 @@ granulares e ortogonais:
 
 - `support_level` — força do suporte documental;
 - `confidence_level` — fiabilidade estimada;
-- `review_requirement` — necessidade de revisão humana;
+- `parecer_requirement` — necessidade de revisão humana;
 - `visibility_level` — a quem se mostra;
 - `freshness_status` — actualidade da fonte.
 
 Exemplo de tradução aproximada (a afinar na implementação): `SUPPORTED` →
-`support_level=STRONG`, `review_requirement=NONE`; `REQUIRES_HUMAN_REVIEW` →
-`review_requirement=RECOMMENDED|REQUIRED` independentemente do `support_level`.
+`support_level=STRONG`, `parecer_requirement=NONE`; `REQUIRES_HUMAN_REVIEW` →
+`parecer_requirement=SUGGESTED|REQUIRED` independentemente do `support_level`.
 
 ## 9. Casos HIGH
 
@@ -182,7 +209,7 @@ Orientação para casos de risco elevado (ex.: `AT-FAQ-0959`, `AT-FAQ-4624`):
 
 - **Podem** ser tecnicamente publicados no RAG (pesquisáveis);
 - **Não devem** ser apresentados como resposta autónoma final sem aviso;
-- **Devem** sair com `review_requirement = RECOMMENDED` ou `REQUIRED`;
+- **Devem** sair com `parecer_requirement = SUGGESTED` ou `REQUIRED`;
 - **Podem** ser, numa primeira fase, `visibility_level = PROFESSIONAL_ONLY`
   (visíveis apenas a profissionais/admins).
 
@@ -231,7 +258,7 @@ imóvel; confirmar elegibilidade documental caso a caso.
 - `support_level`: STRONG (fonte oficial + legislação directa)
 - `confidence_level`: MEDIUM
 - `risk_level`: MEDIUM
-- `review_requirement`: RECOMMENDED (keyword de risco "imóvel")
+- `parecer_requirement`: SUGGESTED (keyword de risco "imóvel")
 - `visibility_level`: CLIENT_VISIBLE_WITH_WARNING
 - `disclaimer_level`: STANDARD
 
@@ -253,7 +280,7 @@ Trabalhos seguintes (fora desta fase de desenho):
 - Ligar o **`risk_level` da BD** ao resultado da resposta.
 - Calcular **`support_level`**.
 - Calcular **`confidence_level`**.
-- Expor **`review_requirement`**.
+- Expor **`parecer_requirement`**.
 - Desenhar **componente frontend** de resposta documentada.
 - Distinguir **vistas por permissões** (profissional externo / demo / interno-admin),
   **sem** baixar a qualidade conceptual da resposta.
@@ -263,7 +290,7 @@ Trabalhos seguintes (fora desta fase de desenho):
 
 - O `grounding` já produz `supportStatus`, `sources` (títulos),
   `missingInformation`, `limitations`, `requiresHumanValidation` — base natural
-  para `support_level`/`review_requirement`.
+  para `support_level`/`parecer_requirement`.
 - As fontes já são **tipificadas** na BD (`OFFICIAL_FAQ`, `LEGISLATION`,
   `INTERNAL_OPINION`) com URL — base para o bloco **D** e `freshness_status`.
 - O `risk_level` já existe por caso na BD (hoje não liga ao `supportStatus`).

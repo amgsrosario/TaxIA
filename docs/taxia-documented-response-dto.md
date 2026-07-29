@@ -52,7 +52,7 @@ podem mudar na implementação.
 | `supportLevel` | `SupportLevel` | Força do suporte documental |
 | `confidenceLevel` | `ConfidenceLevel` | Fiabilidade estimada |
 | `riskLevel` | `RiskLevel` | Risco fiscal do tema |
-| `reviewRequirement` | `ReviewRequirement` | Necessidade de revisão humana |
+| `parecerRequirement` | `ParecerRequirement` | Necessidade de encaminhar para Pedido de parecer (não revisão humana invisível) |
 | `visibilityLevel` | `VisibilityLevel` | A quem pode ser mostrada |
 | `freshnessStatus` | `FreshnessStatus` | Actualidade da fonte |
 | `disclaimerLevel` | `DisclaimerLevel` | Intensidade do aviso legal |
@@ -117,7 +117,8 @@ AnswerType:         CONSULTA_DOCUMENTADA | CONSULTA_DOCUMENTADA_COM_LIMITACOES |
 SupportLevel:       NONE | WEAK | PARTIAL | STRONG
 ConfidenceLevel:    LOW | MEDIUM | HIGH
 RiskLevel:          LOW | MEDIUM | HIGH
-ReviewRequirement:  NONE | RECOMMENDED | REQUIRED
+ParecerRequirement: NONE | SUGGESTED | REQUIRED
+                    # nome conceptual anterior: ReviewRequirement (descontinuado — ver C3)
 VisibilityLevel:    INTERNAL_ONLY | PROFESSIONAL_ONLY | CLIENT_VISIBLE | CLIENT_VISIBLE_WITH_WARNING
 FreshnessStatus:    CURRENT | NEEDS_RECHECK | STALE | UNKNOWN
 DisclaimerLevel:    NONE | LIGHT | STANDARD | STRONG
@@ -133,6 +134,21 @@ AnswerMode:         CLIENT | PROFESSIONAL | ADMIN
 
 `AnswerType` é a **decisão de produto** sobre a forma de resposta ao utilizador
 (ver [taxia-boundary-answer.md](taxia-boundary-answer.md)).
+
+`ParecerRequirement` substitui o antigo `ReviewRequirement` (Decisão C3, ver
+[taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md)). **Não**
+representa uma fila de revisão humana interna: representa **se a resposta deve ou
+não encaminhar para Pedido de parecer**.
+
+- **`NONE`** — resposta automática apresentável **sem** encaminhamento especial.
+- **`SUGGESTED`** — resposta apresentável, mas **deve sugerir** Pedido de parecer.
+- **`REQUIRED`** — **não** fechar a conclusão; **encaminhar** para Pedido de parecer
+  (podendo apresentar Resposta-limite ou enquadramento preparatório).
+
+Separação de eixos: `answerType` define a **forma** da resposta; `supportStatus`
+explica o **suporte técnico**; `parecerRequirement` indica a **necessidade de
+parecer humano profissional**; `visibilityLevel` indica **onde** pode ser
+apresentada.
 
 ## 6-A. `answerType`: a forma da resposta
 
@@ -172,8 +188,8 @@ Como os dados de hoje podem alimentar o DTO:
 | `riskLevel` | Existe em `knowledge_question_answers`, mas **ainda não** é transportado pelo `RetrievedCase` — deve passar a ser |
 | `supportLevel` | **Derivado** de quantidade/qualidade de fontes e suficiência de contexto |
 | `confidenceLevel` | **Derivado** de `supportLevel`, `riskLevel`, `freshnessStatus` e estado editorial |
-| `reviewRequirement` | **Derivado** de `supportStatus`, `riskLevel`, keywords sensíveis e visibilidade pretendida |
-| `visibilityLevel` | **Derivado** de `riskLevel`, `reviewRequirement`, estado editorial e modo |
+| `parecerRequirement` | **Derivado** de `supportStatus`, `riskLevel`, keywords sensíveis e visibilidade pretendida |
+| `visibilityLevel` | **Derivado** de `riskLevel`, `parecerRequirement`, estado editorial e modo |
 | `freshnessStatus` | **Derivado** de `lastCheckedAt`, `valid_from`/`valid_to`, alterações detectadas na fonte e data de publicação |
 
 > Nota-chave de desenho: vários campos são **calculados**, não persistidos — o que
@@ -183,10 +199,10 @@ Como os dados de hoje podem alimentar o DTO:
 
 Primeira regra **conservadora** (a afinar com dados reais):
 
-| `supportStatus` | `supportLevel` | `reviewRequirement` | `visibilityLevel` | `disclaimerLevel` |
+| `supportStatus` | `supportLevel` | `parecerRequirement` | `visibilityLevel` | `disclaimerLevel` |
 |-----------------|----------------|---------------------|-------------------|-------------------|
-| `SUPPORTED` | STRONG ou PARTIAL (conforme fontes) | NONE ou RECOMMENDED (conforme `riskLevel`) | conforme risco (secção 9) | LIGHT ou STANDARD |
-| `PARTIALLY_SUPPORTED` | PARTIAL | RECOMMENDED | conforme risco | STANDARD |
+| `SUPPORTED` | STRONG ou PARTIAL (conforme fontes) | NONE ou SUGGESTED (conforme `riskLevel`) | conforme risco (secção 9) | LIGHT ou STANDARD |
+| `PARTIALLY_SUPPORTED` | PARTIAL | SUGGESTED | conforme risco | STANDARD |
 | `INSUFFICIENT_CONTEXT` | WEAK ou NONE | REQUIRED | INTERNAL_ONLY ou PROFESSIONAL_ONLY | STRONG |
 | `REQUIRES_HUMAN_REVIEW` | (mantém o do suporte) | REQUIRED | PROFESSIONAL_ONLY ou CLIENT_VISIBLE_WITH_WARNING | STRONG |
 | `REJECTED_UNSUPPORTED` | NONE | REQUIRED | INTERNAL_ONLY | STRONG |
@@ -196,9 +212,9 @@ Primeira regra **conservadora** (a afinar com dados reais):
 - **LOW** — pode admitir `CLIENT_VISIBLE` se `supportLevel = STRONG` e
   `freshnessStatus = CURRENT`.
 - **MEDIUM** — pode admitir `CLIENT_VISIBLE` ou `CLIENT_VISIBLE_WITH_WARNING`;
-  revisão recomendada se houver keywords sensíveis.
+  `parecerRequirement = SUGGESTED` se houver keywords sensíveis.
 - **HIGH** — por defeito `PROFESSIONAL_ONLY`; se exposto ao cliente, apenas
-  `CLIENT_VISIBLE_WITH_WARNING`; `reviewRequirement = REQUIRED`; **nunca** resposta
+  `CLIENT_VISIBLE_WITH_WARNING`; `parecerRequirement = REQUIRED`; **nunca** resposta
   autónoma final.
 
 Quando `supportStatus` (secção 8) e `risk_level` (secção 9) divergirem na
@@ -239,7 +255,7 @@ ruído interno diferente):
 | Estado editorial/scores | Não | Parcial | Sim |
 
 Regra: a vista externa nunca expõe `internalNotes`, `score` ou estado editorial;
-mostra sempre fontes, alertas e `reviewRequirement` quando aplicável — **sem baixar
+mostra sempre fontes, alertas e `parecerRequirement` quando aplicável — **sem baixar
 a qualidade profissional da resposta**.
 
 ## 11. Exemplo JSON conceptual (baseado em AT-FAQ-5930)
@@ -298,7 +314,7 @@ a qualidade profissional da resposta**.
   "supportLevel": "STRONG",
   "confidenceLevel": "MEDIUM",
   "riskLevel": "MEDIUM",
-  "reviewRequirement": "RECOMMENDED",
+  "parecerRequirement": "SUGGESTED",
   "visibilityLevel": "CLIENT_VISIBLE_WITH_WARNING",
   "freshnessStatus": "CURRENT",
   "disclaimerLevel": "STANDARD",
@@ -326,7 +342,8 @@ a qualidade profissional da resposta**.
 - Bloco de fontes.
 - Bloco "qualidade da resposta".
 - Badges de risco/confiança.
-- Avisos de revisão humana.
+- Avisos de encaminhamento para Pedido de parecer (`parecerRequirement`) — **não**
+  "avisos de revisão humana invisível" (ver C3).
 - Distinção de vistas por permissões (externo profissional / demo / admin), **sem**
   simplificar a resposta.
 
@@ -347,7 +364,7 @@ A implementação só deve avançar quando:
 - as **regras iniciais** `supportStatus` / `risk` / `visibility` estiverem claras;
 - houver **testes planeados**;
 - **não** obrigar a migration prematura — os campos que puderem ser **calculados**
-  (`supportLevel`, `confidenceLevel`, `reviewRequirement`, `visibilityLevel`,
+  (`supportLevel`, `confidenceLevel`, `parecerRequirement`, `visibilityLevel`,
   `freshnessStatus`) não devem exigir novas colunas nesta fase.
 
 ## 16. Fora do âmbito

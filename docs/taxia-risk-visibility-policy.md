@@ -1,17 +1,17 @@
 # TaxIA — Política de risco e visibilidade
 
 > **Documento de política (Bloco C).** Define a política **conceptual** de risco,
-> visibilidade, revisão humana e forma de resposta da TaxIA. Nesta fase, apenas a
-> **Decisão C1** está fechada; as restantes ficam explicitamente marcadas como
-> **A decidir**.
+> visibilidade, encaminhamento para Pedido de parecer e forma de resposta da TaxIA.
+> Nesta fase, as **Decisões C1, C2 e C3** estão fechadas; as restantes ficam
+> explicitamente marcadas como **A decidir**.
 
 ## 1. Natureza do documento
 
-- Este documento define a **política conceptual** de risco, visibilidade, revisão
-  humana e forma de resposta.
+- Este documento define a **política conceptual** de risco, visibilidade,
+  encaminhamento para Pedido de parecer e forma de resposta.
 - Deve **orientar futuras decisões** de backend, frontend, RAG, curadoria e
   publicação.
-- Nesta fase, **apenas algumas decisões estão fechadas** (ver secção 3).
+- Nesta fase, **apenas algumas decisões estão fechadas** (C1, C2 e C3).
 - As decisões não fechadas ficam marcadas como **"A decidir"** (secções 7 e 8) e
   **não devem ser presumidas** enquanto não forem decididas explicitamente.
 - Não implementa nada — é desenho e governação, não código nem migrations.
@@ -115,8 +115,62 @@ Ou seja: o risco pode **descer** a forma da resposta, mas a insuficiência de su
 | HIGH + pergunta concreta com impacto fiscal | `RESPOSTA_LIMITE` ou `PEDIDO_DE_PARECER` |
 
 > **Âmbito da C2.** A C2 fixa a relação `risk_level` → `answerType`. **Não** decide
-> `reviewRequirement`, regras de agregação de risco (C4), `freshnessStatus` (C8),
-> `sourceQuality` (C9) nem as transições C5/C6 — ver secção 7.
+> `parecerRequirement` (ver C3), regras de agregação de risco (C4),
+> `freshnessStatus` (C8), `sourceQuality` (C9) nem as transições C5/C6 — ver secção 7.
+
+## 3-C. Decisão C3 — intervenção humana apenas no Pedido de parecer *(FECHADA)*
+
+> **C3.** Fora do circuito de **Pedido de parecer**, a TaxIA **não exige
+> intervenção humana caso a caso** para apresentar uma resposta ao utilizador
+> profissional.
+
+No **circuito normal de pesquisa assistida**, a TaxIA deve **resolver
+automaticamente** a situação através do `answerType`:
+
+- `CONSULTA_DOCUMENTADA`;
+- `CONSULTA_DOCUMENTADA_COM_LIMITACOES`;
+- `RESPOSTA_LIMITE`;
+- `PEDIDO_DE_PARECER`.
+
+A TaxIA **não deve** ficar num estado intermédio de "aguarda revisão humana" para
+responder. Quando **não pode concluir automaticamente**, deve:
+
+- **limitar** a resposta (`CONSULTA_DOCUMENTADA_COM_LIMITACOES`);
+- **emitir Resposta-limite** (`RESPOSTA_LIMITE`);
+- ou **encaminhar para Pedido de parecer** (`PEDIDO_DE_PARECER`).
+
+A **intervenção humana pertence ao serviço de Pedido de parecer** — não ao circuito
+normal de pesquisa assistida. Isto **preserva a autonomia operacional** da TaxIA:
+ela resolve sempre, sozinha, para uma das quatro formas de resposta.
+
+### Curadoria interna ≠ revisão humana da resposta
+
+A **curadoria humana da base de conhecimento** pode existir como **processo interno
+de governação** (validar casos, fontes, qualidade editorial). **Não** deve ser
+confundida com **revisão humana da resposta concreta** no fluxo normal: a resposta
+ao utilizador nunca fica pendente de um curador. São planos distintos.
+
+### Substituição conceptual: `reviewRequirement` → `parecerRequirement`
+
+Para evitar a ideia de uma **fila invisível de revisão humana**, o conceito
+`reviewRequirement` é substituído por **`parecerRequirement`**. Este **não**
+representa uma fila de revisão interna; representa **se a resposta deve ou não
+encaminhar para Pedido de parecer**.
+
+Valores conceptuais:
+
+- **`NONE`** — a resposta automática pode ser apresentada **sem** encaminhamento
+  especial para parecer.
+- **`SUGGESTED`** — a resposta automática pode ser apresentada, mas **deve sugerir**
+  Pedido de parecer.
+- **`REQUIRED`** — a resposta automática **não deve tentar fechar a conclusão**;
+  deve **encaminhar para Pedido de parecer**, podendo apresentar Resposta-limite ou
+  enquadramento preparatório.
+
+> **Âmbito da C3.** A C3 fixa que a intervenção humana vive apenas no Pedido de
+> parecer e substitui `reviewRequirement` por `parecerRequirement`. **Não** decide
+> os limiares exactos por combinação de sinais (C4+), nem `freshnessStatus` (C8)
+> nem `sourceQuality` (C9).
 
 ## 4. Níveis conceptuais de visibilidade
 
@@ -178,7 +232,6 @@ Separação de responsabilidades:
 
 As decisões seguintes **não estão tomadas** e não devem ser presumidas:
 
-- **C3 — A decidir:** Quando é exigida revisão humana?
 - **C4 — A decidir:** Como agregamos risco quando vários casos são recuperados?
 - **C5 — A decidir:** Quando é que uma resposta passa de
   `CONSULTA_DOCUMENTADA_COM_LIMITACOES` para `RESPOSTA_LIMITE`?
@@ -194,16 +247,17 @@ As decisões seguintes **não estão tomadas** e não devem ser presumidas:
 
 Eixos previstos para a matriz de decisão:
 
-| `risk_level` | `supportStatus` | `freshnessStatus` | `sourceQuality` | `reviewRequirement` | `answerType` | `visibilityLevel` |
+| `risk_level` | `supportStatus` | `freshnessStatus` | `sourceQuality` | `parecerRequirement` | `answerType` | `visibilityLevel` |
 |---|---|---|---|---|---|---|
 | *(a decidir)* | *(a decidir)* | *(a decidir)* | *(a decidir)* | *(a decidir)* | *(a decidir)* | *(a decidir)* |
 
 > **Matriz a decidir em fase posterior. Não preencher sem decisão explícita.**
+> (A coluna `reviewRequirement` foi renomeada para `parecerRequirement` — ver C3.)
 
 ### Orientação C2 por `risk_level` *(parcial — só o eixo `risk_level` → `answerType`)*
 
 A C2 preenche **apenas** a relação `risk_level` → `answerType` (com suporte/contexto
-suficientes). `reviewRequirement`, `visibilityLevel`, agregação de risco,
+suficientes). `parecerRequirement`, `visibilityLevel`, agregação de risco,
 `freshnessStatus` e `sourceQuality` **continuam a decidir**.
 
 | `risk_level` | `answerType` possíveis (com suporte suficiente) | `answerType` por insuficiência |
@@ -212,8 +266,15 @@ suficientes). `reviewRequirement`, `visibilityLevel`, agregação de risco,
 | **MEDIUM** | `CONSULTA_DOCUMENTADA` (com mais condições/limites/fontes) ou com limitações | `RESPOSTA_LIMITE` / `PEDIDO_DE_PARECER` |
 | **HIGH** | `CONSULTA_DOCUMENTADA_COM_LIMITACOES` ou `RESPOSTA_LIMITE` (**nunca** conclusiva automática) | `RESPOSTA_LIMITE` / `PEDIDO_DE_PARECER` |
 
-> Colunas `reviewRequirement` e `visibilityLevel`: **a decidir** (C3/C7). Regra de
-> agregação: **a decidir** (C4).
+### Orientação C3 sobre `parecerRequirement` *(conceptual — sem limiares)*
+
+A C3 fixa o **significado** de `parecerRequirement` (encaminhamento para Pedido de
+parecer, **não** revisão humana invisível) e os seus valores `NONE` / `SUGGESTED` /
+`REQUIRED`. **Não** decide os limiares exactos por combinação de sinais — isso
+depende de C4+.
+
+> Colunas `visibilityLevel` (além da C1): **a decidir** (C7). Regra de agregação:
+> **a decidir** (C4). Limiares de `parecerRequirement` por sinal: **a decidir**.
 
 ## 9. Relação com documentos existentes
 

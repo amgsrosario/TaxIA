@@ -123,7 +123,10 @@ Quando os sinais entram em conflito, **prevalece o mais prudente**. Sinais a pes
 Os casos HIGH **podem** ser tecnicamente publicados no RAG, mas:
 
 - têm **travões**;
-- exigem revisão humana **recomendada ou obrigatória**;
+- tendem a exigir encaminhamento para **Pedido de parecer** (`parecerRequirement`
+  `SUGGESTED` ou `REQUIRED`) — a intervenção humana caso a caso vive nesse circuito,
+  não numa fila de revisão do circuito automático (ver
+  [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md), Decisão C3);
 - por defeito são **`PROFESSIONAL_ONLY`**;
 - se visíveis ao cliente, devem sair com **aviso forte**;
 - **nunca** devem ser apresentados como resposta autónoma final sem limitação clara.

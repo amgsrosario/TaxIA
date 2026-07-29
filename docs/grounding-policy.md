@@ -68,6 +68,14 @@ Produz respostas seguras sem chamar o provider:
 > [taxia-core-principles.md](taxia-core-principles.md) (Princípio 1-A). Isto é
 > orientação de desenho; não altera, por si, o comportamento actual do
 > `SafeResponseFactory`.
+>
+> **Decisão C3.** No circuito automático, `INSUFFICIENT_CONTEXT` deve resolver-se
+> por **Resposta-limite** ou por **encaminhamento para Pedido de parecer** — nunca
+> por um estado "aguarda revisão humana" interno. A intervenção humana caso a caso
+> pertence apenas ao **Pedido de parecer**. O status `REQUIRES_HUMAN_REVIEW` abaixo
+> (enum de *grounding* já existente) descreve o **suporte técnico** e continua
+> válido; não representa uma fila de revisão da resposta apresentada. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C3).
 
 ### `AnswerGroundingValidator`
 
