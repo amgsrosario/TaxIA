@@ -51,7 +51,8 @@ podem mudar na implementação.
 | `alerts` | `TaxAlertDto[]` | Alertas (bloco F) |
 | `supportLevel` | `SupportLevel` | Força do suporte documental |
 | `confidenceLevel` | `ConfidenceLevel` | Fiabilidade estimada |
-| `riskLevel` | `RiskLevel` | Risco fiscal do tema |
+| `riskLevel` | `RiskLevel` | Risco fiscal do tema (do caso individual) |
+| `aggregatedRiskLevel` | `RiskLevel` | **Risco agregado da resposta** — máximo dos fundamentos relevantes usados (ver C4) |
 | `parecerRequirement` | `ParecerRequirement` | Necessidade de encaminhar para Pedido de parecer (não revisão humana invisível) |
 | `visibilityLevel` | `VisibilityLevel` | A quem pode ser mostrada |
 | `freshnessStatus` | `FreshnessStatus` | Actualidade da fonte |
@@ -150,6 +151,19 @@ explica o **suporte técnico**; `parecerRequirement` indica a **necessidade de
 parecer humano profissional**; `visibilityLevel` indica **onde** pode ser
 apresentada.
 
+`aggregatedRiskLevel` representa o **risco agregado da resposta** (Decisão C4, ver
+[taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md)). É calculado a
+partir dos **fundamentos relevantes efectivamente usados** na resposta e:
+
+- **não** é necessariamente o risco máximo de **todos** os casos recuperados pelo RAG;
+- **não** é necessariamente o risco do **primeiro** caso recuperado;
+- **não** é a média dos riscos recuperados.
+
+Regra curta: `aggregatedRiskLevel = risco máximo dos fundamentos relevantes usados`.
+O `riskLevel` por caso (em `retrievedCases[]`) continua a existir por caso; o
+`aggregatedRiskLevel` é o **risco da resposta como um todo**. Casos recuperados mas
+não usados (ruído) não elevam o `aggregatedRiskLevel`.
+
 ## 6-A. `answerType`: a forma da resposta
 
 O `answerType` é o **campo central** do contrato e situa-se num nível **mais alto**
@@ -186,6 +200,7 @@ Como os dados de hoje podem alimentar o DTO:
 | `retrievedCases` | Casos recuperados por `RagSearchService.findSimilar` |
 | `sources` | Fontes (`knowledge_source_references`) dos casos recuperados |
 | `riskLevel` | Existe em `knowledge_question_answers`, mas **ainda não** é transportado pelo `RetrievedCase` — deve passar a ser |
+| `aggregatedRiskLevel` | **Derivado** (C4): risco máximo dos fundamentos relevantes **usados** na resposta — não de todo o conjunto recuperado |
 | `supportLevel` | **Derivado** de quantidade/qualidade de fontes e suficiência de contexto |
 | `confidenceLevel` | **Derivado** de `supportLevel`, `riskLevel`, `freshnessStatus` e estado editorial |
 | `parecerRequirement` | **Derivado** de `supportStatus`, `riskLevel`, keywords sensíveis e visibilidade pretendida |

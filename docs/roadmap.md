@@ -204,10 +204,12 @@ Candidatos de **desenho** (não implementação imediata): `support_level`;
 > [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md). Decisões
 > **fechadas**: **C1** (visibilidade externa = profissional; níveis
 > `EXTERNAL`/`DEMO`/`INTERNAL`/`CURATION_ONLY`), **C2** (`risk_level` condiciona
-> a prudência mas não decide sozinho o `answerType`) e **C3** (intervenção humana
+> a prudência mas não decide sozinho o `answerType`), **C3** (intervenção humana
 > caso a caso apenas no **Pedido de parecer**; `reviewRequirement` passa a
 > `parecerRequirement` — `NONE`/`SUGGESTED`/`REQUIRED` — sem fila de revisão humana
-> invisível no circuito automático). As decisões **C4+** serão decididas
+> invisível no circuito automático) e **C4** (agregação de risco pelo máximo dos
+> **fundamentos relevantes usados** — `riskAggregated` — sem contaminação por casos
+> recuperados mas não usados). As decisões **C5+** serão decididas
 > **sequencialmente**.
 
 

@@ -76,6 +76,15 @@ Produz respostas seguras sem chamar o provider:
 > (enum de *grounding* já existente) descreve o **suporte técnico** e continua
 > válido; não representa uma fila de revisão da resposta apresentada. Ver
 > [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C3).
+>
+> **Decisão C4.** O *grounding* pode **recuperar mais casos do que os efectivamente
+> usados** na resposta. A **agregação de risco** (`riskAggregated`) deve considerar
+> apenas os **fundamentos seleccionados/usados** — não todo o ruído recuperado. Um
+> caso HIGH recuperado mas não usado não eleva o risco; um caso HIGH materialmente
+> usado (regra, excepção, limitação, Resposta-limite ou encaminhamento) eleva-o.
+> Esta nota é **conceptual** — não define thresholds, scoring nem algoritmo de
+> ranking. Ver [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md)
+> (Decisão C4).
 
 ### `AnswerGroundingValidator`
 

@@ -134,6 +134,15 @@ de DTO nesta fase):
 | F/G | `disclaimer_level` | Intensidade do aviso legal |
 | H | `next_steps` | Passos seguintes sugeridos |
 
+> **Risco apresentado = risco agregado dos fundamentos usados (Decisão C4).** O
+> `risk_level` que a resposta apresenta deve corresponder ao **risco agregado dos
+> fundamentos efectivamente usados** — não ao risco de todo o conjunto recuperado
+> pelo RAG. Fontes recuperadas mas **não usadas** (ruído) **não** devem contaminar a
+> classificação visível. Em sentido inverso, uma **excepção HIGH usada** na
+> fundamentação **eleva a prudência** da resposta, mesmo que não seja o primeiro
+> resultado. Ver [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md)
+> (Decisão C4).
+
 ## 5. Escalas sugeridas
 
 ```text

@@ -2,7 +2,7 @@
 
 > **Documento de política (Bloco C).** Define a política **conceptual** de risco,
 > visibilidade, encaminhamento para Pedido de parecer e forma de resposta da TaxIA.
-> Nesta fase, as **Decisões C1, C2 e C3** estão fechadas; as restantes ficam
+> Nesta fase, as **Decisões C1, C2, C3 e C4** estão fechadas; as restantes ficam
 > explicitamente marcadas como **A decidir**.
 
 ## 1. Natureza do documento
@@ -11,7 +11,7 @@
   encaminhamento para Pedido de parecer e forma de resposta.
 - Deve **orientar futuras decisões** de backend, frontend, RAG, curadoria e
   publicação.
-- Nesta fase, **apenas algumas decisões estão fechadas** (C1, C2 e C3).
+- Nesta fase, **apenas algumas decisões estão fechadas** (C1, C2, C3 e C4).
 - As decisões não fechadas ficam marcadas como **"A decidir"** (secções 7 e 8) e
   **não devem ser presumidas** enquanto não forem decididas explicitamente.
 - Não implementa nada — é desenho e governação, não código nem migrations.
@@ -115,7 +115,7 @@ Ou seja: o risco pode **descer** a forma da resposta, mas a insuficiência de su
 | HIGH + pergunta concreta com impacto fiscal | `RESPOSTA_LIMITE` ou `PEDIDO_DE_PARECER` |
 
 > **Âmbito da C2.** A C2 fixa a relação `risk_level` → `answerType`. **Não** decide
-> `parecerRequirement` (ver C3), regras de agregação de risco (C4),
+> `parecerRequirement` (ver C3), a agregação de risco (ver C4),
 > `freshnessStatus` (C8), `sourceQuality` (C9) nem as transições C5/C6 — ver secção 7.
 
 ## 3-C. Decisão C3 — intervenção humana apenas no Pedido de parecer *(FECHADA)*
@@ -169,8 +169,77 @@ Valores conceptuais:
 
 > **Âmbito da C3.** A C3 fixa que a intervenção humana vive apenas no Pedido de
 > parecer e substitui `reviewRequirement` por `parecerRequirement`. **Não** decide
-> os limiares exactos por combinação de sinais (C4+), nem `freshnessStatus` (C8)
-> nem `sourceQuality` (C9).
+> a agregação de risco (C4), os limiares exactos por combinação de sinais (C5+),
+> `freshnessStatus` (C8) nem `sourceQuality` (C9).
+
+## 3-D. Decisão C4 — agregação de risco por fundamentos usados *(FECHADA)*
+
+> **C4.** A TaxIA agrega o risco pelo **sinal mais restritivo dos fundamentos
+> relevantes efectivamente usados na resposta**. Casos recuperados pelo RAG mas
+> irrelevantes, residuais ou não usados **não** contaminam o risco agregado.
+
+### O que o risco agregado NÃO é
+
+O risco agregado da resposta **não** é:
+
+- a **média** dos riscos recuperados;
+- o risco do **primeiro** resultado do RAG;
+- o risco **máximo de tudo** o que o RAG recuperou (incluindo ruído).
+
+### O que o risco agregado É
+
+O risco agregado é o **risco mais restritivo** entre os **fundamentos relevantes
+efectivamente usados** na resposta.
+
+Regra curta:
+
+```text
+riskAggregated = risco máximo dos fundamentos relevantes usados
+```
+
+Um caso ou fonte **HIGH materialmente relevante** eleva a prudência da resposta,
+**mesmo que não seja o primeiro resultado** recuperado. Inversamente, um caso HIGH
+que seja apenas **ruído** (recuperado mas não usado) **não** eleva o risco.
+
+### O que conta como "fundamento usado"
+
+Um caso, fonte ou fragmento considera-se **usado** quando:
+
+- é **citado** na resposta;
+- **sustenta uma regra** apresentada;
+- **sustenta uma excepção** relevante;
+- **justifica uma limitação**;
+- **justifica uma Resposta-limite**;
+- **justifica encaminhamento** para Pedido de parecer.
+
+Casos recuperados mas **irrelevantes, residuais, descartados ou não usados** ficam
+fora do cálculo — não sobem nem descem o `riskAggregated`.
+
+### Exemplos conceptuais
+
+**Exemplo 1 — HIGH era ruído**
+- Recuperados: LOW + MEDIUM + HIGH.
+- Usados: LOW + MEDIUM (o HIGH era ruído, não foi usado).
+- `riskAggregated = MEDIUM`.
+
+**Exemplo 2 — HIGH sustenta uma excepção relevante**
+- Recuperados: LOW + MEDIUM + HIGH.
+- O HIGH **sustenta uma excepção** materialmente relevante à resposta.
+- `riskAggregated = HIGH`.
+
+**Exemplo 3 — HIGH sustenta cautela na aplicação concreta**
+- MEDIUM sustenta a **regra geral**; HIGH sustenta a **necessidade de cautela** na
+  aplicação concreta.
+- `riskAggregated = HIGH`.
+- `answerType` provável: `CONSULTA_DOCUMENTADA_COM_LIMITACOES` ou `RESPOSTA_LIMITE`.
+- `parecerRequirement` provável: `SUGGESTED` ou `REQUIRED` (sem decidir C5/C6 em
+  definitivo — ver secção 7).
+
+> **Âmbito da C4.** A C4 fixa **como se agrega** o risco (máximo dos fundamentos
+> relevantes usados). **Não** decide os limiares de transição entre formas de
+> resposta (C5/C6), nem `freshnessStatus` (C8), nem `sourceQuality` (C9), nem
+> qualquer **algoritmo de ranking, threshold ou scoring técnico** — a definição do
+> que é "relevante"/"usado" em termos de implementação fica para fase posterior.
 
 ## 4. Níveis conceptuais de visibilidade
 
@@ -214,7 +283,9 @@ Separação de responsabilidades:
 - **`answerType`** define a **forma** da resposta ao utilizador;
 - **`visibilityLevel`** define **onde** essa resposta pode ser apresentada;
 - **`supportStatus`** explica o **suporte técnico** (sinal do *grounding*);
-- **`risk_level`** ajuda a determinar **prudência, revisão e visibilidade**.
+- **`risk_level`** ajuda a determinar **prudência, encaminhamento e visibilidade** —
+  e é o **`riskAggregated`** (risco máximo dos fundamentos relevantes usados), não o
+  risco de todo o conjunto recuperado (ver Decisão C4).
 
 > A **matriz completa** que combina estes eixos **ainda não está decidida** — ver
 > secções 7 e 8.
@@ -232,7 +303,6 @@ Separação de responsabilidades:
 
 As decisões seguintes **não estão tomadas** e não devem ser presumidas:
 
-- **C4 — A decidir:** Como agregamos risco quando vários casos são recuperados?
 - **C5 — A decidir:** Quando é que uma resposta passa de
   `CONSULTA_DOCUMENTADA_COM_LIMITACOES` para `RESPOSTA_LIMITE`?
 - **C6 — A decidir:** Quando é que uma Resposta-limite deve converter directamente
@@ -271,10 +341,19 @@ suficientes). `parecerRequirement`, `visibilityLevel`, agregação de risco,
 A C3 fixa o **significado** de `parecerRequirement` (encaminhamento para Pedido de
 parecer, **não** revisão humana invisível) e os seus valores `NONE` / `SUGGESTED` /
 `REQUIRED`. **Não** decide os limiares exactos por combinação de sinais — isso
-depende de C4+.
+depende de C5+.
 
-> Colunas `visibilityLevel` (além da C1): **a decidir** (C7). Regra de agregação:
-> **a decidir** (C4). Limiares de `parecerRequirement` por sinal: **a decidir**.
+### Orientação C4 sobre a coluna `risk_level` da matriz *(agregação — sem thresholds)*
+
+A C4 fixa que o `risk_level` que entra na matriz é o **`riskAggregated`** — o risco
+**máximo dos fundamentos relevantes usados** na resposta, **não** o risco de todo o
+conjunto recuperado pelo RAG. A C4 **não** preenche C5/C6, **não** decide
+`freshnessStatus` (C8) nem `sourceQuality` (C9), e **não** define qualquer
+threshold, scoring ou algoritmo de ranking técnico.
+
+> Colunas `visibilityLevel` (além da C1): **a decidir** (C7). Regra de agregação de
+> risco: **fixada pela C4** (máximo dos fundamentos relevantes usados). Limiares de
+> `parecerRequirement` por sinal: **a decidir** (C5+).
 
 ## 9. Relação com documentos existentes
 
