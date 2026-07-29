@@ -198,10 +198,11 @@ Candidatos de **desenho** (não implementação imediata): `support_level`;
 > (Princípio 1-A).
 >
 > Documento-base do Bloco C:
-> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md). A **Decisão
-> C1** (visibilidade externa = profissional; níveis `EXTERNAL`/`DEMO`/`INTERNAL`/
-> `CURATION_ONLY`) está **fechada**; as decisões **C2+** serão decididas
-> **sequencialmente**.
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md). Decisões
+> **fechadas**: **C1** (visibilidade externa = profissional; níveis
+> `EXTERNAL`/`DEMO`/`INTERNAL`/`CURATION_ONLY`) e **C2** (`risk_level` condiciona
+> a prudência mas não decide sozinho o `answerType`). As decisões **C3+** serão
+> decididas **sequencialmente**.
 
 
 Definir como `LOW`/`MEDIUM`/`HIGH` aparecem ao utilizador:

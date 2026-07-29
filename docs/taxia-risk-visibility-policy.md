@@ -50,6 +50,74 @@ Corolários:
   acesso**;
 - a demo **mantém a qualidade profissional** da resposta.
 
+## 3-B. Decisão C2 — `risk_level` condiciona prudência, mas não decide sozinho o `answerType` *(FECHADA)*
+
+> **C2.** O `risk_level` **condiciona o grau de prudência**, mas **não decide
+> sozinho** o `answerType`.
+
+O `risk_level` é um **sinal de prudência** — **não** é uma autorização automática
+nem uma proibição absoluta. O `answerType` final depende **sempre** da combinação
+de:
+
+- `risk_level`;
+- `supportStatus`;
+- contexto da pergunta;
+- qualidade e actualidade das fontes;
+- necessidade de apreciação profissional;
+- regras mais restritivas aplicáveis (regra da prudência).
+
+### Orientação por `risk_level`
+
+**LOW**
+- pode gerar `CONSULTA_DOCUMENTADA` se houver suporte, contexto e fontes
+  suficientes;
+- pode gerar `CONSULTA_DOCUMENTADA_COM_LIMITACOES` quando existam pequenas reservas;
+- pode gerar `RESPOSTA_LIMITE` se faltar contexto/suporte;
+- pode encaminhar para `PEDIDO_DE_PARECER` se a pergunta concreta o exigir.
+
+**MEDIUM**
+- pode gerar `CONSULTA_DOCUMENTADA` se houver suporte, contexto e fontes
+  suficientes;
+- **deve explicitar mais condições, limites e fontes** do que LOW;
+- pode gerar `CONSULTA_DOCUMENTADA_COM_LIMITACOES`;
+- pode gerar `RESPOSTA_LIMITE` se faltar contexto/suporte;
+- pode encaminhar para `PEDIDO_DE_PARECER` quando a aplicação ao caso concreto o
+  justificar.
+
+**HIGH**
+- **não** deve gerar `CONSULTA_DOCUMENTADA` conclusiva em modo automático;
+- pode gerar `CONSULTA_DOCUMENTADA_COM_LIMITACOES`;
+- pode gerar `RESPOSTA_LIMITE`;
+- **deve encaminhar para `PEDIDO_DE_PARECER`** quando a pergunta exigir aplicação
+  concreta, decisão fiscal individualizada ou apreciação profissional;
+- **nunca** deve fechar automaticamente uma conclusão fiscal sensível sem limitação
+  expressa.
+
+### Regra transversal
+
+Em **qualquer** nível de risco, a **falta de suporte, contexto, actualidade ou
+qualidade de fontes** prevalece sobre o `risk_level` e pode conduzir a:
+
+- `CONSULTA_DOCUMENTADA_COM_LIMITACOES`;
+- `RESPOSTA_LIMITE`;
+- `PEDIDO_DE_PARECER`.
+
+Ou seja: o risco pode **descer** a forma da resposta, mas a insuficiência de suporte
+**também** a desce — nunca a sobe.
+
+### Exemplo conceptual
+
+| Situação | `answerType` orientado |
+|----------|------------------------|
+| LOW + pergunta vaga | `RESPOSTA_LIMITE` |
+| MEDIUM + boas fontes + pergunta genérica | `CONSULTA_DOCUMENTADA` |
+| HIGH + boas fontes + pergunta genérica | `CONSULTA_DOCUMENTADA_COM_LIMITACOES` |
+| HIGH + pergunta concreta com impacto fiscal | `RESPOSTA_LIMITE` ou `PEDIDO_DE_PARECER` |
+
+> **Âmbito da C2.** A C2 fixa a relação `risk_level` → `answerType`. **Não** decide
+> `reviewRequirement`, regras de agregação de risco (C4), `freshnessStatus` (C8),
+> `sourceQuality` (C9) nem as transições C5/C6 — ver secção 7.
+
 ## 4. Níveis conceptuais de visibilidade
 
 Níveis conceptuais preferidos (nomes de implementação a fixar mais tarde):
@@ -110,7 +178,6 @@ Separação de responsabilidades:
 
 As decisões seguintes **não estão tomadas** e não devem ser presumidas:
 
-- **C2 — A decidir:** Que `answerType` é permitido por `risk_level`?
 - **C3 — A decidir:** Quando é exigida revisão humana?
 - **C4 — A decidir:** Como agregamos risco quando vários casos são recuperados?
 - **C5 — A decidir:** Quando é que uma resposta passa de
@@ -132,6 +199,21 @@ Eixos previstos para a matriz de decisão:
 | *(a decidir)* | *(a decidir)* | *(a decidir)* | *(a decidir)* | *(a decidir)* | *(a decidir)* | *(a decidir)* |
 
 > **Matriz a decidir em fase posterior. Não preencher sem decisão explícita.**
+
+### Orientação C2 por `risk_level` *(parcial — só o eixo `risk_level` → `answerType`)*
+
+A C2 preenche **apenas** a relação `risk_level` → `answerType` (com suporte/contexto
+suficientes). `reviewRequirement`, `visibilityLevel`, agregação de risco,
+`freshnessStatus` e `sourceQuality` **continuam a decidir**.
+
+| `risk_level` | `answerType` possíveis (com suporte suficiente) | `answerType` por insuficiência |
+|---|---|---|
+| **LOW** | `CONSULTA_DOCUMENTADA` (ou com limitações se houver reservas) | `RESPOSTA_LIMITE` / `PEDIDO_DE_PARECER` |
+| **MEDIUM** | `CONSULTA_DOCUMENTADA` (com mais condições/limites/fontes) ou com limitações | `RESPOSTA_LIMITE` / `PEDIDO_DE_PARECER` |
+| **HIGH** | `CONSULTA_DOCUMENTADA_COM_LIMITACOES` ou `RESPOSTA_LIMITE` (**nunca** conclusiva automática) | `RESPOSTA_LIMITE` / `PEDIDO_DE_PARECER` |
+
+> Colunas `reviewRequirement` e `visibilityLevel`: **a decidir** (C3/C7). Regra de
+> agregação: **a decidir** (C4).
 
 ## 9. Relação com documentos existentes
 
