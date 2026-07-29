@@ -18,6 +18,25 @@ A IA não responde apenas "da cabeça". Cada resposta deve ser baseada em
 O valor está no conhecimento fiscal curado pela equipa, não no modelo de linguagem
 em si — o modelo é o veículo, o activo é a base de conhecimento.
 
+## 1-A. A TaxIA é profissional, mesmo em demo
+
+A TaxIA é uma **ferramenta profissional de consulta fiscal documentada assistida
+por IA**. O foco do produto é **100% profissional**.
+
+- **Não existe "TaxIA-lite".** Não há uma versão para leigo com resposta
+  simplificada como desenho principal.
+- **A demo mostra a mesma lógica profissional** — resposta documentada, fontes,
+  limitações, Resposta-limite, grau de incerteza, encaminhamento para Pedido de
+  parecer e linguagem clara mas profissional.
+- **As diferenças entre contextos de uso são apenas comerciais, operacionais ou de
+  permissões** — nunca uma descida da qualidade, profundidade, fundamentação ou
+  estrutura da resposta.
+- A **linguagem clara** não é simplificação: é rigor comunicado com clareza, para
+  um público que sabe ler fundamentação fiscal.
+
+Uma demo pode ser limitada **comercialmente** (volume, funcionalidades), mas nunca
+**conceptualmente** quanto à qualidade da resposta.
+
 ## 2. Dois circuitos principais
 
 **A. Pedido de parecer**
@@ -111,10 +130,21 @@ Os casos HIGH **podem** ser tecnicamente publicados no RAG, mas:
 
 ## 8. Modos de utilização
 
-- **CLIENT** — linguagem clara, fontes e alertas, sem ruído interno.
-- **PROFESSIONAL** — maior detalhe técnico, condições, fontes completas e sinais
-  de risco.
-- **ADMIN** — diagnóstico, scores, estados, notas internas, auditoria e curadoria.
+Os modos são **vistas/permissões sobre a mesma resposta profissional** — controlam
+o detalhe visível, não a qualidade conceptual (ver [Princípio 1-A](#1-a-a-taxia-é-profissional-mesmo-em-demo)):
+
+- **PROFESSIONAL** (utilizador externo profissional) — resposta documentada
+  completa: fundamentação, condições, fontes completas, alertas e sinais de risco.
+- **DEMO** — o **mesmo** produto profissional, apenas limitado comercial ou
+  operacionalmente; **não** é uma resposta simplificada.
+- **ADMIN** — acrescenta diagnóstico, scores, estados, notas internas, auditoria e
+  curadoria.
+
+> O modo `CLIENT` que aparece no contrato técnico existente
+> ([taxia-documented-response-dto.md](taxia-documented-response-dto.md)) designa,
+> por razões técnicas, o **utilizador externo** — **não** um leigo e **não** uma
+> resposta simplificada. Os nomes conceptuais preferíveis para o futuro são
+> **PROFESSIONAL / DEMO / ADMIN**.
 
 ## 9. Pedir factos em vez de fingir certeza
 

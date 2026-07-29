@@ -190,6 +190,12 @@ Candidatos de **desenho** (não implementação imediata): `support_level`;
 > como forma oficial de resposta (o último patamar automático antes do Pedido de
 > parecer) e o campo `answerType`. Ver
 > [taxia-boundary-answer.md](taxia-boundary-answer.md).
+>
+> A matriz deve partir de um **produto 100% profissional**: `visibility` **não**
+> significa "cliente leigo *vs.* profissional", mas sim **externo profissional /
+> demo / interno-admin / curadoria**. A demo é limitada comercialmente, nunca na
+> qualidade da resposta. Ver [taxia-core-principles.md](taxia-core-principles.md)
+> (Princípio 1-A).
 
 
 Definir como `LOW`/`MEDIUM`/`HIGH` aparecem ao utilizador:

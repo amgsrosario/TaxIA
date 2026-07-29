@@ -25,6 +25,14 @@ segurança**, explicar os **elementos em falta**, apresentar apenas o
 **enquadramento geral suportado por fontes** e recomendar **Pedido de parecer**
 quando a questão exigir apreciação concreta.
 
+> **A Resposta-limite é uma peça profissional.** É especialmente relevante para o
+> utilizador profissional: o seu valor está em **organizar o enquadramento, as
+> fontes e os factos em falta** de forma accionável, encurtando o caminho para o
+> parecer. **Não** deve ser formatada como um "não sei" para consumidor genérico —
+> é uma saída técnica estruturada, ao mesmo nível de qualidade de qualquer outra
+> resposta da TaxIA. Ver [taxia-core-principles.md](taxia-core-principles.md)
+> (Princípio 1-A).
+
 ## B. Quando é usada
 
 - suporte insuficiente;

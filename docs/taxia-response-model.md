@@ -123,24 +123,26 @@ Estas escalas são **candidatas de desenho**. Os nomes/valores definitivos e a s
 materialização (enum Java, coluna, campo de DTO) ficam para a fase de
 implementação.
 
-## 6. Resposta interna/profissional vs. resposta ao cliente
+## 6. Projecção da resposta (vista externa profissional vs. vista interna)
 
-A mesma resposta documentada deve poder ser **projectada** de duas formas, a
-partir dos mesmos dados:
+A TaxIA é **profissional em todas as vistas** — a resposta é sempre documentada,
+fundamentada e estruturada. A projecção **não simplifica** a resposta nem cria uma
+versão para leigo; apenas controla, por **permissões**, que **ruído interno** é
+visível. Ver [taxia-core-principles.md](taxia-core-principles.md) (Princípio 1-A).
 
-| | Interna / profissional | Cliente |
+| | Externa (profissional / demo) | Interna (admin / curadoria) |
 |---|---|---|
-| Detalhe técnico | Pode mostrar mais | Linguagem mais clara |
-| Notas de curadoria | Pode mostrar | Não expor |
-| Incertezas | Podem ser mais cruas | Comunicadas com cuidado |
-| Estado editorial | Pode mostrar | Não expor |
-| Fontes e alertas | Sim | **Sim** (sempre) |
-| Jargão excessivo | Tolerável | Evitar |
-| Revisão profissional | Visível | **Indicar quando é necessária** |
+| Resposta documentada, fundamentação, estrutura | **Sim** | **Sim** |
+| Fontes e alertas | **Sim** (sempre) | **Sim** |
+| Necessidade de revisão | **Indicada quando aplicável** | Indicada |
+| Detalhe técnico | Completo | Completo |
+| Notas de curadoria | Não expor | Pode mostrar |
+| Estado editorial / scores | Não expor | Pode mostrar |
 
-Regra-chave: a vista de cliente **nunca** deve expor ruído interno de curadoria,
-mas **deve sempre** mostrar fontes, alertas e a necessidade de revisão quando
-aplicável.
+Regra-chave: a vista externa **nunca** expõe ruído interno de curadoria (notas,
+scores, estado editorial), mas **mantém a mesma qualidade profissional** e mostra
+sempre fontes, alertas e a necessidade de revisão quando aplicável. "Linguagem
+clara" significa rigor bem comunicado — **não** menos técnico.
 
 ## 7. Relação com os estados actuais
 
@@ -253,7 +255,8 @@ Trabalhos seguintes (fora desta fase de desenho):
 - Calcular **`confidence_level`**.
 - Expor **`review_requirement`**.
 - Desenhar **componente frontend** de resposta documentada.
-- Distinguir **modo cliente vs. modo profissional**.
+- Distinguir **vistas por permissões** (profissional externo / demo / interno-admin),
+  **sem** baixar a qualidade conceptual da resposta.
 - Criar **testes** de resposta documentada.
 
 ## 12. Alinhamento com o já existente

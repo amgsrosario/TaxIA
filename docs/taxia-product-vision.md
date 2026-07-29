@@ -10,9 +10,30 @@
 
 A TaxIA **não é um chatbot fiscal genérico**.
 
-A TaxIA é uma **plataforma de consultoria fiscal assistida por IA**, baseada em
-conhecimento documentado, fontes rastreáveis, grau de confiança, alertas de risco
-e intervenção humana nos pontos críticos.
+A TaxIA é uma **plataforma profissional de consulta fiscal documentada assistida
+por IA**, baseada em conhecimento documentado, fontes rastreáveis, grau de
+confiança, alertas de risco e intervenção humana nos pontos críticos.
+
+O foco do produto é **100% profissional**: mesmo em demo, a TaxIA apresenta a mesma
+lógica profissional (resposta documentada, fontes, limitações, Resposta-limite,
+grau de incerteza e encaminhamento para Pedido de parecer). Não existe uma
+"TaxIA-lite" nem uma versão de resposta simplificada para leigo. Ver
+[taxia-core-principles.md](taxia-core-principles.md) (Princípio 1-A).
+
+### Público-alvo
+
+O público-alvo principal é profissional:
+
+- contabilistas certificados;
+- consultores fiscais;
+- advogados fiscalistas;
+- técnicos de contabilidade;
+- gabinetes de contabilidade e consultoria;
+- empresas com necessidade fiscal recorrente e tecnicamente acompanhada.
+
+Um eventual uso **demo/free** serve sobretudo **demonstração comercial** — pode ser
+limitado comercial ou operacionalmente, mas mantém a mesma qualidade conceptual da
+resposta.
 
 O valor não está no modelo de linguagem em si, mas no **conhecimento fiscal curado
 pela equipa** e na disciplina com que esse conhecimento é ingerido, validado,
@@ -66,7 +87,8 @@ a indexação serem operações **separadas** da validação.
 - Uma **camada de triagem e qualificação** (o que é seguro responder, o que exige
   revisão, o que não é publicável).
 - Um **instrumento de produtividade** para consultores.
-- Uma ferramenta **transparente** para o cliente e para o profissional.
+- Uma ferramenta **transparente** para o utilizador profissional (e, quando
+  aplicável, para o cliente final desse profissional), sempre com o mesmo rigor.
 
 ## 5. Modelo de resposta ideal
 

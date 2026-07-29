@@ -57,11 +57,15 @@ Produz respostas seguras sem chamar o provider:
 - **Recusa** (`INSUFFICIENT_CONTEXT`): contexto insuficiente, sugere consulta a profissional
 - **Rejeição** (`REJECTED_UNSUPPORTED`): resposta gerada bloqueada por afirmações não fundamentadas
 
-> **Orientação de produto (desenho, não implementação).** A recusa por
-> `INSUFFICIENT_CONTEXT` deve evoluir para uma **Resposta-limite útil** — não uma
-> mensagem de erro seca. Em vez de apenas recusar, deve explicar os elementos em
-> falta, apresentar o enquadramento geral suportado por fontes e recomendar Pedido
-> de parecer. Ver [taxia-boundary-answer.md](taxia-boundary-answer.md). Isto é
+> **Orientação de produto (desenho, não implementação).** A resposta gerada a
+> partir do grounding é **sempre profissional** — documentada, fundamentada e
+> estruturada, seja qual for o modo de utilização (não há versão simplificada para
+> leigo). A recusa por `INSUFFICIENT_CONTEXT` deve evoluir para uma
+> **Resposta-limite profissional útil** — não uma mensagem de erro seca nem uma
+> simplificação. Em vez de apenas recusar, deve explicar os elementos em falta,
+> apresentar o enquadramento geral suportado por fontes e recomendar Pedido de
+> parecer. Ver [taxia-boundary-answer.md](taxia-boundary-answer.md) e
+> [taxia-core-principles.md](taxia-core-principles.md) (Princípio 1-A). Isto é
 > orientação de desenho; não altera, por si, o comportamento actual do
 > `SafeResponseFactory`.
 

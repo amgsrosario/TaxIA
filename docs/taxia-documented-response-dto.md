@@ -124,6 +124,7 @@ DisclaimerLevel:    NONE | LIGHT | STANDARD | STRONG
 SourceQuality:      OFFICIAL | LEGAL | INTERNAL | UNVERIFIED | MIXED
 AlertSeverity:      INFO | WARNING | CRITICAL
 AnswerMode:         CLIENT | PROFESSIONAL | ADMIN
+                    # nomes conceptuais preferíveis no futuro: PROFESSIONAL | DEMO | ADMIN
 ```
 
 `AnswerSupportStatus` **não** é novo — é o enum já existente (`SUPPORTED`,
@@ -205,19 +206,41 @@ visibilidade, aplica-se **a regra mais restritiva**.
 
 ## 10. Modos de resposta (`AnswerMode`)
 
-A mesma `DocumentedTaxAnswerDto` é **projectada** conforme o modo:
+A TaxIA é **profissional em todos os modos** — a resposta documentada é sempre a
+mesma em qualidade, profundidade, fundamentação e estrutura. O modo controla apenas
+o **ruído interno visível** e eventuais **limites comerciais/operacionais**, nunca a
+qualidade conceptual (ver [taxia-core-principles.md](taxia-core-principles.md),
+Princípio 1-A).
 
-| | `CLIENT` | `PROFESSIONAL` | `ADMIN` |
+Esclarecimento sobre os valores actuais do enum:
+
+- **`CLIENT`** — designa, por razões técnicas, o **utilizador externo**. **Não**
+  significa utilizador leigo e **não** implica resposta simplificada.
+- **`PROFESSIONAL`** — utilizador profissional com acesso a mais detalhe operacional.
+- **`ADMIN`** — acrescenta diagnóstico, scores, estados, notas internas e curadoria.
+- Um modo **`DEMO`**, se previsto, é um **ambiente profissional limitado
+  comercialmente** — mesma resposta, com travões comerciais/operacionais.
+
+> **Nomes conceptuais preferíveis no futuro:** `PROFESSIONAL` / `DEMO` / `ADMIN`
+> (em vez de `CLIENT`), para não sugerir um utilizador leigo. Renomear é decisão de
+> implementação — aqui fica apenas a orientação.
+
+A mesma `DocumentedTaxAnswerDto` é **projectada** conforme o modo (qualidade igual,
+ruído interno diferente):
+
+| | Externo (`CLIENT`/`DEMO`) | `PROFESSIONAL` | `ADMIN` |
 |---|---|---|---|
-| Linguagem | Clara, menos jargão | Mais detalhe técnico | Técnica + diagnóstico |
-| Fontes | Visíveis | Completas | Completas |
-| Alertas/condições | Claros | Sim | Sim |
+| Resposta documentada / fundamentação | Completa | Completa | Completa |
+| Linguagem | Clara e rigorosa | Clara e rigorosa | Técnica + diagnóstico |
+| Fontes | Completas | Completas | Completas |
+| Alertas/condições | Sim | Sim | Sim |
 | Casos recuperados | Não | Pode ver | Sim (com `score`, `externalKey`) |
 | Notas internas | Não | Limitadas | Sim (`internalNotes`) |
 | Estado editorial/scores | Não | Parcial | Sim |
 
-Regra: a vista `CLIENT` nunca expõe `internalNotes`, `score` ou estado editorial;
-mostra sempre fontes, alertas e `reviewRequirement` quando aplicável.
+Regra: a vista externa nunca expõe `internalNotes`, `score` ou estado editorial;
+mostra sempre fontes, alertas e `reviewRequirement` quando aplicável — **sem baixar
+a qualidade profissional da resposta**.
 
 ## 11. Exemplo JSON conceptual (baseado em AT-FAQ-5930)
 
@@ -304,7 +327,8 @@ mostra sempre fontes, alertas e `reviewRequirement` quando aplicável.
 - Bloco "qualidade da resposta".
 - Badges de risco/confiança.
 - Avisos de revisão humana.
-- Distinção modo cliente vs. profissional/admin.
+- Distinção de vistas por permissões (externo profissional / demo / admin), **sem**
+  simplificar a resposta.
 
 ## 14. Decisões em aberto
 
