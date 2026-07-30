@@ -126,6 +126,7 @@ FreshnessStatus:    CURRENT | STABLE_BUT_OLD | UNCERTAIN | OUTDATED
                     # candidatos anteriores: CURRENT | NEEDS_RECHECK | STALE | UNKNOWN
 DisclaimerLevel:    NONE | LIGHT | STANDARD | STRONG
 SourceQuality:      OFFICIAL | LEGAL | INTERNAL | UNVERIFIED | MIXED
+                    # força/autoridade, não contagem de fontes (Decisão C9)
 AlertSeverity:      INFO | WARNING | CRITICAL
 AnswerMode:         CLIENT | PROFESSIONAL | ADMIN
                     # nomes conceptuais preferíveis no futuro: PROFESSIONAL | DEMO | ADMIN
@@ -164,7 +165,10 @@ Separação de eixos:
   (Decisão C6);
 - `visibilityLevel` indica **onde** a resposta pode ser apresentada (Decisão C7);
 - `freshnessStatus` indica a **confiança na actualidade/origem temporal** do
-  conhecimento usado (Decisão C8).
+  conhecimento usado (Decisão C8);
+- `sourceQuality` / `sourceRole` / `sourceDiversity` avaliam a **robustez documental**
+  por força, aplicabilidade e diversidade material — **não** por volume de fontes
+  (Decisão C9).
 
 `freshnessStatus` representa a **confiança na actualidade e origem temporal** do
 conhecimento que sustenta a resposta (Decisão C8, ver
@@ -198,6 +202,39 @@ Regra curta: `aggregatedRiskLevel = risco máximo dos fundamentos relevantes usa
 O `riskLevel` por caso (em `retrievedCases[]`) continua a existir por caso; o
 `aggregatedRiskLevel` é o **risco da resposta como um todo**. Casos recuperados mas
 não usados (ruído) não elevam o `aggregatedRiskLevel`.
+
+## 5-C. Robustez documental: `sourceQuality`, `sourceRole`, `sourceDiversity` (Decisão C9)
+
+A robustez documental **não** se mede pela **contagem bruta de fontes**, mas por
+**força, autoridade, aplicabilidade directa, actualidade, coerência, ligação ao
+fundamento legal e diversidade material** (Decisão C9, ver
+[taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md), secção 3-I).
+
+- **`sourceQuality`** (`OFFICIAL`/`LEGAL`/`INTERNAL`/`UNVERIFIED`/`MIXED`) exprime a
+  **força e autoridade** da base documental, não a quantidade. Uma fonte **oficial,
+  legal e directamente aplicável** pode sustentar `CONSULTA_DOCUMENTADA` se os
+  restantes sinais bastarem.
+- **`sourceRole`** distingue conceptualmente o **papel** de cada fonte:
+  - **principal** — sustenta directamente a resposta (autoridade forte, aplicável e
+    actual ou suficientemente estável);
+  - **complementar** — acrescenta fundamento materialmente diferente, detalhe,
+    excepção, interpretação, contexto ou confirmação independente;
+  - **derivada/replicada** — reproduz, resume ou reformula o mesmo **núcleo material**;
+    **não** conta como confirmação independente.
+- **`sourceDiversity`** exprime a **diversidade material real** — quantas fontes
+  acrescentam fundamento distinto, e não apenas **eco documental** do mesmo núcleo.
+- **`sourceCore`** (núcleo material comum) identifica conteúdo **substancialmente
+  igual** ainda que com linguagem diferente; várias fontes com o mesmo `sourceCore`
+  **não** equivalem a várias confirmações independentes.
+
+Estes campos **não** substituem `answerType`, `supportStatus`, `aggregatedRiskLevel`,
+`parecerRequirement`, `visibilityLevel` nem `freshnessStatus`: **informam-nos**.
+Fontes **derivadas/replicadas** não reforçam o suporte como confirmações
+independentes; **fontes externas não oficiais** não sustentam **sozinhas** uma
+conclusão fiscal actual; **divergência relevante** entre fontes degrada a resposta
+para `CONSULTA_DOCUMENTADA_COM_LIMITACOES`/`RESPOSTA_LIMITE` e pode elevar o
+`parecerRequirement`. Estes campos são de **desenho conceptual** — **não** implicam
+thresholds, scoring ou algoritmo de ranking, que ficam para fase técnica posterior.
 
 ## 6-A. `answerType`: a forma da resposta
 

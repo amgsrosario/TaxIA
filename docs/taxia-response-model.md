@@ -176,6 +176,8 @@ risk_level:          LOW | MEDIUM | HIGH
 parecer_requirement:  NONE | SUGGESTED | REQUIRED
 visibility_level:    INTERNAL_ONLY | PROFESSIONAL_ONLY | CLIENT_VISIBLE | CLIENT_VISIBLE_WITH_WARNING
 freshness_status:    CURRENT | STABLE_BUT_OLD | UNCERTAIN | OUTDATED   # Decisão C8
+source_quality:      OFFICIAL | LEGAL | INTERNAL | UNVERIFIED | MIXED  # força, não contagem (Decisão C9)
+source_role:         principal | complementar | derivada-replicada    # Decisão C9
 disclaimer_level:    NONE | LIGHT | STANDARD | STRONG
 ```
 
@@ -215,6 +217,36 @@ explícito. Frase-modelo aprovada:
 > Pedido de parecer.
 
 Ver [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C8).
+
+## 5-B. Robustez documental da resposta *(Decisão C9)*
+
+A força de uma resposta **não** se mede pela **quantidade de fontes**, mas pela
+**qualidade, autoridade, aplicabilidade directa, actualidade, coerência e diversidade
+material** do suporte. Muitas fontes que apenas repetem o mesmo conteúdo **não**
+tornam a resposta mais robusta.
+
+A resposta profissional deve distinguir:
+
+- **fonte principal** — sustenta directamente a resposta (autoridade forte, aplicável
+  e actual ou suficientemente estável);
+- **fonte complementar** — acrescenta fundamento materialmente diferente, detalhe,
+  excepção, interpretação, contexto ou confirmação independente;
+- **fonte derivada/replicada** — reproduz, resume ou reformula o mesmo **núcleo
+  material**; **não** conta como confirmação independente;
+- **diversidade material** — a robustez aumenta quando as fontes acrescentam
+  fundamentos distintos, não quando multiplicam o mesmo núcleo;
+- **divergência relevante** — quando as fontes se contradizem, a resposta desce para
+  `CONSULTA_DOCUMENTADA_COM_LIMITACOES`/`RESPOSTA_LIMITE` e pode encaminhar para Pedido
+  de parecer.
+
+> **Regra curta (C9).** A TaxIA mede suporte documental por **força, aplicabilidade e
+> diversidade material**, **não** por **volume aparente** de fontes.
+
+Exemplo: uma **FAQ oficial + o artigo legal correspondente** dão **suporte forte e
+diverso**; uma **FAQ oficial + várias cópias privadas** que a reproduzem são **uma
+fonte forte + eco documental**, não várias confirmações independentes.
+
+Ver [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C9).
 
 ## 6. Projecção da resposta (vista externa profissional vs. vista interna)
 

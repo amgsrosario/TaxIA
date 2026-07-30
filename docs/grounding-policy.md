@@ -124,6 +124,19 @@ Produz respostas seguras sem chamar o provider:
 > define algoritmo, thresholds nem detecção técnica de frescura. Ver
 > [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C8).
 
+> **Decisão C9.** O *grounding* deve **distinguir o papel de cada fonte** —
+> **principal** (sustenta directamente), **complementar** (fundamento materialmente
+> diferente) e **derivada/replicada** (reproduz o mesmo núcleo material) — e avaliar a
+> robustez por **força, autoridade, aplicabilidade directa, actualidade, coerência e
+> diversidade material**, **não** pela **contagem bruta de fontes**. A **contagem de
+> fontes é insuficiente**: várias fontes com o **mesmo núcleo material** **não** são
+> confirmações independentes (eco documental), e **diversidade material** vale mais do
+> que **volume aparente**. Fontes externas não oficiais **não** sustentam sozinhas uma
+> conclusão fiscal actual; divergência relevante entre fontes **degrada** o suporte.
+> Esta nota é **conceptual** — **não** define algoritmo, scoring, ranking nem
+> thresholds. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C9).
+
 ### `AnswerGroundingValidator`
 
 Detecta afirmações sensíveis na resposta e verifica se estão no contexto.

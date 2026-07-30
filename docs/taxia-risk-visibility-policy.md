@@ -1,9 +1,11 @@
 # TaxIA — Política de risco e visibilidade
 
 > **Documento de política (Bloco C).** Define a política **conceptual** de risco,
-> visibilidade, encaminhamento para Pedido de parecer e forma de resposta da TaxIA.
-> Nesta fase, as **Decisões C1, C2, C3, C4, C5, C6, C7 e C8** estão fechadas; as
-> restantes ficam explicitamente marcadas como **A decidir**.
+> visibilidade, actualidade, suporte documental, encaminhamento para Pedido de parecer
+> e forma de resposta da TaxIA. As **Decisões C1 a C9** estão **fechadas**; a **C9
+> fecha o Bloco C** quanto aos princípios conceptuais de risco, visibilidade,
+> actualidade e suporte documental. A materialização técnica (thresholds, scoring,
+> ranking, enums definitivos) fica para fase posterior.
 
 ## 1. Natureza do documento
 
@@ -11,10 +13,10 @@
   encaminhamento para Pedido de parecer e forma de resposta.
 - Deve **orientar futuras decisões** de backend, frontend, RAG, curadoria e
   publicação.
-- Nesta fase, **apenas algumas decisões estão fechadas** (C1, C2, C3, C4, C5, C6, C7
-  e C8).
-- As decisões não fechadas ficam marcadas como **"A decidir"** (secções 7 e 8) e
-  **não devem ser presumidas** enquanto não forem decididas explicitamente.
+- As **Decisões C1 a C9** estão **fechadas** — o Bloco C está conceptualmente
+  encerrado quanto aos seus princípios.
+- Não há decisões conceptuais em aberto neste bloco; a materialização técnica
+  (thresholds, scoring, ranking, enums definitivos) fica para fase posterior.
 - Não implementa nada — é desenho e governação, não código nem migrations.
 
 ## 2. Princípios herdados
@@ -552,6 +554,106 @@ Princípios fundamentais:
 > hierarquia definitiva de fontes (C9), nem quaisquer thresholds, scoring ou algoritmo
 > de ranking técnico. Mantém inalteradas C1–C7.
 
+## 3-I. Decisão C9 — qualidade, quantidade e diversidade material das fontes *(FECHADA — fecha o Bloco C)*
+
+> **C9.** A TaxIA **não** mede robustez documental pela **contagem bruta de fontes**.
+> Mede o suporte documental por **força, autoridade, aplicabilidade directa,
+> actualidade, coerência, ligação ao fundamento legal, diversidade material e
+> capacidade de sustentar a conclusão proposta**.
+
+Princípios fundamentais:
+
+- **Qualidade > quantidade.**
+- Uma fonte **forte, oficial e directamente aplicável** pode valer mais do que várias
+  fontes fracas.
+- A **contagem bruta de fontes é insuficiente** e pode ser **enganadora** — não é
+  irrelevante, mas fica **subordinada** à qualidade e à diversidade material.
+- Fontes que **repetem o mesmo núcleo informativo** **não** contam como confirmações
+  independentes.
+- A robustez **aumenta quando há diversidade material real**.
+- Fontes **externas não oficiais** podem ajudar a **contextualizar**, mas **não** devem
+  sustentar **sozinhas** uma conclusão fiscal actual.
+- **Divergência relevante** entre fontes **degrada** a resposta para
+  `CONSULTA_DOCUMENTADA_COM_LIMITACOES`, `RESPOSTA_LIMITE` ou Pedido de parecer.
+- Várias fontes fracas **não substituem** uma fonte forte quando a matéria **exige
+  suporte oficial/legal**.
+
+### Regra curta
+
+> A TaxIA mede suporte documental por **força, aplicabilidade e diversidade
+> material**, **não** por **volume aparente** de fontes.
+
+### Conceitos
+
+**Fonte principal**
+- **sustenta directamente** a resposta;
+- deve ser **autoridade forte**, **aplicável** e **actual** ou suficientemente
+  **estável**.
+
+**Fonte complementar**
+- acrescenta **fundamento materialmente diferente**;
+- pode acrescentar **detalhe, excepção, interpretação, contexto ou confirmação
+  independente**.
+
+**Fonte derivada/replicada**
+- **reproduz, resume ou reformula** o mesmo **núcleo informativo**;
+- **não** conta como **confirmação independente**;
+- pode apenas reforçar, de modo **limitado**, que o entendimento **circula** ou foi
+  replicado.
+
+**Núcleo material comum**
+- conteúdo **substancialmente igual**, ainda que com **linguagem diferente**;
+- várias fontes com o **mesmo núcleo** **não** equivalem a várias confirmações
+  independentes.
+
+### Hierarquia orientadora de fontes
+
+Orientadora — **não** rígida nem mecânica:
+
+1. **Legislação em vigor.**
+2. **Doutrina administrativa oficial** — instruções, informações vinculativas, ofícios
+   circulados ou orientações oficiais da autoridade competente.
+3. **FAQ oficial** da AT ou de entidade pública competente.
+4. **Jurisprudência relevante.**
+5. **Informação oficial complementar.**
+6. **Conteúdo interno curado** pela TaxIA.
+7. **Fontes externas não oficiais.**
+
+> **Nota obrigatória sobre a hierarquia.** A hierarquia **orienta** a avaliação, mas
+> **não substitui** a análise da **aplicabilidade directa, actualidade, coerência e
+> diversidade material**. Uma **FAQ oficial directamente aplicável** pode ser mais útil
+> para uma pergunta prática do que um **artigo legal genérico isolado**. **Legislação
+> isolada** pode bastar para questões **literais**, mas pode exigir **limitações** se a
+> resposta depender de **interpretação ou aplicação concreta**.
+
+### Exemplos conceptuais
+
+**Exemplo 1 — fonte oficial + fundamento legal**
+- FAQ oficial da AT **+** artigo legal correspondente = **suporte forte e diverso**.
+
+**Exemplo 2 — eco documental**
+- FAQ oficial da AT **+** vários artigos privados que a copiam ou resumem = **uma
+  fonte forte + eco documental**, **não** várias confirmações independentes.
+
+**Exemplo 3 — legislação isolada**
+- pode **bastar** para questão **literal**;
+- pode **exigir limitações** se a aplicação prática depender de **interpretação**.
+
+**Exemplo 4 — só fontes externas não oficiais**
+- podem **contextualizar**;
+- **não** devem sustentar **sozinhas** uma conclusão fiscal actual.
+
+**Exemplo 5 — fontes divergentes**
+- degradam para `CONSULTA_DOCUMENTADA_COM_LIMITACOES`, `RESPOSTA_LIMITE` ou
+  `parecerRequirement = SUGGESTED`/`REQUIRED`, conforme o contexto.
+
+> **Âmbito da C9.** A C9 fixa **como se avalia a robustez documental** (qualidade,
+> autoridade, aplicabilidade, coerência e diversidade material — não volume), os
+> papéis de fonte (principal/complementar/derivada) e uma **hierarquia orientadora**.
+> **Não** define thresholds numéricos, scoring nem algoritmo de ranking; **não**
+> transforma a hierarquia numa regra mecânica; **não** substitui C2, C5, C6, C7 ou C8.
+> A C9 **fecha o Bloco C** quanto aos princípios conceptuais.
+
 ## 4. Níveis conceptuais de visibilidade
 
 Níveis conceptuais preferidos (nomes de implementação a fixar mais tarde):
@@ -610,12 +712,12 @@ Separação de responsabilidades:
 - Pode **preparar o Pedido de parecer**, organizando enquadramento, fontes e factos
   em falta.
 
-## 7. Decisões ainda em aberto *(A decidir)*
+## 7. Decisões ainda em aberto
 
-As decisões seguintes **não estão tomadas** e não devem ser presumidas:
-
-- **C9 — A decidir:** Como é que a qualidade/quantidade de fontes influencia o
-  `answerType`?
+> **Não existem decisões em aberto neste bloco. O Bloco C fica fechado quanto aos
+> princípios conceptuais documentados.** A materialização técnica (thresholds,
+> scoring, ranking, enums definitivos e limiares exactos por sinal) fica para fase
+> posterior.
 
 ## 8. Matriz futura *(esqueleto — não preencher sem decisão explícita)*
 
@@ -702,14 +804,33 @@ silêncio automático (ver secção 3-H). A C8 **não** decide `sourceQuality`, 
 mínima de fontes, hierarquia definitiva de fontes (C9), nem quaisquer thresholds,
 scoring ou algoritmo de ranking técnico.
 
+### Orientação C9 sobre a coluna `sourceQuality` da matriz *(qualidade e diversidade — sem thresholds)*
+
+A C9 fixa que a coluna `sourceQuality` **não** é uma contagem de fontes, mas uma
+avaliação de **força, autoridade, aplicabilidade directa, actualidade, coerência,
+ligação ao fundamento legal e diversidade material**. Orientações que entram na
+matriz: uma fonte **forte, oficial e directamente aplicável** pode sustentar
+`CONSULTA_DOCUMENTADA` se os restantes sinais bastarem; **várias fontes fracas** ou
+que apenas **replicam o mesmo núcleo** (eco documental) **não** elevam o suporte e
+tendem a `CONSULTA_DOCUMENTADA_COM_LIMITACOES`/`RESPOSTA_LIMITE`; **fontes externas
+não oficiais** isoladas **não** sustentam conclusão fiscal actual; **divergência
+relevante** entre fontes **degrada** o `answerType` e pode elevar `parecerRequirement`
+a `SUGGESTED`/`REQUIRED`. Os papéis de fonte (**principal/complementar/derivada-
+replicada**) e a **hierarquia orientadora** (ver secção 3-I) informam esta avaliação,
+mas **não** são regra mecânica. A C9 **não** define thresholds numéricos, scoring nem
+algoritmo de ranking.
+
 > Coluna `visibilityLevel`: nível externo = profissional **fixado pela C1**; detalhe
 > visível por nível **fixado pela C7**. Regra de agregação de risco: **fixada pela
 > C4** (máximo dos fundamentos relevantes usados). Fronteira
 > `CONSULTA_DOCUMENTADA_COM_LIMITACOES` ↔ `RESPOSTA_LIMITE`: **fixada pela C5**
 > (qualitativa). Significado/graduação de `parecerRequirement`: **fixado pela C6**.
 > Graduação temporal por `freshnessStatus` (`CURRENT`/`STABLE_BUT_OLD`/`UNCERTAIN`/
-> `OUTDATED`): **fixada pela C8**. `sourceQuality`/quantidade/hierarquia de fontes
-> (C9) e os limiares exactos por sinal: **a decidir** (fase técnica posterior).
+> `OUTDATED`): **fixada pela C8**. Avaliação de `sourceQuality` por força,
+> aplicabilidade e diversidade material — não por volume — e a hierarquia orientadora
+> de fontes: **fixadas pela C9**. Os **limiares exactos por sinal** e o scoring/ranking
+> técnico: **a decidir** (fase técnica posterior). **O Bloco C fica conceptualmente
+> fechado (C1–C9).**
 
 ## 9. Relação com documentos existentes
 

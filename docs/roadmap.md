@@ -221,7 +221,15 @@ Candidatos de **desenho** (não implementação imediata): `support_level`;
 > **C8** (actualidade/origem temporal gradua força, limites e avisos da resposta —
 > `freshnessStatus` `CURRENT`/`STABLE_BUT_OLD`/`UNCERTAIN`/`OUTDATED`; fonte antiga
 > não é bloqueio automático e `OUTDATED` pode servir de histórico/contraste/alerta,
-> não de conclusão actual). A decisão **C9** será decidida **sequencialmente**.
+> não de conclusão actual) e **C9** (a robustez documental mede-se por
+> **força/autoridade/aplicabilidade directa/actualidade/coerência/diversidade
+> material** — `sourceQuality` — e **não** pela contagem bruta de fontes; papéis de
+> fonte principal/complementar/derivada-replicada e hierarquia orientadora de fontes;
+> fontes derivadas não são confirmações independentes e fontes externas não oficiais
+> não sustentam sozinhas). Com a **C9**, o **Bloco C fica conceptualmente fechado
+> (C1–C9)**; a **materialização técnica** (thresholds, scoring, ranking, enums
+> definitivos e limiares exactos por sinal) fica para **fase de implementação
+> posterior**, sem abrir novo bloco conceptual.
 
 
 Definir como `LOW`/`MEDIUM`/`HIGH` aparecem ao utilizador:

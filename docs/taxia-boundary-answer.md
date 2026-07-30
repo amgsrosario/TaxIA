@@ -71,6 +71,17 @@ quando a questão exigir apreciação concreta.
 > Pedido de parecer. Ver
 > [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C8).
 
+> **Qualidade e diversidade das fontes (Decisão C9).** A Resposta-limite é adequada
+> quando **existem fontes**, mas são **fracas, derivadas, genéricas, divergentes ou
+> sem diversidade material** — ou seja, não sustentam uma conclusão actual segura.
+> **"Muitas fontes" não impedem** uma Resposta-limite: se replicam o **mesmo núcleo
+> material** (eco documental) ou não sustentam a conclusão, o suporte continua
+> insuficiente. Fontes externas não oficiais isoladas contextualizam mas não
+> sustentam sozinhas; fontes divergentes reforçam a Resposta-limite ou o Pedido de
+> parecer. Isto **não** transforma a Resposta-limite em "não resposta": ela continua
+> a organizar enquadramento, fontes e factos em falta. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C9).
+
 ## C. O que deve fazer
 
 - **não** apresentar conclusão fiscal final;
