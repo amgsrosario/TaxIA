@@ -171,6 +171,16 @@ de risco elevado.
 > parecer nem simular uma revisão interna do circuito automático. Ver
 > [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C3) e
 > [taxia-response-model.md](taxia-response-model.md) (secção 3-B).
+>
+> **Grau de encaminhamento da Resposta-limite (Decisão C6).** Uma Resposta-limite
+> tem tipicamente `parecerRequirement` **`SUGGESTED`** ou **`REQUIRED`** — raramente
+> `NONE`, dado que já não há conclusão aplicável. Quando o `parecerRequirement` é
+> **`REQUIRED`**, a Resposta-limite é **preparatória e não conclusiva**: organiza o
+> enquadramento, as fontes e os factos em falta para instruir o Pedido de parecer,
+> mas **não** apresenta conclusão fiscal. Isto **não** transforma a Resposta-limite
+> em parecer: ela continua a ser uma saída automática apresentável, cujo papel é
+> **preparar** o circuito humano, não substituí-lo. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C6).
 
 ## I. Relação com a ingestão massiva
 

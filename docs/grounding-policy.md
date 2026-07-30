@@ -93,6 +93,16 @@ Produz respostas seguras sem chamar o provider:
 > `CONSULTA_DOCUMENTADA_COM_LIMITACOES`. Esta nota é **conceptual** e **não** altera
 > o comportamento técnico actual do *grounding*. Ver
 > [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C5).
+>
+> **Decisão C6.** O sinal de *grounding* pode conduzir a `parecerRequirement`
+> **`NONE`**, **`SUGGESTED`** ou **`REQUIRED`**, consoante o grau de
+> recomendação/encaminhamento adequado à resposta concreta. `REQUIRED` **não**
+> significa uma revisão humana invisível da resposta automática — significa
+> **encaminhamento para Pedido de parecer** (circuito humano). O Pedido de parecer é
+> estrutural e está **sempre** disponível; o `parecerRequirement` gradua a
+> recomendação, não o valor abstracto do parecer. Esta nota é **conceptual** — não
+> define thresholds nem mapeia sinais para valores. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C6).
 
 ### `AnswerGroundingValidator`
 

@@ -121,6 +121,18 @@ existência de uma fila interna de revisão. Valores:
 > governação interna — mas **não** deve ser confundida com uma revisão humana da
 > resposta concreta apresentada ao utilizador no circuito automático. Ver
 > [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C3).
+>
+> **Graduação do encaminhamento (Decisão C6).** O **Pedido de parecer** é uma
+> funcionalidade **estrutural e economicamente relevante** da TaxIA — está **sempre**
+> disponível como opção, seja qual for o `parecer_requirement`. O que o
+> `parecer_requirement` gradua **não** é se "o parecer tem valor" (tem, em qualquer
+> situação), mas o **grau de recomendação/encaminhamento** naquela resposta concreta:
+> `NONE` = a resposta automática é suficiente para a finalidade normal (o profissional
+> pode na mesma pedir parecer); `SUGGESTED` = a TaxIA **sugere** o parecer como opção
+> prudente; `REQUIRED` = a TaxIA **não** fecha a conclusão e **encaminha** para Pedido
+> de parecer. `REQUIRED` significa encaminhamento explícito para o circuito humano —
+> **não** uma revisão interna invisível da resposta automática. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C6).
 
 ## 4. Campos funcionais sugeridos
 

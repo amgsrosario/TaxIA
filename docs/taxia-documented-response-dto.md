@@ -138,18 +138,29 @@ AnswerMode:         CLIENT | PROFESSIONAL | ADMIN
 
 `ParecerRequirement` substitui o antigo `ReviewRequirement` (Decisão C3, ver
 [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md)). **Não**
-representa uma fila de revisão humana interna: representa **se a resposta deve ou
-não encaminhar para Pedido de parecer**.
+representa uma fila de revisão humana interna, e **não** mede o **valor económico ou
+técnico abstracto** do parecer (o parecer pode ter valor em qualquer situação —
+Decisão C6). Representa o **grau de recomendação/encaminhamento para Pedido de
+parecer** naquela resposta concreta.
 
-- **`NONE`** — resposta automática apresentável **sem** encaminhamento especial.
-- **`SUGGESTED`** — resposta apresentável, mas **deve sugerir** Pedido de parecer.
+- **`NONE`** — resposta automática **suficiente** para a finalidade normal da
+  consulta; **sem** encaminhamento especial (o profissional pode sempre pedir
+  parecer se quiser).
+- **`SUGGESTED`** — resposta útil e orientadora, mas a situação **pode beneficiar**
+  de parecer; a TaxIA **sugere** o Pedido de parecer como opção prudente, cabendo a
+  decisão ao profissional.
 - **`REQUIRED`** — **não** fechar a conclusão; **encaminhar** para Pedido de parecer
-  (podendo apresentar Resposta-limite ou enquadramento preparatório).
+  (podendo apresentar enquadramento, fontes, limites e factos em falta, ou uma
+  Resposta-limite preparatória); **não** apresentar conclusão fiscal final.
 
-Separação de eixos: `answerType` define a **forma** da resposta; `supportStatus`
-explica o **suporte técnico**; `parecerRequirement` indica a **necessidade de
-parecer humano profissional**; `visibilityLevel` indica **onde** pode ser
-apresentada.
+Separação de eixos:
+
+- `answerType` define a **forma** da resposta;
+- `supportStatus` explica o **suporte técnico** (sinal do *grounding*);
+- `aggregatedRiskLevel` sintetiza o **risco dos fundamentos usados** (Decisão C4);
+- `parecerRequirement` indica a **necessidade/sugestão de Pedido de parecer**
+  (Decisão C6);
+- `visibilityLevel` indica **onde** a resposta pode ser apresentada.
 
 `aggregatedRiskLevel` representa o **risco agregado da resposta** (Decisão C4, ver
 [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md)). É calculado a

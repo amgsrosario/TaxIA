@@ -2,8 +2,8 @@
 
 > **Documento de política (Bloco C).** Define a política **conceptual** de risco,
 > visibilidade, encaminhamento para Pedido de parecer e forma de resposta da TaxIA.
-> Nesta fase, as **Decisões C1, C2, C3, C4 e C5** estão fechadas; as restantes ficam
-> explicitamente marcadas como **A decidir**.
+> Nesta fase, as **Decisões C1, C2, C3, C4, C5 e C6** estão fechadas; as restantes
+> ficam explicitamente marcadas como **A decidir**.
 
 ## 1. Natureza do documento
 
@@ -11,7 +11,7 @@
   encaminhamento para Pedido de parecer e forma de resposta.
 - Deve **orientar futuras decisões** de backend, frontend, RAG, curadoria e
   publicação.
-- Nesta fase, **apenas algumas decisões estão fechadas** (C1, C2, C3, C4 e C5).
+- Nesta fase, **apenas algumas decisões estão fechadas** (C1, C2, C3, C4, C5 e C6).
 - As decisões não fechadas ficam marcadas como **"A decidir"** (secções 7 e 8) e
   **não devem ser presumidas** enquanto não forem decididas explicitamente.
 - Não implementa nada — é desenho e governação, não código nem migrations.
@@ -306,8 +306,71 @@ resposta correcta.
   conforme **ainda seja possível apontar orientação prudente**.
 
 > **Âmbito da C5.** A C5 fixa a **fronteira** entre `CONSULTA_DOCUMENTADA_COM_LIMITACOES`
-> e `RESPOSTA_LIMITE`. **Não** decide quando uma Resposta-limite converte
-> directamente em Pedido de parecer (C6), quando `parecerRequirement` é `REQUIRED`,
+> e `RESPOSTA_LIMITE`. **Não** decide o grau de recomendação de parecer (C6),
+> `freshnessStatus` (C8), `sourceQuality` (C9), nem quaisquer thresholds, scoring ou
+> algoritmo de ranking técnico.
+
+## 3-F. Decisão C6 — `parecerRequirement` e Pedido de parecer *(FECHADA)*
+
+> **C6.** O **Pedido de parecer** é uma **funcionalidade estrutural e economicamente
+> relevante** da TaxIA. O `parecerRequirement` **não** mede se o parecer "tem valor"
+> — o parecer pode ter valor em qualquer situação. Indica **apenas o grau de
+> recomendação/encaminhamento** para Pedido de parecer **naquela resposta concreta**.
+
+A decisão final de avançar para Pedido de parecer **cabe ao utilizador
+profissional**, **salvo** quando a TaxIA classifica a resposta como **`REQUIRED`** —
+nesse caso a TaxIA **não** deve apresentar conclusão fiscal automática final, mas
+encaminhar.
+
+### Valores de `parecerRequirement`
+
+**`NONE`**
+- a resposta automática é **suficiente** para a finalidade normal da consulta;
+- **sem** necessidade especial de sugerir parecer;
+- o utilizador profissional pode **sempre** pedir parecer se quiser — a TaxIA não o
+  empurra.
+
+**`SUGGESTED`**
+- a resposta automática é **útil** e pode orientar;
+- a situação concreta **pode beneficiar** de Pedido de parecer;
+- a TaxIA **deve sugerir** o Pedido de parecer como **opção prudente**;
+- a decisão de avançar **cabe ao utilizador profissional**.
+
+**`REQUIRED`**
+- a TaxIA **não** deve tentar fechar conclusão automática;
+- deve **encaminhar claramente** para Pedido de parecer;
+- pode apresentar **enquadramento, fontes, limites e factos em falta**;
+- **não** deve apresentar conclusão fiscal final.
+
+### Relação com `answerType` *(orientadora, não equivalência rígida)*
+
+- `CONSULTA_DOCUMENTADA` tende a `parecerRequirement = NONE`;
+- `CONSULTA_DOCUMENTADA_COM_LIMITACOES` pode ter `NONE` ou `SUGGESTED`;
+- `RESPOSTA_LIMITE` tende a `SUGGESTED` ou `REQUIRED`;
+- `PEDIDO_DE_PARECER` corresponde a `REQUIRED`.
+
+`answerType` e `parecerRequirement` são **eixos relacionados, não sinónimos** — esta
+relação é **orientadora**, não uma equivalência rígida absoluta.
+
+### Exemplos conceptuais
+
+**Exemplo 1 — genérica com fontes fortes**
+- `answerType = CONSULTA_DOCUMENTADA`; `parecerRequirement = NONE`.
+
+**Exemplo 2 — útil mas dependente de elementos concretos complementares**
+- `answerType = CONSULTA_DOCUMENTADA_COM_LIMITACOES`; `parecerRequirement = SUGGESTED`.
+
+**Exemplo 3 — concreta sem elementos suficientes para concluir**
+- `answerType = RESPOSTA_LIMITE`; `parecerRequirement = SUGGESTED` **ou** `REQUIRED`,
+  conforme gravidade e necessidade de apreciação profissional.
+
+**Exemplo 4 — exige decisão fiscal individualizada**
+- `answerType = PEDIDO_DE_PARECER` (ou `RESPOSTA_LIMITE` preparatória);
+  `parecerRequirement = REQUIRED`.
+
+> **Âmbito da C6.** A C6 fixa o **significado e a graduação** de `parecerRequirement`
+> (`NONE`/`SUGGESTED`/`REQUIRED`) e a sua relação orientadora com `answerType`.
+> **Não** decide os detalhes visíveis por nível de visibilidade (C7),
 > `freshnessStatus` (C8), `sourceQuality` (C9), nem quaisquer thresholds, scoring ou
 > algoritmo de ranking técnico.
 
@@ -373,8 +436,6 @@ Separação de responsabilidades:
 
 As decisões seguintes **não estão tomadas** e não devem ser presumidas:
 
-- **C6 — A decidir:** Quando é que uma Resposta-limite deve converter directamente
-  em Pedido de parecer?
 - **C7 — A decidir:** Que detalhes são ocultados em `EXTERNAL`/`DEMO` e mantidos em
   `INTERNAL`/`ADMIN`?
 - **C8 — A decidir:** Como é que o `freshnessStatus` influencia a visibilidade?
@@ -424,14 +485,24 @@ threshold, scoring ou algoritmo de ranking técnico.
 A C5 fixa a **fronteira qualitativa** entre `CONSULTA_DOCUMENTADA_COM_LIMITACOES` e
 `RESPOSTA_LIMITE`: se ainda há **orientação prudente**, a primeira; se só há
 **enquadramento sem conclusão aplicável**, a segunda (ver secção 3-E para gatilhos e
-exemplos). A C5 **não** decide quando a Resposta-limite converte em Pedido de parecer
-(C6), quando `parecerRequirement` é `REQUIRED`, `freshnessStatus` (C8),
-`sourceQuality` (C9), nem quaisquer thresholds, scoring ou algoritmo de ranking.
+exemplos). A C5 **não** decide o grau de recomendação de parecer (C6),
+`freshnessStatus` (C8), `sourceQuality` (C9), nem quaisquer thresholds, scoring ou
+algoritmo de ranking.
+
+### Orientação C6 sobre a coluna `parecerRequirement` da matriz *(graduação — sem thresholds)*
+
+A C6 fixa o **significado e a graduação** da coluna `parecerRequirement`
+(`NONE`/`SUGGESTED`/`REQUIRED`) — grau de recomendação/encaminhamento para Pedido de
+parecer, **não** o valor abstracto do parecer — e a sua **relação orientadora** com
+`answerType` (ver secção 3-F). A C6 **não** define os **limiares exactos por
+combinação de sinais** (que continuam a depender de trabalho técnico posterior), nem
+`freshnessStatus` (C8), `sourceQuality` (C9) ou detalhes de visibilidade (C7).
 
 > Colunas `visibilityLevel` (além da C1): **a decidir** (C7). Regra de agregação de
 > risco: **fixada pela C4** (máximo dos fundamentos relevantes usados). Fronteira
 > `CONSULTA_DOCUMENTADA_COM_LIMITACOES` ↔ `RESPOSTA_LIMITE`: **fixada pela C5**
-> (qualitativa). Limiares de `parecerRequirement` por sinal: **a decidir** (C6+).
+> (qualitativa). Significado/graduação de `parecerRequirement`: **fixado pela C6**;
+> limiares exactos por sinal: **a decidir** (fase técnica posterior).
 
 ## 9. Relação com documentos existentes
 
