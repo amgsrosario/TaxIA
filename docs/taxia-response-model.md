@@ -175,13 +175,46 @@ confidence_level:    LOW | MEDIUM | HIGH
 risk_level:          LOW | MEDIUM | HIGH
 parecer_requirement:  NONE | SUGGESTED | REQUIRED
 visibility_level:    INTERNAL_ONLY | PROFESSIONAL_ONLY | CLIENT_VISIBLE | CLIENT_VISIBLE_WITH_WARNING
-freshness_status:    CURRENT | NEEDS_RECHECK | STALE | UNKNOWN
+freshness_status:    CURRENT | STABLE_BUT_OLD | UNCERTAIN | OUTDATED   # Decisão C8
 disclaimer_level:    NONE | LIGHT | STANDARD | STRONG
 ```
 
 Estas escalas são **candidatas de desenho**. Os nomes/valores definitivos e a sua
 materialização (enum Java, coluna, campo de DTO) ficam para a fase de
 implementação.
+
+## 5-A. Origem temporal da resposta *(Decisão C8)*
+
+A resposta profissional deve **indicar a origem temporal** do conhecimento em que se
+baseia. O `freshness_status` **não** decide isoladamente se a TaxIA responde —
+**gradua** a força, a origem temporal, os limites e os avisos da resposta:
+
+- **fonte actual** (`CURRENT`) — pode sustentar resposta principal;
+- **fonte antiga mas estável** (`STABLE_BUT_OLD`) — pode sustentar resposta principal,
+  **com nota de actualidade/estabilidade**;
+- **fonte de actualidade incerta** (`UNCERTAIN`) — sustenta apenas **enquadramento
+  limitado**, sem conclusão actual segura sem aviso forte;
+- **fonte histórica/desactualizada** (`OUTDATED`) — **não** sustenta conclusão fiscal
+  actual, mas pode servir de **histórico, contraste ou alerta**; nunca produz silêncio
+  automático.
+
+O problema não é a **idade isolada** da fonte, mas a **confiança na sua validade
+actual**. Uma fonte antiga sobre matéria estável continua útil.
+
+> **Regra curta (C8).** A actualidade **não decide apenas se** a TaxIA responde.
+> Decide **com que força, origem temporal e limitações** a TaxIA responde.
+
+Quando a origem temporal é incerta ou histórica, a resposta deve tornar isso
+explícito. Frase-modelo aprovada:
+
+> Com base na fonte disponível, o enquadramento histórico era este.
+>
+> No entanto, a fonte não permite confirmar a aplicação actual do regime.
+>
+> Para uma conclusão actual, é necessário confirmar a legislação vigente ou submeter
+> Pedido de parecer.
+
+Ver [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C8).
 
 ## 6. Projecção da resposta (vista externa profissional vs. vista interna)
 

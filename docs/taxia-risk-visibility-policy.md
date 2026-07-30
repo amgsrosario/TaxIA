@@ -2,8 +2,8 @@
 
 > **Documento de política (Bloco C).** Define a política **conceptual** de risco,
 > visibilidade, encaminhamento para Pedido de parecer e forma de resposta da TaxIA.
-> Nesta fase, as **Decisões C1, C2, C3, C4, C5, C6 e C7** estão fechadas; as restantes
-> ficam explicitamente marcadas como **A decidir**.
+> Nesta fase, as **Decisões C1, C2, C3, C4, C5, C6, C7 e C8** estão fechadas; as
+> restantes ficam explicitamente marcadas como **A decidir**.
 
 ## 1. Natureza do documento
 
@@ -11,7 +11,8 @@
   encaminhamento para Pedido de parecer e forma de resposta.
 - Deve **orientar futuras decisões** de backend, frontend, RAG, curadoria e
   publicação.
-- Nesta fase, **apenas algumas decisões estão fechadas** (C1, C2, C3, C4, C5, C6 e C7).
+- Nesta fase, **apenas algumas decisões estão fechadas** (C1, C2, C3, C4, C5, C6, C7
+  e C8).
 - As decisões não fechadas ficam marcadas como **"A decidir"** (secções 7 e 8) e
   **não devem ser presumidas** enquanto não forem decididas explicitamente.
 - Não implementa nada — é desenho e governação, não código nem migrations.
@@ -465,6 +466,92 @@ comunicada em linguagem profissional).
 > `sourceQuality` (C9), nem quaisquer thresholds, scoring ou algoritmo de ranking
 > técnico. Mantém inalteradas C1–C6.
 
+## 3-H. Decisão C8 — actualidade e origem temporal da resposta *(FECHADA)*
+
+> **C8.** A actualidade das fontes **não** deve produzir automaticamente **ausência
+> de resposta**. A actualidade **gradua** a **força** da resposta, a sua **origem
+> temporal**, o **grau de limitação**, o **tipo de aviso** e o eventual
+> **encaminhamento para Pedido de parecer**.
+
+Princípios fundamentais:
+
+- A actualidade/*freshness* **não é uma guilhotina de resposta** — não transforma
+  fonte antiga em bloqueio automático.
+- Uma **fonte antiga pode continuar útil**: matéria estável não deixa de ser
+  aplicável só por a fonte ter data recuada.
+- O problema **não é a idade isolada** da fonte, mas a **confiança na sua validade
+  actual**.
+- Conhecimento desactualizado pode ser útil como **histórico, contraste ou alerta** —
+  **não** como fundamento de **conclusão fiscal actual**.
+- `OUTDATED` **não** implica **silêncio automático**.
+
+### Estados de `freshnessStatus`
+
+**`CURRENT`**
+- fonte actual ou validade confirmada;
+- pode sustentar **resposta principal**;
+- pode permitir `CONSULTA_DOCUMENTADA`, se os restantes sinais também forem
+  suficientes.
+
+**`STABLE_BUT_OLD`**
+- fonte antiga, **mas sem indício de alteração** e aplicável a **matéria estável**;
+- pode sustentar **resposta principal**;
+- **deve incluir nota de actualidade/estabilidade**;
+- pode permitir `CONSULTA_DOCUMENTADA` ou `CONSULTA_DOCUMENTADA_COM_LIMITACOES`,
+  conforme os restantes sinais.
+
+**`UNCERTAIN`**
+- **não** é possível confirmar se a fonte ainda reflecte o regime actual;
+- pode sustentar **enquadramento limitado**;
+- **não** deve sustentar **conclusão actual segura sem aviso forte**;
+- tende a `CONSULTA_DOCUMENTADA_COM_LIMITACOES`, `RESPOSTA_LIMITE` ou
+  `parecerRequirement = SUGGESTED`, conforme o contexto.
+
+**`OUTDATED`**
+- fonte **revogada, caducada, substituída ou materialmente desactualizada**;
+- **não** deve sustentar **conclusão fiscal actual**;
+- pode sustentar **enquadramento histórico, contraste ou alerta de cautela**;
+- tende a `RESPOSTA_LIMITE`, enquadramento histórico ou `parecerRequirement =
+  SUGGESTED`/`REQUIRED`, conforme a gravidade;
+- **não** implica silêncio automático.
+
+### Regra curta
+
+> A actualidade **não decide apenas se** a TaxIA responde.
+> Decide **com que força, origem temporal e limitações** a TaxIA responde.
+
+### Frase-modelo (origem temporal incerta/histórica)
+
+> Com base na fonte disponível, o enquadramento histórico era este.
+>
+> No entanto, a fonte não permite confirmar a aplicação actual do regime.
+>
+> Para uma conclusão actual, é necessário confirmar a legislação vigente ou submeter
+> Pedido de parecer.
+
+### Exemplos conceptuais
+
+**Exemplo 1 — `CURRENT` + restantes sinais suficientes**
+- `answerType` provável = `CONSULTA_DOCUMENTADA`.
+
+**Exemplo 2 — `STABLE_BUT_OLD` + matéria estável**
+- `answerType` provável = `CONSULTA_DOCUMENTADA` ou
+  `CONSULTA_DOCUMENTADA_COM_LIMITACOES`, **com nota de actualidade**.
+
+**Exemplo 3 — `UNCERTAIN`**
+- `answerType` provável = `CONSULTA_DOCUMENTADA_COM_LIMITACOES` ou `RESPOSTA_LIMITE`,
+  **sem conclusão actual segura** (aviso forte).
+
+**Exemplo 4 — `OUTDATED`**
+- `answerType` provável = `RESPOSTA_LIMITE` ou **enquadramento histórico**;
+- **não** sustenta conclusão fiscal actual; pode servir de histórico/contraste/alerta.
+
+> **Âmbito da C8.** A C8 fixa como a **actualidade/origem temporal** gradua a resposta
+> (força, origem temporal, limites, avisos e encaminhamento) e os quatro estados de
+> `freshnessStatus`. **Não** decide `sourceQuality`, quantidade mínima de fontes nem a
+> hierarquia definitiva de fontes (C9), nem quaisquer thresholds, scoring ou algoritmo
+> de ranking técnico. Mantém inalteradas C1–C7.
+
 ## 4. Níveis conceptuais de visibilidade
 
 Níveis conceptuais preferidos (nomes de implementação a fixar mais tarde):
@@ -527,7 +614,6 @@ Separação de responsabilidades:
 
 As decisões seguintes **não estão tomadas** e não devem ser presumidas:
 
-- **C8 — A decidir:** Como é que o `freshnessStatus` influencia a visibilidade?
 - **C9 — A decidir:** Como é que a qualidade/quantidade de fontes influencia o
   `answerType`?
 
@@ -600,13 +686,30 @@ exclusão). `DEMO` pode ter limites **comerciais/operacionais**, nunca de qualid
 conceptual (ver secção 3-G). A C7 **não** decide `freshnessStatus` (C8),
 `sourceQuality` (C9) nem quaisquer thresholds, scoring ou algoritmo de ranking técnico.
 
+### Orientação C8 sobre a coluna `freshnessStatus` da matriz *(graduação temporal — sem thresholds)*
+
+A C8 fixa que o `freshnessStatus` **não** é uma coluna de "responde/não responde",
+mas um eixo que **gradua** força, origem temporal, limites, avisos e encaminhamento:
+`CURRENT` pode sustentar resposta principal (`CONSULTA_DOCUMENTADA` se os restantes
+sinais bastarem); `STABLE_BUT_OLD` pode sustentar resposta principal **com nota de
+actualidade** (`CONSULTA_DOCUMENTADA` ou `CONSULTA_DOCUMENTADA_COM_LIMITACOES`);
+`UNCERTAIN` tende a `CONSULTA_DOCUMENTADA_COM_LIMITACOES`/`RESPOSTA_LIMITE` (sem
+conclusão actual segura sem aviso forte) e pode elevar `parecerRequirement` a
+`SUGGESTED`; `OUTDATED` **não** sustenta conclusão fiscal actual, mas pode servir de
+**enquadramento histórico, contraste ou alerta**, tendendo a
+`RESPOSTA_LIMITE`/histórico e a `parecerRequirement` `SUGGESTED`/`REQUIRED` — **nunca**
+silêncio automático (ver secção 3-H). A C8 **não** decide `sourceQuality`, quantidade
+mínima de fontes, hierarquia definitiva de fontes (C9), nem quaisquer thresholds,
+scoring ou algoritmo de ranking técnico.
+
 > Coluna `visibilityLevel`: nível externo = profissional **fixado pela C1**; detalhe
 > visível por nível **fixado pela C7**. Regra de agregação de risco: **fixada pela
 > C4** (máximo dos fundamentos relevantes usados). Fronteira
 > `CONSULTA_DOCUMENTADA_COM_LIMITACOES` ↔ `RESPOSTA_LIMITE`: **fixada pela C5**
 > (qualitativa). Significado/graduação de `parecerRequirement`: **fixado pela C6**.
-> `freshnessStatus` (C8), `sourceQuality` (C9) e os limiares exactos por sinal:
-> **a decidir** (fase técnica posterior).
+> Graduação temporal por `freshnessStatus` (`CURRENT`/`STABLE_BUT_OLD`/`UNCERTAIN`/
+> `OUTDATED`): **fixada pela C8**. `sourceQuality`/quantidade/hierarquia de fontes
+> (C9) e os limiares exactos por sinal: **a decidir** (fase técnica posterior).
 
 ## 9. Relação com documentos existentes
 

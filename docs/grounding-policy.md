@@ -113,6 +113,16 @@ Produz respostas seguras sem chamar o provider:
 > linguagem profissional, mas o score em si **não** é exposto externamente. Esta nota
 > é **conceptual** — não altera o comportamento actual do *grounding*. Ver
 > [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C7).
+>
+> **Decisão C8.** O *grounding* deve **distinguir a origem temporal** das fontes:
+> **actual** (`CURRENT`), **antiga mas estável** (`STABLE_BUT_OLD`), **de actualidade
+> incerta** (`UNCERTAIN`) e **desactualizada** (`OUTDATED`). A actualidade **não** é
+> uma guilhotina de resposta: **gradua** a força, os avisos, as limitações e o
+> `parecerRequirement`, em vez de produzir ausência de resposta. Uma fonte
+> **desactualizada** pode servir para **histórico, contraste ou alerta** — **não**
+> para fundamentar uma **conclusão fiscal actual**. Esta nota é **conceptual** — não
+> define algoritmo, thresholds nem detecção técnica de frescura. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C8).
 
 ### `AnswerGroundingValidator`
 

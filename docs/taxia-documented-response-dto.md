@@ -121,7 +121,9 @@ RiskLevel:          LOW | MEDIUM | HIGH
 ParecerRequirement: NONE | SUGGESTED | REQUIRED
                     # nome conceptual anterior: ReviewRequirement (descontinuado — ver C3)
 VisibilityLevel:    INTERNAL_ONLY | PROFESSIONAL_ONLY | CLIENT_VISIBLE | CLIENT_VISIBLE_WITH_WARNING
-FreshnessStatus:    CURRENT | NEEDS_RECHECK | STALE | UNKNOWN
+FreshnessStatus:    CURRENT | STABLE_BUT_OLD | UNCERTAIN | OUTDATED
+                    # estados conceptuais fixados pela Decisão C8
+                    # candidatos anteriores: CURRENT | NEEDS_RECHECK | STALE | UNKNOWN
 DisclaimerLevel:    NONE | LIGHT | STANDARD | STRONG
 SourceQuality:      OFFICIAL | LEGAL | INTERNAL | UNVERIFIED | MIXED
 AlertSeverity:      INFO | WARNING | CRITICAL
@@ -160,7 +162,29 @@ Separação de eixos:
 - `aggregatedRiskLevel` sintetiza o **risco dos fundamentos usados** (Decisão C4);
 - `parecerRequirement` indica a **necessidade/sugestão de Pedido de parecer**
   (Decisão C6);
-- `visibilityLevel` indica **onde** a resposta pode ser apresentada.
+- `visibilityLevel` indica **onde** a resposta pode ser apresentada (Decisão C7);
+- `freshnessStatus` indica a **confiança na actualidade/origem temporal** do
+  conhecimento usado (Decisão C8).
+
+`freshnessStatus` representa a **confiança na actualidade e origem temporal** do
+conhecimento que sustenta a resposta (Decisão C8, ver
+[taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md)):
+
+- **`CURRENT`** — fonte actual ou validade confirmada; pode sustentar resposta
+  principal.
+- **`STABLE_BUT_OLD`** — fonte antiga sem indício de alteração, sobre matéria
+  estável; pode sustentar resposta principal **com nota de actualidade**.
+- **`UNCERTAIN`** — não é possível confirmar se a fonte reflecte o regime actual;
+  sustenta **enquadramento limitado**, não conclusão actual segura sem aviso forte.
+- **`OUTDATED`** — fonte revogada/caducada/substituída/materialmente desactualizada;
+  **não** sustenta conclusão fiscal actual, mas pode servir de **histórico, contraste
+  ou alerta**.
+
+O `freshnessStatus` **não decide sozinho** o `answerType`: **gradua** a força, os
+avisos, as limitações e o `parecerRequirement` da resposta. `OUTDATED` **não** produz
+silêncio automático — pode alimentar enquadramento histórico. A **origem temporal**
+(actual, antiga estável, incerta, histórica) deve ficar **legível** na resposta
+profissional.
 
 `aggregatedRiskLevel` representa o **risco agregado da resposta** (Decisão C4, ver
 [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md)). É calculado a

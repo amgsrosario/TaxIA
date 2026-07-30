@@ -61,6 +61,16 @@ quando a questão exigir apreciação concreta.
 - pergunta demasiado concreta para resposta automática;
 - necessidade provável de apreciação profissional.
 
+> **Actualidade das fontes (Decisão C8).** A Resposta-limite é adequada quando a fonte
+> permite **enquadramento** mas **não conclusão actual segura** — designadamente
+> quando a actualidade é **incerta** (`UNCERTAIN`) ou a fonte está **desactualizada**
+> (`OUTDATED`). Uma fonte `OUTDATED` pode sustentar **enquadramento histórico,
+> contraste ou alerta**, **não** uma conclusão fiscal actual. Isto **não** transforma
+> a Resposta-limite em "não resposta": ela continua a organizar enquadramento, fontes
+> e factos em falta, e sinaliza a necessidade de confirmar a legislação vigente ou de
+> Pedido de parecer. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C8).
+
 ## C. O que deve fazer
 
 - **não** apresentar conclusão fiscal final;
