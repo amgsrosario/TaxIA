@@ -2,7 +2,7 @@
 
 > **Documento de política (Bloco C).** Define a política **conceptual** de risco,
 > visibilidade, encaminhamento para Pedido de parecer e forma de resposta da TaxIA.
-> Nesta fase, as **Decisões C1, C2, C3, C4, C5 e C6** estão fechadas; as restantes
+> Nesta fase, as **Decisões C1, C2, C3, C4, C5, C6 e C7** estão fechadas; as restantes
 > ficam explicitamente marcadas como **A decidir**.
 
 ## 1. Natureza do documento
@@ -11,7 +11,7 @@
   encaminhamento para Pedido de parecer e forma de resposta.
 - Deve **orientar futuras decisões** de backend, frontend, RAG, curadoria e
   publicação.
-- Nesta fase, **apenas algumas decisões estão fechadas** (C1, C2, C3, C4, C5 e C6).
+- Nesta fase, **apenas algumas decisões estão fechadas** (C1, C2, C3, C4, C5, C6 e C7).
 - As decisões não fechadas ficam marcadas como **"A decidir"** (secções 7 e 8) e
   **não devem ser presumidas** enquanto não forem decididas explicitamente.
 - Não implementa nada — é desenho e governação, não código nem migrations.
@@ -374,6 +374,97 @@ relação é **orientadora**, não uma equivalência rígida absoluta.
 > `freshnessStatus` (C8), `sourceQuality` (C9), nem quaisquer thresholds, scoring ou
 > algoritmo de ranking técnico.
 
+## 3-G. Decisão C7 — detalhe visível por nível *(FECHADA)*
+
+> **C7.** A TaxIA **não reduz a qualidade da resposta** em `EXTERNAL` nem em `DEMO`.
+> A diferença entre níveis de visibilidade **não** é a **profundidade profissional**
+> da resposta, mas o **grau de exposição dos bastidores** (diagnóstico, curadoria e
+> governação).
+
+Corolários fundamentais:
+
+- `EXTERNAL` e `DEMO` **não** têm resposta simplificada nem menor qualidade — a
+  resposta é sempre profissional, documentada, fundamentada e estruturada.
+- `EXTERNAL` significa **utilizador profissional externo** (conforme C1), **não**
+  utilizador leigo.
+- `DEMO` é uma **demonstração profissional** — **não** é "TaxIA-lite".
+- A diferença real entre níveis é **quanto dos bastidores** (scores, ranking, chunks,
+  notas de curadoria, diagnóstico, IDs técnicos) fica visível.
+
+### `EXTERNAL` — produto profissional limpo
+
+Apresenta uma **resposta profissional limpa**, com:
+
+- resposta;
+- enquadramento técnico;
+- fundamentos legais;
+- fontes relevantes;
+- limitações;
+- pressupostos;
+- factos/documentos em falta;
+- `answerType`;
+- `parecerRequirement`;
+- indicação de **risco/prudência em linguagem legível**;
+- aviso de **ausência de garantia absoluta**;
+- **sem ruído técnico interno**.
+
+### `DEMO` — mesma qualidade profissional, limites comerciais
+
+- tem a **mesma qualidade e lógica profissional** de `EXTERNAL`;
+- **pode** limitar volume, tempo, histórico, exportações, permissões, acesso ou a
+  **criação efectiva de Pedido de parecer**;
+- **não pode** limitar a **qualidade conceptual**, as **fontes**, a **fundamentação**,
+  a **Resposta-limite** nem o `parecerRequirement`.
+
+### `INTERNAL` — produto profissional + detalhe técnico
+
+Mostra **tudo o que `EXTERNAL` mostra**, mais:
+
+- maior detalhe técnico;
+- avaliação de suporte;
+- fontes completas;
+- notas de análise;
+- comparação entre fundamentos;
+- sinais de risco;
+- recomendações operacionais;
+- diagnóstico moderado.
+
+### `CURATION_ONLY` — bastidores e governação
+
+Pode mostrar:
+
+- chunks recuperados;
+- scores;
+- ranking;
+- estados de curadoria;
+- notas internas;
+- erros de fonte;
+- qualidade de ingestão;
+- versões;
+- auditoria;
+- elegibilidade RAG;
+- motivos de exclusão;
+- dados técnicos internos que **nunca** devem aparecer ao utilizador externo.
+
+### Proibição expressa
+
+Informação interna de curadoria, diagnóstico, prompts internos, scores, chunks,
+logs, ranking bruto ou IDs técnicos **não** deve aparecer em `EXTERNAL`/`DEMO` —
+**salvo** quando **transformada** numa **explicação profissional legível** (por
+exemplo, um score cru nunca é exposto, mas a prudência que dele resulta pode ser
+comunicada em linguagem profissional).
+
+### Regra curta
+
+> `EXTERNAL` e `DEMO` mostram **produto profissional limpo**.
+> `INTERNAL` e `CURATION_ONLY` mostram **bastidores, diagnóstico e governação**.
+
+> **Âmbito da C7.** A C7 fixa **que detalhe é visível por nível de visibilidade** e a
+> fronteira entre produto profissional limpo (`EXTERNAL`/`DEMO`) e bastidores
+> (`INTERNAL`/`CURATION_ONLY`). **Não** decide `freshnessStatus` (C8),
+> `sourceQuality` (C9), nem quaisquer thresholds, scoring ou algoritmo de ranking
+> técnico. Mantém inalteradas C1–C6.
+
 ## 4. Níveis conceptuais de visibilidade
 
 Níveis conceptuais preferidos (nomes de implementação a fixar mais tarde):
@@ -436,8 +527,6 @@ Separação de responsabilidades:
 
 As decisões seguintes **não estão tomadas** e não devem ser presumidas:
 
-- **C7 — A decidir:** Que detalhes são ocultados em `EXTERNAL`/`DEMO` e mantidos em
-  `INTERNAL`/`ADMIN`?
 - **C8 — A decidir:** Como é que o `freshnessStatus` influencia a visibilidade?
 - **C9 — A decidir:** Como é que a qualidade/quantidade de fontes influencia o
   `answerType`?
@@ -498,11 +587,26 @@ parecer, **não** o valor abstracto do parecer — e a sua **relação orientado
 combinação de sinais** (que continuam a depender de trabalho técnico posterior), nem
 `freshnessStatus` (C8), `sourceQuality` (C9) ou detalhes de visibilidade (C7).
 
-> Colunas `visibilityLevel` (além da C1): **a decidir** (C7). Regra de agregação de
-> risco: **fixada pela C4** (máximo dos fundamentos relevantes usados). Fronteira
+### Orientação C7 sobre a coluna `visibilityLevel` da matriz *(detalhe por nível — sem thresholds)*
+
+A C7 fixa **que detalhe é visível por nível de visibilidade**: `EXTERNAL` e `DEMO`
+recebem **produto profissional limpo** (resposta, enquadramento, fundamentos, fontes,
+limitações, pressupostos, factos em falta, `answerType`, `parecerRequirement`, risco
+em linguagem legível, aviso de ausência de garantia — **sem** ruído técnico interno);
+`INTERNAL` e `CURATION_ONLY` recebem, **por cima**, os **bastidores** (detalhe
+técnico, avaliação de suporte, notas de análise, e — só em `CURATION_ONLY` — chunks,
+scores, ranking, estados de curadoria, auditoria, elegibilidade RAG, motivos de
+exclusão). `DEMO` pode ter limites **comerciais/operacionais**, nunca de qualidade
+conceptual (ver secção 3-G). A C7 **não** decide `freshnessStatus` (C8),
+`sourceQuality` (C9) nem quaisquer thresholds, scoring ou algoritmo de ranking técnico.
+
+> Coluna `visibilityLevel`: nível externo = profissional **fixado pela C1**; detalhe
+> visível por nível **fixado pela C7**. Regra de agregação de risco: **fixada pela
+> C4** (máximo dos fundamentos relevantes usados). Fronteira
 > `CONSULTA_DOCUMENTADA_COM_LIMITACOES` ↔ `RESPOSTA_LIMITE`: **fixada pela C5**
-> (qualitativa). Significado/graduação de `parecerRequirement`: **fixado pela C6**;
-> limiares exactos por sinal: **a decidir** (fase técnica posterior).
+> (qualitativa). Significado/graduação de `parecerRequirement`: **fixado pela C6**.
+> `freshnessStatus` (C8), `sourceQuality` (C9) e os limiares exactos por sinal:
+> **a decidir** (fase técnica posterior).
 
 ## 9. Relação com documentos existentes
 

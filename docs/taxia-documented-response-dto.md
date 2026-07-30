@@ -291,6 +291,21 @@ Regra: a vista externa nunca expõe `internalNotes`, `score` ou estado editorial
 mostra sempre fontes, alertas e `parecerRequirement` quando aplicável — **sem baixar
 a qualidade profissional da resposta**.
 
+> **Detalhe visível por nível (Decisão C7).** `EXTERNAL` e `DEMO` **não** significam
+> menor qualidade: recebem **produto profissional limpo** (resposta, enquadramento,
+> fundamentos, fontes, limitações, pressupostos, factos em falta, `answerType`,
+> `parecerRequirement`, risco em linguagem legível e aviso de ausência de garantia
+> absoluta). `INTERNAL` e `CURATION_ONLY` podem, **por cima**, incluir campos de
+> **diagnóstico** — designadamente `retrievedCases[]` (com `score`, `externalKey`),
+> `internalNotes`, estado editorial, ranking e sinais de curadoria. Campos crus como
+> `score`, chunks recuperados, ranking bruto, logs, prompts internos e IDs técnicos
+> **não** devem ser expostos em `EXTERNAL`/`DEMO` **sem transformação** numa
+> explicação profissional legível (o score não aparece, mas a prudência que dele
+> decorre pode ser comunicada). A diferença entre `DEMO` e `EXTERNAL` é apenas
+> **comercial/operacional** (volume, tempo, histórico, exportações, permissões,
+> criação efectiva de Pedido de parecer), **nunca** de qualidade conceptual. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C7).
+
 ## 11. Exemplo JSON conceptual (baseado em AT-FAQ-5930)
 
 > Exemplo **conceptual** — não é output real do sistema hoje.

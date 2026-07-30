@@ -211,11 +211,14 @@ Candidatos de **desenho** (não implementação imediata): `support_level`;
 > **fundamentos relevantes usados** — `riskAggregated` — sem contaminação por casos
 > recuperados mas não usados), **C5** (fronteira entre
 > `CONSULTA_DOCUMENTADA_COM_LIMITACOES` — ainda há orientação prudente — e
-> `RESPOSTA_LIMITE` — só há enquadramento, sem conclusão aplicável) e **C6**
+> `RESPOSTA_LIMITE` — só há enquadramento, sem conclusão aplicável), **C6**
 > (`parecerRequirement` gradua o **grau de recomendação/encaminhamento** para Pedido
 > de parecer — `NONE`/`SUGGESTED`/`REQUIRED` — sem medir o valor económico abstracto
-> do parecer, que continua estrutural e sempre disponível). As decisões **C7+**
-> serão decididas **sequencialmente**.
+> do parecer, que continua estrutural e sempre disponível) e **C7** (detalhe visível
+> por nível: `EXTERNAL`/`DEMO` mostram **produto profissional limpo** e
+> `INTERNAL`/`CURATION_ONLY` mostram **bastidores/diagnóstico**; a diferença entre
+> níveis não é a qualidade da resposta, mas o grau de exposição dos bastidores). As
+> decisões **C8+** serão decididas **sequencialmente**.
 
 
 Definir como `LOW`/`MEDIUM`/`HIGH` aparecem ao utilizador:

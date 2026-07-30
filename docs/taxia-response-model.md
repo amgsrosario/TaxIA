@@ -204,6 +204,19 @@ scores, estado editorial), mas **mantém a mesma qualidade profissional** e most
 sempre fontes, alertas e a necessidade de Pedido de parecer quando aplicável.
 "Linguagem clara" significa rigor bem comunicado — **não** menos técnico.
 
+> **Resposta externa/demo é profissional limpa (Decisão C7).** A diferença entre
+> níveis de visibilidade **não** é a profundidade profissional da resposta, mas o
+> **grau de exposição dos bastidores**. `EXTERNAL` e `DEMO` recebem **produto
+> profissional limpo** — resposta, enquadramento, fundamentos, fontes, limitações,
+> pressupostos, factos em falta, `answerType`, `parecerRequirement`, risco em
+> linguagem legível e aviso de ausência de garantia — **sem** diagnóstico interno
+> (scores, ranking, chunks, notas de curadoria, IDs técnicos). Esse diagnóstico vive
+> em `INTERNAL`/`CURATION_ONLY`. A **Resposta-limite** apresentada em `EXTERNAL`/`DEMO`
+> é igualmente uma **peça profissional limpa** (enquadramento, fontes e factos em
+> falta organizados), nunca uma mensagem de erro nem uma versão simplificada. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C7) e
+> [taxia-boundary-answer.md](taxia-boundary-answer.md).
+
 ## 7. Relação com os estados actuais
 
 O ciclo `IMPORTED → PENDING_REVIEW → VALIDATED → PUBLISHED` condiciona o que a

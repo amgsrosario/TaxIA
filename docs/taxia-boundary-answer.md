@@ -42,6 +42,14 @@ quando a questão exigir apreciação concreta.
 > resposta da TaxIA. Ver [taxia-core-principles.md](taxia-core-principles.md)
 > (Princípio 1-A).
 
+> **Resposta-limite limpa em `EXTERNAL`/`DEMO` (Decisão C7).** Em `EXTERNAL` e `DEMO`,
+> a Resposta-limite é apresentada como **produto profissional limpo** — enquadramento,
+> fontes, limitações e factos em falta, **sem** ruído técnico interno (scores,
+> ranking, chunks, notas de curadoria, IDs técnicos), que fica reservado a
+> `INTERNAL`/`CURATION_ONLY`. A qualidade profissional é a mesma em todos os níveis;
+> só muda o grau de exposição dos bastidores. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C7).
+
 ## B. Quando é usada
 
 - suporte insuficiente;

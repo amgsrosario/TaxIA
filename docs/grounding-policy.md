@@ -103,6 +103,16 @@ Produz respostas seguras sem chamar o provider:
 > recomendação, não o valor abstracto do parecer. Esta nota é **conceptual** — não
 > define thresholds nem mapeia sinais para valores. Ver
 > [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C6).
+>
+> **Decisão C7.** Os **resultados brutos do *grounding*** — scores de relevância,
+> ranking, chunks/fragmentos recuperados, contagens técnicas (`unsupportedClaimsCount`)
+> e diagnóstico — pertencem a `INTERNAL`/`CURATION_ONLY`. `EXTERNAL` e `DEMO` devem
+> receber **apenas a explicação profissional transformada** (resposta, enquadramento,
+> fontes, limitações, `parecerRequirement`, risco em linguagem legível), **nunca** o
+> ruído técnico cru. A prudência que decorre de um score baixo pode ser comunicada em
+> linguagem profissional, mas o score em si **não** é exposto externamente. Esta nota
+> é **conceptual** — não altera o comportamento actual do *grounding*. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C7).
 
 ### `AnswerGroundingValidator`
 
