@@ -85,6 +85,14 @@ Produz respostas seguras sem chamar o provider:
 > Esta nota é **conceptual** — não define thresholds, scoring nem algoritmo de
 > ranking. Ver [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md)
 > (Decisão C4).
+>
+> **Decisão C5.** Quando o contexto é **insuficiente** para uma conclusão aplicável,
+> ou quando responder exigiria **extrapolar para além das fontes**, a forma correcta
+> é **Resposta-limite** (`RESPOSTA_LIMITE`) — não uma conclusão forçada. Se ainda
+> houver suporte para uma **orientação prudente condicionada**, a forma é
+> `CONSULTA_DOCUMENTADA_COM_LIMITACOES`. Esta nota é **conceptual** e **não** altera
+> o comportamento técnico actual do *grounding*. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C5).
 
 ### `AnswerGroundingValidator`
 

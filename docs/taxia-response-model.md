@@ -70,7 +70,19 @@ São quatro, do maior para o menor grau de conclusão:
 A **Resposta-limite** é uma forma de resposta de pleno direito, não uma mensagem de
 erro: **"não concluir" também pode ser uma resposta útil**. Usa-se quando a TaxIA
 não pode concluir com segurança (suporte/contexto insuficientes, factos em falta,
-fontes fracas ou pergunta demasiado concreta). Estrutura padrão:
+fontes fracas ou pergunta demasiado concreta).
+
+> **Fronteira C5 — com limitações *vs.* Resposta-limite.** Se a TaxIA **ainda
+> consegue apontar uma orientação prudente** (condicionada por limites, pressupostos
+> ou excepções), deve emitir **Consulta documentada com limitações**. Se **só
+> consegue explicar o enquadramento** mas **não** apontar uma conclusão aplicável
+> com segurança, deve emitir **Resposta-limite**. Ou seja: *se ainda há orientação
+> prudente, com limitações; se só há enquadramento sem conclusão aplicável,
+> Resposta-limite.* "Não concluir" pode ser a resposta correcta quando só existe
+> enquadramento. Ver [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md)
+> (Decisão C5).
+
+Estrutura padrão da Resposta-limite:
 
 - **Estado da resposta** — declaração de que não há conclusão final;
 - **Motivo da limitação** — por que não é possível concluir com segurança;

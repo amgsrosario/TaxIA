@@ -2,7 +2,7 @@
 
 > **Documento de política (Bloco C).** Define a política **conceptual** de risco,
 > visibilidade, encaminhamento para Pedido de parecer e forma de resposta da TaxIA.
-> Nesta fase, as **Decisões C1, C2, C3 e C4** estão fechadas; as restantes ficam
+> Nesta fase, as **Decisões C1, C2, C3, C4 e C5** estão fechadas; as restantes ficam
 > explicitamente marcadas como **A decidir**.
 
 ## 1. Natureza do documento
@@ -11,7 +11,7 @@
   encaminhamento para Pedido de parecer e forma de resposta.
 - Deve **orientar futuras decisões** de backend, frontend, RAG, curadoria e
   publicação.
-- Nesta fase, **apenas algumas decisões estão fechadas** (C1, C2, C3 e C4).
+- Nesta fase, **apenas algumas decisões estão fechadas** (C1, C2, C3, C4 e C5).
 - As decisões não fechadas ficam marcadas como **"A decidir"** (secções 7 e 8) e
   **não devem ser presumidas** enquanto não forem decididas explicitamente.
 - Não implementa nada — é desenho e governação, não código nem migrations.
@@ -241,6 +241,76 @@ fora do cálculo — não sobem nem descem o `riskAggregated`.
 > qualquer **algoritmo de ranking, threshold ou scoring técnico** — a definição do
 > que é "relevante"/"usado" em termos de implementação fica para fase posterior.
 
+## 3-E. Decisão C5 — fronteira entre Consulta documentada com limitações e Resposta-limite *(FECHADA)*
+
+> **C5.** A TaxIA distingue claramente `CONSULTA_DOCUMENTADA_COM_LIMITACOES` de
+> `RESPOSTA_LIMITE`: a primeira **ainda aponta uma orientação prudente**
+> (condicionada); a segunda **já não aponta conclusão aplicável**, apresentando
+> apenas o enquadramento geral suportado.
+
+A **Resposta-limite não é uma falha nem um "não sei"**: é uma **saída profissional
+documentada** para quando falta segurança para concluir. "Não concluir" pode ser a
+resposta correcta.
+
+### `CONSULTA_DOCUMENTADA_COM_LIMITACOES`
+
+- existe **orientação/conclusão prudente possível**;
+- há **suporte suficiente** para uma resposta **condicionada**;
+- há **fontes relevantes**;
+- há **limites, condições, pressupostos ou excepções**;
+- a resposta **deve explicitar** esses limites e **não** ser apresentada como
+  garantia absoluta.
+
+### `RESPOSTA_LIMITE`
+
+- **não** existe segurança para apontar **conclusão aplicável**;
+- existe **apenas enquadramento geral suportado**;
+- **faltam factos/documentos essenciais**;
+- ou as **fontes não respondem directamente** à pergunta;
+- ou a aplicação ao caso exigiria **extrapolação** para além das fontes;
+- deve **indicar os elementos em falta** e **preparar eventual Pedido de parecer**.
+
+### Regra curta
+
+> Se ainda há **orientação prudente**, `CONSULTA_DOCUMENTADA_COM_LIMITACOES`.
+> Se só há **enquadramento sem conclusão aplicável**, `RESPOSTA_LIMITE`.
+
+### Gatilhos principais para Resposta-limite
+
+- **factos essenciais em falta**;
+- **fontes que não respondem directamente** à pergunta;
+- **fontes contraditórias ou insuficientes**;
+- **pergunta concreta com dados incompletos**;
+- **`aggregatedRiskLevel` HIGH** dependente de **pressupostos não confirmados**;
+- **actualidade duvidosa**;
+- **necessidade de extrapolar** para além das fontes.
+
+### Exemplos conceptuais
+
+**Exemplo 1 — genérica com condições relevantes**
+- Pergunta genérica, fontes suficientes, mas com condições relevantes.
+- `answerType = CONSULTA_DOCUMENTADA_COM_LIMITACOES`.
+
+**Exemplo 2 — concreta com informação essencial em falta**
+- Pergunta concreta, falta informação essencial.
+- `answerType = RESPOSTA_LIMITE`.
+
+**Exemplo 3 — HIGH dependente de factos não fornecidos**
+- Tema HIGH, existem fontes gerais, mas a conclusão depende de factos não
+  fornecidos.
+- `answerType = RESPOSTA_LIMITE`.
+
+**Exemplo 4 — regra geral existe, situação específica não coberta**
+- As fontes sustentam a regra geral, mas não a situação específica perguntada.
+- `answerType = RESPOSTA_LIMITE` **ou** `CONSULTA_DOCUMENTADA_COM_LIMITACOES`,
+  conforme **ainda seja possível apontar orientação prudente**.
+
+> **Âmbito da C5.** A C5 fixa a **fronteira** entre `CONSULTA_DOCUMENTADA_COM_LIMITACOES`
+> e `RESPOSTA_LIMITE`. **Não** decide quando uma Resposta-limite converte
+> directamente em Pedido de parecer (C6), quando `parecerRequirement` é `REQUIRED`,
+> `freshnessStatus` (C8), `sourceQuality` (C9), nem quaisquer thresholds, scoring ou
+> algoritmo de ranking técnico.
+
 ## 4. Níveis conceptuais de visibilidade
 
 Níveis conceptuais preferidos (nomes de implementação a fixar mais tarde):
@@ -303,8 +373,6 @@ Separação de responsabilidades:
 
 As decisões seguintes **não estão tomadas** e não devem ser presumidas:
 
-- **C5 — A decidir:** Quando é que uma resposta passa de
-  `CONSULTA_DOCUMENTADA_COM_LIMITACOES` para `RESPOSTA_LIMITE`?
 - **C6 — A decidir:** Quando é que uma Resposta-limite deve converter directamente
   em Pedido de parecer?
 - **C7 — A decidir:** Que detalhes são ocultados em `EXTERNAL`/`DEMO` e mantidos em
@@ -351,9 +419,19 @@ conjunto recuperado pelo RAG. A C4 **não** preenche C5/C6, **não** decide
 `freshnessStatus` (C8) nem `sourceQuality` (C9), e **não** define qualquer
 threshold, scoring ou algoritmo de ranking técnico.
 
+### Orientação C5 sobre a transição para Resposta-limite *(fronteira — sem thresholds)*
+
+A C5 fixa a **fronteira qualitativa** entre `CONSULTA_DOCUMENTADA_COM_LIMITACOES` e
+`RESPOSTA_LIMITE`: se ainda há **orientação prudente**, a primeira; se só há
+**enquadramento sem conclusão aplicável**, a segunda (ver secção 3-E para gatilhos e
+exemplos). A C5 **não** decide quando a Resposta-limite converte em Pedido de parecer
+(C6), quando `parecerRequirement` é `REQUIRED`, `freshnessStatus` (C8),
+`sourceQuality` (C9), nem quaisquer thresholds, scoring ou algoritmo de ranking.
+
 > Colunas `visibilityLevel` (além da C1): **a decidir** (C7). Regra de agregação de
-> risco: **fixada pela C4** (máximo dos fundamentos relevantes usados). Limiares de
-> `parecerRequirement` por sinal: **a decidir** (C5+).
+> risco: **fixada pela C4** (máximo dos fundamentos relevantes usados). Fronteira
+> `CONSULTA_DOCUMENTADA_COM_LIMITACOES` ↔ `RESPOSTA_LIMITE`: **fixada pela C5**
+> (qualitativa). Limiares de `parecerRequirement` por sinal: **a decidir** (C6+).
 
 ## 9. Relação com documentos existentes
 

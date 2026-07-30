@@ -207,10 +207,12 @@ Candidatos de **desenho** (não implementação imediata): `support_level`;
 > a prudência mas não decide sozinho o `answerType`), **C3** (intervenção humana
 > caso a caso apenas no **Pedido de parecer**; `reviewRequirement` passa a
 > `parecerRequirement` — `NONE`/`SUGGESTED`/`REQUIRED` — sem fila de revisão humana
-> invisível no circuito automático) e **C4** (agregação de risco pelo máximo dos
+> invisível no circuito automático), **C4** (agregação de risco pelo máximo dos
 > **fundamentos relevantes usados** — `riskAggregated` — sem contaminação por casos
-> recuperados mas não usados). As decisões **C5+** serão decididas
-> **sequencialmente**.
+> recuperados mas não usados) e **C5** (fronteira entre
+> `CONSULTA_DOCUMENTADA_COM_LIMITACOES` — ainda há orientação prudente — e
+> `RESPOSTA_LIMITE` — só há enquadramento, sem conclusão aplicável). As decisões
+> **C6+** serão decididas **sequencialmente**.
 
 
 Definir como `LOW`/`MEDIUM`/`HIGH` aparecem ao utilizador:

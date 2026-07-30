@@ -25,6 +25,15 @@ segurança**, explicar os **elementos em falta**, apresentar apenas o
 **enquadramento geral suportado por fontes** e recomendar **Pedido de parecer**
 quando a questão exigir apreciação concreta.
 
+> **Fronteira com a Consulta documentada com limitações (Decisão C5).** A
+> Resposta-limite surge quando **já não há conclusão aplicável segura** — só resta o
+> enquadramento geral. Enquanto a TaxIA **ainda consegue apontar uma orientação
+> prudente** (mesmo condicionada por limites, pressupostos ou excepções), a forma
+> correcta é `CONSULTA_DOCUMENTADA_COM_LIMITACOES`, não a Resposta-limite. A
+> Resposta-limite **não** deve ser usada como versão "cautelosa por defeito" de uma
+> resposta que ainda podia orientar. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C5).
+
 > **A Resposta-limite é uma peça profissional.** É especialmente relevante para o
 > utilizador profissional: o seu valor está em **organizar o enquadramento, as
 > fontes e os factos em falta** de forma accionável, encurtando o caminho para o

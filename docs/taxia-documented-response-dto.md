@@ -189,6 +189,13 @@ Quando os sinais divergem, aplica-se a **regra mais restritiva** (princípio 6 d
 [taxia-core-principles.md](taxia-core-principles.md)): na dúvida, desce-se para a
 forma menos conclusiva (`RESPOSTA_LIMITE` ou `PEDIDO_DE_PARECER`).
 
+> **Fronteira `CONSULTA_DOCUMENTADA_COM_LIMITACOES` ↔ `RESPOSTA_LIMITE` (Decisão C5).**
+> Usar `RESPOSTA_LIMITE` quando **não há conclusão aplicável segura** — só resta
+> enquadramento geral suportado. Enquanto ainda for possível apontar uma
+> **orientação prudente condicionada**, a forma correcta é
+> `CONSULTA_DOCUMENTADA_COM_LIMITACOES`. Ver
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (Decisão C5).
+
 ## 7. Mapeamento a partir do estado actual
 
 Como os dados de hoje podem alimentar o DTO:
