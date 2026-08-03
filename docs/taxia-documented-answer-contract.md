@@ -560,6 +560,62 @@ feita por `npm run build` (typecheck + build verdes); **não foi possível valid
 Sem alterações a backend, migrations, dados, scripts, contrato de endpoints, ingestão,
 publicação, embeddings ou providers externos (regras 3–14, 25).
 
+## 12.G. Estado de D10 — testes de cenários críticos (DocumentedAnswerCriticalScenariosTest)
+
+**[CONCLUÍDO]** D10 cobre os **cenários críticos** que garantem que o modelo de resposta
+profissional documentada respeita a filosofia do produto (C1–C9) e o contrato (D1–D9), e não
+apenas a mecânica isolada de cada peça. O novo
+`DocumentedAnswerCriticalScenariosTest` (pacote `com.knowledgeflow.ai.documented`) compõe os
+serviços **reais** (`SourceAssessmentService` → `AnswerDecisionService` →
+`DocumentedTaxiaAnswerMapper` → `AnswerProjectionService`, com `VisibilityLevelResolver`
+onde faz sentido), sem contexto Spring, de forma rápida e determinística.
+
+Cenários cobertos:
+
+1. **Consulta documentada com fonte forte** — fonte legal (CIRS) → `CONSULTA_DOCUMENTADA`
+   limpa, `parecerRequirement=NONE`, qualidade `STRONG`/autoridade `LEGAL`; projecção INTERNAL
+   preserva o diagnóstico e EXTERNAL apresenta produto profissional (autoridade/núcleo
+   ocultados).
+2. **Fonte forte com actualidade incerta** — reflecte o comportamento real de D6: mantém
+   `CONSULTA_DOCUMENTADA`, mas assinala prudência nas limitações e no `sourceSummary`
+   ("actualidade incerta"); **não** inventa `CURRENT`.
+3./13. **Resposta-limite não é erro nem não-resposta** — `INSUFFICIENT_CONTEXT` →
+   `RESPOSTA_LIMITE` com corpo não vazio, limitações e `parecerRequirement` ≥ `SUGGESTED`; a
+   projecção mostra a resposta, não um erro.
+4. **Pedido de parecer não é falha técnica** — `REQUIRES_HUMAN_REVIEW` →
+   `CONSULTA_DOCUMENTADA_COM_LIMITACOES`, parecer ≠ `NONE`, avisos/próximos passos, sem
+   excepção, projecção visível.
+5. **Fonte OUTDATED** — degrada para `CONSULTA_DOCUMENTADA_COM_LIMITACOES`, parecer ≥
+   `SUGGESTED` e aviso a tratar a fonte como histórico/contraste/alerta.
+6. **Fontes fracas/externas** — `EXTERNAL_NON_OFFICIAL`/`WEAK` não sustentam conclusão limpa:
+   limitação de autoridade limitada e aviso de fontes não oficiais.
+7. **Fontes derivadas/SAME_CORE** — duas fontes do mesmo núcleo não contam como diversidade
+   material (limitação de diversidade), volume não é robustez.
+8. **EXTERNAL/DEMO ocultam bastidores** — `sourceCore`/`sourceDiversity*`/`sourceId`/
+   `excerpt`/`relatedSources`/`notesInternal` ocultados; `hiddenDiagnostics` só com
+   nomes/tipos; limitações, avisos e parecer preservados; DEMO com a mesma qualidade de
+   EXTERNAL.
+9. **INTERNAL/CURATION_ONLY** — INTERNAL preserva diagnóstico moderado e oculta
+   `notesInternal`; CURATION_ONLY preserva tudo (notas e excerto incluídos).
+10./14. **Projecção não recalcula decisão** — fontes fortes não fazem a projecção
+   reclassificar `RESPOSTA_LIMITE`/`REQUIRED`; `PEDIDO_DE_PARECER` é preservado, nunca erro.
+11. **`aggregatedRiskLevel`** — o mapper não o inventa a partir do `riskLevel` da entidade;
+   permanece `null` sem cálculo de risco agregado real.
+12. **`KnowledgeCurationStatus.OUTDATED` ≠ `FreshnessStatus.OUTDATED`** — a actualidade é
+   textual (marcadores de revogação/caducidade); uma fonte legal comum é `UNCERTAIN`, não
+   `OUTDATED`.
+
+**Testes frontend:** não há infra-estrutura de testes no backoffice (sem Vitest/RTL); em
+conformidade com a tarefa, **não** foram instaladas bibliotecas nem criada configuração — a
+apresentação (`DocumentedAnswerPanel`) é validada por `npm run build`. O `DocumentedAnswerPanel`
+já não renderiza campos internos por construção dos tipos de vista (§12.F).
+
+Sem alterações a código funcional, migrations, dados, contrato de endpoints ou providers
+externos. Suite mínima executada (`DocumentedAnswerCriticalScenariosTest` +
+`AnswerProjectionServiceTest` + `AnswerDecisionServiceTest` + `SourceAssessmentServiceTest` +
+`DocumentedTaxiaAnswerMapperTest` + `AdminAIControllerTest` + `VisibilityLevelResolverTest`):
+87 testes verdes.
+
 ## 13. Testes futuros a desenhar
 
 Cenários para D4/D10 (**[IMPLEMENTAÇÃO FUTURA]**, apenas listados):

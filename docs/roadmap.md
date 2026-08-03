@@ -368,8 +368,22 @@ Decisões do Bloco D:
   build verdes), sem validação visual possível. Sem alterações ao backend, migrations, dados
   ou providers externos. Ver
   [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.F.
-- **D10–D11 — ainda não iniciadas** (testes de cenários críticos; auditoria/diagnóstico
-  interno).
+- **D10 — concluída (testes de cenários críticos):** `DocumentedAnswerCriticalScenariosTest`
+  compõe os serviços **reais** (`SourceAssessmentService` → `AnswerDecisionService` →
+  `DocumentedTaxiaAnswerMapper` → `AnswerProjectionService`) e testa a **filosofia do
+  produto** (C1–C9, D1–D9), não só a mecânica: fonte forte → consulta documentada limpa;
+  actualidade incerta preserva o tipo mas assinala prudência; **resposta-limite** e **pedido
+  de parecer** nunca são erro nem não-resposta; fontes `OUTDATED`/fracas/externas/derivadas
+  não sustentam conclusão limpa; `EXTERNAL`/`DEMO` ocultam bastidores enquanto preservam
+  limitações/avisos/parecer; `INTERNAL`/`CURATION_ONLY` preservam o diagnóstico adequado; a
+  **projecção nunca recalcula** a decisão (nem com fontes fortes); `aggregatedRiskLevel` não é
+  inventado a partir do `riskLevel` da entidade; e `KnowledgeCurationStatus.OUTDATED` não se
+  confunde com `FreshnessStatus.OUTDATED`. Sem infra de testes frontend no backoffice — a
+  apresentação é validada por `npm run build` (o `DocumentedAnswerPanel` já não renderiza
+  campos internos por construção dos tipos). Sem alterações a código funcional, migrations,
+  dados ou providers. Suite mínima: **87 testes verdes**. Ver
+  [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.G.
+- **D11 — ainda não iniciada** (auditoria/diagnóstico interno).
 
 A **materialização técnica** do Bloco C (thresholds, scoring, ranking, enums
 definitivos, limiares por sinal) vive **aqui**, no Bloco D, e **não** abre novo bloco
