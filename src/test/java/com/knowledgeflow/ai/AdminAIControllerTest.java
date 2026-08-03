@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
 import com.knowledgeflow.ai.grounding.AnswerSource;
 import com.knowledgeflow.ai.grounding.AnswerSupportStatus;
 import com.knowledgeflow.ai.grounding.GroundedAIResponse;
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -40,6 +42,9 @@ class AdminAIControllerTest {
     @Mock private RagSearchService ragSearchService;
     @Mock private AuthenticatedUserContext authenticatedUserContext;
     @Mock private com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics;
+
+    // Mapper real (stateless, aditivo) — usado pelo @InjectMocks para não partir o fluxo.
+    @Spy private DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper = new DocumentedTaxiaAnswerMapper();
 
     @InjectMocks private AdminAIController controller;
 
@@ -90,6 +95,26 @@ class AdminAIControllerTest {
                 .andExpect(jsonPath("$.sources").isArray())
                 .andExpect(jsonPath("$.missingInformation").isArray())
                 .andExpect(jsonPath("$.limitations").isArray());
+    }
+
+    // --- Documented answer (D4) present alongside legacy fields ---
+
+    @Test
+    void documentedAnswer_presentAndOldFieldsMaintained_onSupportedResponse() throws Exception {
+        when(groundingService.process(anyString(), any(), anyList()))
+                .thenReturn(supportedResponse("Resposta documentada.", "anthropic", "haiku", 10, 5));
+
+        performAsk("Pergunta")
+                .andExpect(status().isOk())
+                // campos antigos mantidos
+                .andExpect(jsonPath("$.answer").value("Resposta documentada."))
+                .andExpect(jsonPath("$.supportStatus").value("SUPPORTED"))
+                // novo bloco documentado presente e coerente
+                .andExpect(jsonPath("$.documentedAnswer").exists())
+                .andExpect(jsonPath("$.documentedAnswer.answerType").value("CONSULTA_DOCUMENTADA"))
+                .andExpect(jsonPath("$.documentedAnswer.parecerRequirement").value("NONE"))
+                .andExpect(jsonPath("$.documentedAnswer.supportStatus").value("SUPPORTED"))
+                .andExpect(jsonPath("$.documentedAnswer.technicalAnswer").value("Resposta documentada."));
     }
 
     // --- Insufficient context: HTTP 200 ---

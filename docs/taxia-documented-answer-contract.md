@@ -348,6 +348,37 @@ D4 **não** deve ainda:
 - **persistir** `freshness`/`sourceQuality`;
 - **mexer na ingestão massiva**.
 
+## 12.A. Estado de D4 — primeira implementação concluída
+
+**[CONCLUÍDO]** D4 materializou a **primeira implementação backend mínima e aditiva** do
+contrato, sem quebrar o fluxo actual. Localização: pacote
+`com.knowledgeflow.ai.documented`.
+
+Implementado:
+- **Enums Java** (8): `AnswerType`, `ParecerRequirement`, `VisibilityLevel`,
+  `FreshnessStatus`, `SourceRole`, `SourceQuality`, `SourceDiversity`, `AuthorityLevel`.
+- **DTOs** (3 `record`): `DocumentedTaxiaAnswer`, `SourceEvidence`, `AnswerProjection`
+  (este último preparado para D7, **sem** serviço de projecção — regra 21).
+- **Mapper** (`@Component` `DocumentedTaxiaAnswerMapper`): converte `GroundedAIResponse`
+  no contrato documentado com **defaults transitórios** (não o algoritmo definitivo).
+- **`AdminAIController.AskResponse`**: campo `documentedAnswer` acrescentado **por
+  adição**; todos os campos antigos preservados.
+- **Testes**: `DocumentedTaxiaAnswerMapperTest` (8) + reforço de `AdminAIControllerTest`
+  (documentedAnswer presente + campos antigos mantidos).
+
+Defaults transitórios aplicados (a substituir em D5–D7):
+- `answerType`/`parecerRequirement` derivados só de `supportStatus` +
+  `requiresHumanValidation` (sem scoring nem thresholds).
+- `aggregatedRiskLevel = null` (sem dados de risco em `GroundedAIResponse` — não se
+  inventa risco; C4).
+- `visibilityLevel = INTERNAL`; `freshnessStatus = UNCERTAIN`.
+- Fontes → `SourceEvidence` com `sourceRole = PRIMARY`, `sourceQuality = ADEQUATE`,
+  `authorityLevel = INTERNAL_CURATED`, `sourceDiversity = MIXED_OR_UNCLEAR`.
+
+**Não** implementado em D4 (mantém-se para fases seguintes): algoritmo real de
+`sourceQuality`/`sourceCore`, agregação de risco, projecção por visibilidade,
+persistência de campos novos, migrations, frontend.
+
 ## 13. Testes futuros a desenhar
 
 Cenários para D4/D10 (**[IMPLEMENTAÇÃO FUTURA]**, apenas listados):

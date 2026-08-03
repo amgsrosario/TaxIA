@@ -267,7 +267,7 @@ verificados a fundo ficam marcados **a confirmar**.
 |---|---|
 | **D2** | ✅ Inventário técnico do estado actual do código — ver [taxia-documented-answer-code-inventory.md](taxia-documented-answer-code-inventory.md). |
 | **D3** | ✅ Contrato DTO/enums documentado final (nomes/tipos definitivos) — ver [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md). |
-| **D4** | Implementação backend mínima do `DocumentedTaxiaAnswer`. |
+| **D4** | ✅ Implementação backend mínima e aditiva do `DocumentedTaxiaAnswer` — pacote `com.knowledgeflow.ai.documented` (8 enums, 3 DTOs, `DocumentedTaxiaAnswerMapper` com defaults transitórios); `AdminAIController.AskResponse` ganhou `documentedAnswer` por adição; testes verdes. Ver §12.A do [contrato](taxia-documented-answer-contract.md). |
 | **D5** | Avaliação de fontes / `SourceEvidence` (papel, qualidade, núcleo, actualidade). |
 | **D6** | Decisão de `answerType`/`parecerRequirement`. |
 | **D7** | `AnswerProjectionService` por `visibilityLevel`. |

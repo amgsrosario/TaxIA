@@ -1,5 +1,7 @@
 package com.knowledgeflow.ai;
 
+import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswer;
+import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
 import com.knowledgeflow.ai.grounding.AnswerSource;
 import com.knowledgeflow.ai.grounding.GroundedAIResponse;
 import com.knowledgeflow.ai.grounding.GroundingService;
@@ -23,14 +25,17 @@ public class AdminAIController {
     private final RagSearchService ragSearchService;
     private final AuthenticatedUserContext authenticatedUserContext;
     private final com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics;
+    private final DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper;
 
     public AdminAIController(GroundingService groundingService, RagSearchService ragSearchService,
             AuthenticatedUserContext authenticatedUserContext,
-            com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics) {
+            com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics,
+            DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper) {
         this.groundingService = groundingService;
         this.ragSearchService = ragSearchService;
         this.authenticatedUserContext = authenticatedUserContext;
         this.metrics = metrics;
+        this.documentedTaxiaAnswerMapper = documentedTaxiaAnswerMapper;
     }
 
     @PostMapping("/ask")
@@ -47,7 +52,10 @@ public class AdminAIController {
                 grounded.supportStatus() != null ? grounded.supportStatus().name() : null,
                 grounded.responseRejected());
 
-        return ResponseEntity.ok(AskResponse.from(grounded));
+        DocumentedTaxiaAnswer documentedAnswer =
+                documentedTaxiaAnswerMapper.fromGroundedResponse(request.question(), grounded);
+
+        return ResponseEntity.ok(AskResponse.from(grounded, documentedAnswer));
     }
 
     public record AskRequest(
@@ -70,9 +78,10 @@ public class AdminAIController {
             List<String> limitations,
             boolean providerCalled,
             boolean responseRejected,
-            int unsupportedClaimsCount
+            int unsupportedClaimsCount,
+            DocumentedTaxiaAnswer documentedAnswer
     ) {
-        public static AskResponse from(GroundedAIResponse g) {
+        public static AskResponse from(GroundedAIResponse g, DocumentedTaxiaAnswer documentedAnswer) {
             List<String> sourceTitles = g.sources().stream()
                     .map(AnswerSource::title)
                     .toList();
@@ -91,7 +100,8 @@ public class AdminAIController {
                     g.limitations(),
                     g.providerCalled(),
                     g.responseRejected(),
-                    g.unsupportedClaimsCount());
+                    g.unsupportedClaimsCount(),
+                    documentedAnswer);
         }
     }
 }

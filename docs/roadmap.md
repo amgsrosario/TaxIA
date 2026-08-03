@@ -299,10 +299,18 @@ Decisões do Bloco D:
   adição com `GroundedAIResponse`/`AnswerSource`/`AdminAIController`, persistência adiada,
   regras de não confusão e escopo de D4. Ver
   [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md).
-- **D4–D11 — ainda não iniciadas** (backend mínimo do `DocumentedTaxiaAnswer`; avaliação
-  de fontes; decisão de `answerType`/`parecerRequirement`; projecção por
-  `visibilityLevel`; integração no endpoint; frontend; testes; auditoria/diagnóstico
-  interno).
+- **D4 — concluída (implementação backend mínima e aditiva):** primeira materialização
+  em código Java do contrato, no pacote `com.knowledgeflow.ai.documented` — 8 enums, 3
+  DTOs (`DocumentedTaxiaAnswer`, `SourceEvidence`, `AnswerProjection`) e o
+  `DocumentedTaxiaAnswerMapper` (defaults transitórios) que converte `GroundedAIResponse`
+  no contrato documentado; `AdminAIController.AskResponse` ganhou o campo
+  `documentedAnswer` por adição (fluxo `/ask` intacto); testes unitários novos e
+  reforçados, tudo verde. Sem migrations, persistência, frontend ou algoritmos de
+  scoring. Ver [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md).
+- **D5–D11 — ainda não iniciadas** (avaliação real de fontes; decisão fina de
+  `answerType`/`parecerRequirement` com scoring/thresholds; projecção por
+  `visibilityLevel`; integração alargada no endpoint; frontend; testes; auditoria/
+  diagnóstico interno).
 
 A **materialização técnica** do Bloco C (thresholds, scoring, ranking, enums
 definitivos, limiares por sinal) vive **aqui**, no Bloco D, e **não** abre novo bloco
