@@ -269,7 +269,7 @@ verificados a fundo ficam marcados **a confirmar**.
 | **D3** | ✅ Contrato DTO/enums documentado final (nomes/tipos definitivos) — ver [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md). |
 | **D4** | ✅ Implementação backend mínima e aditiva do `DocumentedTaxiaAnswer` — pacote `com.knowledgeflow.ai.documented` (8 enums, 3 DTOs, `DocumentedTaxiaAnswerMapper` com defaults transitórios); `AdminAIController.AskResponse` ganhou `documentedAnswer` por adição; testes verdes. Ver §12.A do [contrato](taxia-documented-answer-contract.md). |
 | **D5** | ✅ Avaliação real de fontes / `SourceEvidence` — `SourceAssessmentService` (heurísticas simples, determinísticas e conservadoras de autoridade, qualidade, papel, diversidade, núcleo e actualidade, sem scoring/thresholds/web); mapper delega no serviço; testes verdes. Ver §12.B do [contrato](taxia-documented-answer-contract.md). |
-| **D6** | Decisão de `answerType`/`parecerRequirement`. |
+| **D6** | ✅ Decisão de prudência — `AnswerDecisionService` + record `AnswerDecision` concentram `answerType`/`parecerRequirement`/`confidenceSummary`/`limitations`/`warnings`/`nextSteps`/`sourceSummary` (decisão simples, determinística e conservadora, sem scoring/thresholds; escala parecer só sobe); mapper delega no serviço; `AdminAIController`/`GroundedAIResponse`/`AnswerSource` inalterados; testes verdes. Ver §12.C do [contrato](taxia-documented-answer-contract.md). |
 | **D7** | `AnswerProjectionService` por `visibilityLevel`. |
 | **D8** | Integração no endpoint de consulta. |
 | **D9** | Frontend da resposta profissional. |

@@ -9,26 +9,33 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 /**
- * Conversor mínimo e aditivo de {@link GroundedAIResponse} para
- * {@link DocumentedTaxiaAnswer} (tarefa D4).
+ * Conversor aditivo de {@link GroundedAIResponse} para {@link DocumentedTaxiaAnswer}
+ * (tarefa D4, evoluído em D5/D6).
  *
- * <p>Aplica <strong>defaults transitórios</strong> — não é o algoritmo definitivo. Não
- * altera o comportamento do fluxo actual ({@code GroundingService}/{@code /ask}); apenas
- * projecta a resposta já produzida no contrato documentado. A decisão fina de
- * {@link AnswerType}/{@link ParecerRequirement} com scoring/thresholds e a projecção por
- * {@link VisibilityLevel} ficam para D6–D7.
+ * <p>Não altera o comportamento do fluxo actual ({@code GroundingService}/{@code /ask});
+ * apenas projecta a resposta já produzida no contrato documentado. Responsabilidades
+ * separadas:
+ * <ul>
+ *   <li>{@link SourceAssessmentService} (D5) avalia cada fonte;</li>
+ *   <li>{@link AnswerDecisionService} (D6) decide forma/prudência ({@link AnswerType},
+ *       {@link ParecerRequirement}, resumos e listas);</li>
+ *   <li>este mapper monta o DTO {@link DocumentedTaxiaAnswer}.</li>
+ * </ul>
  *
- * <p>Desde a D5, a avaliação das fontes (autoridade, qualidade, papel, diversidade,
- * núcleo e actualidade) é delegada no {@link SourceAssessmentService}, deixando de usar
- * defaults cegos por fonte.
+ * <p>A projecção por {@link VisibilityLevel} continua reservada para D7. O
+ * {@code aggregatedRiskLevel} mantém-se {@code null} enquanto não houver risco agregado
+ * real (regra 27).
  */
 @Component
 public class DocumentedTaxiaAnswerMapper {
 
     private final SourceAssessmentService sourceAssessmentService;
+    private final AnswerDecisionService answerDecisionService;
 
-    public DocumentedTaxiaAnswerMapper(SourceAssessmentService sourceAssessmentService) {
+    public DocumentedTaxiaAnswerMapper(SourceAssessmentService sourceAssessmentService,
+            AnswerDecisionService answerDecisionService) {
         this.sourceAssessmentService = sourceAssessmentService;
+        this.answerDecisionService = answerDecisionService;
     }
 
     /**
@@ -36,38 +43,19 @@ public class DocumentedTaxiaAnswerMapper {
      *
      * @param question pergunta original recebida
      * @param grounded resposta de grounding (ponto de compatibilidade)
-     * @return resposta documentada equivalente, com defaults transitórios
+     * @return resposta documentada equivalente
      */
     public DocumentedTaxiaAnswer fromGroundedResponse(String question, GroundedAIResponse grounded) {
         AnswerSupportStatus supportStatus = grounded.supportStatus();
 
-        AnswerType answerType = mapAnswerType(supportStatus);
-        ParecerRequirement parecerRequirement =
-                mapParecerRequirement(supportStatus, grounded.requiresHumanValidation());
-
         List<SourceEvidence> sources = mapSources(grounded.sources(), supportStatus);
 
-        List<String> limitations = new ArrayList<>(safeList(grounded.limitations()));
-        if (supportStatus != AnswerSupportStatus.SUPPORTED) {
-            limitations.add("Suporte documental não totalmente confirmado; resposta apresentada com prudência.");
-        }
-
-        List<String> warnings = new ArrayList<>();
-        if (grounded.requiresHumanValidation()) {
-            String message = grounded.validationMessage();
-            warnings.add(message != null && !message.isBlank()
-                    ? message
-                    : "Tema que pode beneficiar de validação por especialista fiscal.");
-        }
-
-        List<String> nextSteps = new ArrayList<>();
-        if (parecerRequirement != ParecerRequirement.NONE) {
-            nextSteps.add("Considerar Pedido de parecer para confirmação da conclusão.");
-        }
-
-        String sourceSummary = sources.isEmpty()
-                ? "Sem fontes documentais recuperadas para esta resposta."
-                : "Suporte documental inicial baseado nas fontes recuperadas.";
+        AnswerDecision decision = answerDecisionService.decide(
+                supportStatus,
+                grounded.requiresHumanValidation(),
+                sources,
+                grounded.limitations(),
+                grounded.validationMessage());
 
         return new DocumentedTaxiaAnswer(
                 UUID.randomUUID().toString(),
@@ -75,51 +63,21 @@ public class DocumentedTaxiaAnswerMapper {
                 null,
                 grounded.answer(),
                 grounded.answer(),
-                answerType,
+                decision.answerType(),
                 supportStatus,
                 null,
-                parecerRequirement,
+                decision.parecerRequirement(),
                 VisibilityLevel.INTERNAL,
-                FreshnessStatus.UNCERTAIN,
-                confidenceSummary(supportStatus),
-                List.copyOf(limitations),
+                decision.overallFreshnessStatus(),
+                decision.confidenceSummary(),
+                decision.limitations(),
                 List.of(),
                 safeList(grounded.missingInformation()),
-                sourceSummary,
+                decision.sourceSummary(),
                 sources,
-                List.copyOf(warnings),
-                List.copyOf(nextSteps),
+                decision.warnings(),
+                decision.nextSteps(),
                 internalDiagnostics(grounded));
-    }
-
-    private AnswerType mapAnswerType(AnswerSupportStatus supportStatus) {
-        if (supportStatus == null) {
-            return AnswerType.RESPOSTA_LIMITE;
-        }
-        return switch (supportStatus) {
-            case SUPPORTED -> AnswerType.CONSULTA_DOCUMENTADA;
-            case PARTIALLY_SUPPORTED, REQUIRES_HUMAN_REVIEW -> AnswerType.CONSULTA_DOCUMENTADA_COM_LIMITACOES;
-            case INSUFFICIENT_CONTEXT, REJECTED_UNSUPPORTED -> AnswerType.RESPOSTA_LIMITE;
-        };
-    }
-
-    private ParecerRequirement mapParecerRequirement(
-            AnswerSupportStatus supportStatus, boolean requiresHumanValidation) {
-        ParecerRequirement base;
-        if (supportStatus == null) {
-            base = ParecerRequirement.SUGGESTED;
-        } else {
-            base = switch (supportStatus) {
-                case SUPPORTED -> ParecerRequirement.NONE;
-                case PARTIALLY_SUPPORTED, INSUFFICIENT_CONTEXT, REQUIRES_HUMAN_REVIEW -> ParecerRequirement.SUGGESTED;
-                case REJECTED_UNSUPPORTED -> ParecerRequirement.REQUIRED;
-            };
-        }
-        // A necessidade de validação humana nunca deve baixar o encaminhamento abaixo de SUGGESTED.
-        if (requiresHumanValidation && base == ParecerRequirement.NONE) {
-            return ParecerRequirement.SUGGESTED;
-        }
-        return base;
     }
 
     private List<SourceEvidence> mapSources(List<AnswerSource> sources, AnswerSupportStatus supportStatus) {
@@ -153,19 +111,6 @@ public class DocumentedTaxiaAnswerMapper {
                     List.of()));
         }
         return List.copyOf(mapped);
-    }
-
-    private String confidenceSummary(AnswerSupportStatus supportStatus) {
-        if (supportStatus == null) {
-            return "Confiança indeterminada; resposta apresentada com prudência.";
-        }
-        return switch (supportStatus) {
-            case SUPPORTED -> "Resposta com suporte documental adequado (sem garantia absoluta).";
-            case PARTIALLY_SUPPORTED -> "Resposta parcialmente suportada; ler com as limitações indicadas.";
-            case INSUFFICIENT_CONTEXT -> "Contexto documental insuficiente para uma conclusão segura.";
-            case REQUIRES_HUMAN_REVIEW -> "Tema sensível; recomenda-se prudência e eventual parecer.";
-            case REJECTED_UNSUPPORTED -> "Resposta gerada não confirmada; sem conclusão fiscal apresentada.";
-        };
     }
 
     private String internalDiagnostics(GroundedAIResponse grounded) {

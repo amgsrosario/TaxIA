@@ -420,6 +420,44 @@ INTERNAL`, `aggregatedRiskLevel = null`, e `answerType`/`parecerRequirement` bas
 `supportStatus` (a decisão fina fica para D6). `sourceCore`/`sourceQuality`/`freshness`
 continuam **transitórios e não persistidos** (regras 22–23).
 
+## 12.C. Estado de D6 — decisão de prudência (AnswerDecisionService)
+
+**[CONCLUÍDO]** D6 introduziu o `AnswerDecisionService` (`@Service`, pacote
+`com.knowledgeflow.ai.documented`) e o record `AnswerDecision`, concentrando a decisão de
+forma/prudência que antes estava dispersa no `DocumentedTaxiaAnswerMapper`: `answerType`,
+`parecerRequirement`, `confidenceSummary`, `limitations`, `warnings`, `nextSteps` e
+`sourceSummary`. Decisão **simples, determinística e conservadora** — sem scoring numérico,
+sem thresholds, sem contar fontes em bruto (volume não é robustez), sem projecção por
+visibilidade (regras 18–21). Combina `supportStatus` e `requiresHumanValidation` com os
+sinais já avaliados em cada `SourceEvidence` (D5).
+
+Regras de decisão implementadas:
+- **`answerType`**: `SUPPORTED` → `CONSULTA_DOCUMENTADA`, ou
+  `CONSULTA_DOCUMENTADA_COM_LIMITACOES` se houver sinais de fraqueza documental (apenas
+  fontes fracas/externas, fonte desactualizada, apenas derivadas, ou ≥2 fontes sem
+  diversidade material, ou fontes sem qualidade forte/adequada); `PARTIALLY_SUPPORTED` e
+  `REQUIRES_HUMAN_REVIEW` → `CONSULTA_DOCUMENTADA_COM_LIMITACOES`; `INSUFFICIENT_CONTEXT`,
+  `REJECTED_UNSUPPORTED` e `null` → `RESPOSTA_LIMITE`. A **ausência de fontes não rebaixa**
+  um `SUPPORTED` (evita segundo-adivinhar o grounding).
+- **`parecerRequirement`**: base por estado (`SUPPORTED` → `NONE`; `PARTIALLY_SUPPORTED` →
+  `SUGGESTED`; `INSUFFICIENT_CONTEXT`/`REQUIRES_HUMAN_REVIEW` → `SUGGESTED` com fontes,
+  `REQUIRED` sem fontes; `REJECTED_UNSUPPORTED` → `REQUIRED`; `null` → `SUGGESTED`), depois
+  **só escala, nunca desce** perante `requiresHumanValidation`, fontes desactualizadas/só
+  fracas, ou `COM_LIMITACOES` (piso `SUGGESTED`).
+- **`limitations`/`warnings`/`nextSteps`**: mensagens PT-PT determinísticas, deduplicadas,
+  preservando limitações a montante. Resposta-limite **não é não-resposta** (regra 28): dá
+  limitações e próximos passos accionáveis. Pedido de parecer **não é erro** (regra 29):
+  `nextSteps` inclui submeter parecer.
+- **`overallFreshnessStatus`**: `OUTDATED` se alguma fonte estiver desactualizada, senão
+  `UNCERTAIN` (nunca confundido com `KnowledgeCurationStatus.OUTDATED` — regra 26).
+
+O `DocumentedTaxiaAnswerMapper` passou a injectar também o `AnswerDecisionService` e a
+delegar-lhe toda a decisão; deixou de ter os métodos privados de `answerType`/
+`parecerRequirement`/`confidenceSummary`. Mantêm-se `aggregatedRiskLevel = null`,
+`visibilityLevel = INTERNAL` e a **não persistência** das decisões (regras 23–24). O
+`AdminAIController` (`/api/v1/admin/ai/ask`) e o `GroundedAIResponse`/`AnswerSource` ficam
+inalterados (regras 14–16). A projecção por visibilidade continua reservada para D7.
+
 ## 13. Testes futuros a desenhar
 
 Cenários para D4/D10 (**[IMPLEMENTAÇÃO FUTURA]**, apenas listados):

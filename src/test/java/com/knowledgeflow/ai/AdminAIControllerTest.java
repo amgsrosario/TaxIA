@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.knowledgeflow.ai.documented.AnswerDecisionService;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
 import com.knowledgeflow.ai.documented.SourceAssessmentService;
 import com.knowledgeflow.ai.grounding.AnswerSource;
@@ -46,7 +47,7 @@ class AdminAIControllerTest {
 
     // Mapper real (stateless, aditivo) — usado pelo @InjectMocks para não partir o fluxo.
     @Spy private DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper =
-            new DocumentedTaxiaAnswerMapper(new SourceAssessmentService());
+            new DocumentedTaxiaAnswerMapper(new SourceAssessmentService(), new AnswerDecisionService());
 
     @InjectMocks private AdminAIController controller;
 

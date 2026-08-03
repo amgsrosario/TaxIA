@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 class DocumentedTaxiaAnswerMapperTest {
 
     private final DocumentedTaxiaAnswerMapper mapper =
-            new DocumentedTaxiaAnswerMapper(new SourceAssessmentService());
+            new DocumentedTaxiaAnswerMapper(new SourceAssessmentService(), new AnswerDecisionService());
 
     private GroundedAIResponse grounded(AnswerSupportStatus status, List<AnswerSource> sources,
             boolean requiresHumanValidation) {

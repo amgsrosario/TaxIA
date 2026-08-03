@@ -316,9 +316,19 @@ Decisões do Bloco D:
   defaults cegos por fonte; `sourceCore`/`sourceQuality`/`freshness` continuam transitórios
   e não persistidos; testes novos e reforçados, tudo verde. Ver
   [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.B.
-- **D6–D11 — ainda não iniciadas** (decisão fina de `answerType`/`parecerRequirement` com
-  scoring/thresholds; projecção por `visibilityLevel`; integração alargada no endpoint;
-  frontend; testes; auditoria/diagnóstico interno).
+- **D6 — concluída (decisão de prudência):** `AnswerDecisionService` (`@Service` em
+  `com.knowledgeflow.ai.documented`) e o record `AnswerDecision` concentram a decisão de
+  forma/prudência que antes vivia dispersa no mapper — `answerType`, `parecerRequirement`,
+  `confidenceSummary`, `limitations`, `warnings`, `nextSteps` e `sourceSummary` — de forma
+  simples, determinística e conservadora, sem scoring numérico nem thresholds, combinando
+  `supportStatus`/`requiresHumanValidation` com os sinais D5 de cada `SourceEvidence`; o
+  escalão de parecer só sobe, a ausência de fontes não rebaixa um `SUPPORTED`, a
+  Resposta-limite não é não-resposta e o Pedido de parecer não é erro; o mapper delega no
+  serviço; `AdminAIController`/`GroundedAIResponse`/`AnswerSource` inalterados; decisões não
+  persistidas; testes novos e reforçados, tudo verde. Ver
+  [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.C.
+- **D7–D11 — ainda não iniciadas** (projecção por `visibilityLevel`; integração alargada no
+  endpoint; frontend; testes; auditoria/diagnóstico interno).
 
 A **materialização técnica** do Bloco C (thresholds, scoring, ranking, enums
 definitivos, limiares por sinal) vive **aqui**, no Bloco D, e **não** abre novo bloco
