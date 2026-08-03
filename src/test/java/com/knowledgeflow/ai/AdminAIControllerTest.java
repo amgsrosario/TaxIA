@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
+import com.knowledgeflow.ai.documented.SourceAssessmentService;
 import com.knowledgeflow.ai.grounding.AnswerSource;
 import com.knowledgeflow.ai.grounding.AnswerSupportStatus;
 import com.knowledgeflow.ai.grounding.GroundedAIResponse;
@@ -44,7 +45,8 @@ class AdminAIControllerTest {
     @Mock private com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics;
 
     // Mapper real (stateless, aditivo) — usado pelo @InjectMocks para não partir o fluxo.
-    @Spy private DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper = new DocumentedTaxiaAnswerMapper();
+    @Spy private DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper =
+            new DocumentedTaxiaAnswerMapper(new SourceAssessmentService());
 
     @InjectMocks private AdminAIController controller;
 

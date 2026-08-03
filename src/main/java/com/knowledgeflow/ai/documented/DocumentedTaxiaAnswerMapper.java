@@ -15,12 +15,21 @@ import org.springframework.stereotype.Component;
  * <p>Aplica <strong>defaults transitórios</strong> — não é o algoritmo definitivo. Não
  * altera o comportamento do fluxo actual ({@code GroundingService}/{@code /ask}); apenas
  * projecta a resposta já produzida no contrato documentado. A decisão fina de
- * {@link AnswerType}/{@link ParecerRequirement} com scoring/thresholds, a avaliação real
- * de fontes (qualidade/núcleo/actualidade) e a projecção por {@link VisibilityLevel}
- * ficam para D5–D7.
+ * {@link AnswerType}/{@link ParecerRequirement} com scoring/thresholds e a projecção por
+ * {@link VisibilityLevel} ficam para D6–D7.
+ *
+ * <p>Desde a D5, a avaliação das fontes (autoridade, qualidade, papel, diversidade,
+ * núcleo e actualidade) é delegada no {@link SourceAssessmentService}, deixando de usar
+ * defaults cegos por fonte.
  */
 @Component
 public class DocumentedTaxiaAnswerMapper {
+
+    private final SourceAssessmentService sourceAssessmentService;
+
+    public DocumentedTaxiaAnswerMapper(SourceAssessmentService sourceAssessmentService) {
+        this.sourceAssessmentService = sourceAssessmentService;
+    }
 
     /**
      * Converte uma resposta de grounding no contrato documentado.
@@ -120,24 +129,25 @@ public class DocumentedTaxiaAnswerMapper {
         boolean supportsConclusion = supportStatus == AnswerSupportStatus.SUPPORTED;
         List<SourceEvidence> mapped = new ArrayList<>(sources.size());
         for (AnswerSource source : sources) {
+            SourceRole sourceRole = sourceAssessmentService.assessSourceRole(source);
             mapped.add(new SourceEvidence(
                     null,
                     source.title(),
                     null,
-                    AuthorityLevel.INTERNAL_CURATED,
-                    SourceRole.PRIMARY,
-                    SourceQuality.ADEQUATE,
-                    null,
-                    null,
-                    SourceDiversity.MIXED_OR_UNCLEAR,
-                    FreshnessStatus.UNCERTAIN,
+                    sourceAssessmentService.assessAuthorityLevel(source),
+                    sourceRole,
+                    sourceAssessmentService.assessSourceQuality(source),
+                    sourceAssessmentService.buildSourceCore(source),
+                    sourceAssessmentService.buildSourceDiversityGroup(source),
+                    sourceAssessmentService.assessSourceDiversity(source),
+                    sourceAssessmentService.assessFreshnessStatus(source),
                     source.reference(),
                     null,
                     true,
                     supportsConclusion,
                     false,
                     false,
-                    false,
+                    sourceRole == SourceRole.DERIVATIVE_REPLICATED,
                     List.of(),
                     null,
                     List.of()));

@@ -379,6 +379,47 @@ Defaults transitórios aplicados (a substituir em D5–D7):
 `sourceQuality`/`sourceCore`, agregação de risco, projecção por visibilidade,
 persistência de campos novos, migrations, frontend.
 
+## 12.B. Estado de D5 — avaliação real de fontes (SourceAssessmentService)
+
+**[CONCLUÍDO]** D5 introduziu o `SourceAssessmentService` (`@Service`, pacote
+`com.knowledgeflow.ai.documented`) — avaliação **simples, determinística e conservadora**
+de cada `SourceEvidence`, substituindo os defaults cegos por fonte da D4. Não há scoring
+numérico, thresholds, deduplicação semântica, análise de núcleo sofisticada, chamadas a
+providers nem validação online de URLs (regras 18–21). As heurísticas leem apenas os
+campos reais de `AnswerSource` (`title`, `reference`).
+
+Heurísticas implementadas:
+- **`authorityLevel`** (por sinais textuais claros, precedência do mais distintivo ao mais
+  genérico): jurisprudência (acórdão/tribunal/CAAD/STA/TCAS/TCAN…) → `JURISPRUDENCE`;
+  FAQ/perguntas frequentes → `OFFICIAL_FAQ`; ofício circulado/informação vinculativa/
+  instrução/despacho/circular/orientação → `OFFICIAL_ADMINISTRATIVE`; código/decreto-lei/
+  abreviaturas fiscais (CIRS, CIVA, CIMI…) ou "artigo N.º"/"lei n.º" → `LEGAL`; portal das
+  finanças/autoridade tributária/DRE → `OFFICIAL_COMPLEMENTARY`; URL http não oficial →
+  `EXTERNAL_NON_OFFICIAL`; sem sinais → `INTERNAL_CURATED` (default conservador).
+- **`sourceQuality`** (a partir da autoridade, sem scoring): LEGAL/OFFICIAL_FAQ/
+  OFFICIAL_ADMINISTRATIVE → `STRONG`; JURISPRUDENCE/OFFICIAL_COMPLEMENTARY → `ADEQUATE`;
+  INTERNAL_CURATED → `ADEQUATE` (com referência) ou `LIMITED` (sem referência);
+  EXTERNAL_NON_OFFICIAL → `WEAK`.
+- **`sourceRole`**: `PRIMARY` por defeito (fonte devolvida/usada na resposta actual);
+  `DERIVATIVE_REPLICATED` só com evidência textual simples de cópia/derivação;
+  `COMPLEMENTARY` reservado para quando houver visão do conjunto.
+- **`sourceDiversity`/`sourceCore`**: `sourceCore` = referência legal normalizada, senão
+  título normalizado, senão `null` (normalização mínima: apara/colapsa espaços/minúsculas);
+  `sourceDiversityGroup` = `sourceCore` nesta fase; `sourceDiversity` = `SAME_CORE` com
+  evidência de derivação, `MATERIAL_DIVERSITY` com núcleo próprio claro, senão
+  `MIXED_OR_UNCLEAR`. Sem fingir diversidade entre fontes (o mapper não tem visão do
+  conjunto).
+- **`freshnessStatus`**: `UNCERTAIN` por defeito; `OUTDATED` só com marcadores explícitos
+  de revogação/caducidade/substituição/"sem efeito" — nunca por data antiga isolada nem
+  por `KnowledgeCurationStatus.OUTDATED` (regra 25).
+
+O `DocumentedTaxiaAnswerMapper` passou a injectar o serviço e a preencher cada
+`SourceEvidence` com a sua avaliação (incluindo `derivativeOrReplicated` coerente com
+`sourceRole`). Mantêm-se: `usedInAnswer = true` para fontes devolvidas, `visibilityLevel =
+INTERNAL`, `aggregatedRiskLevel = null`, e `answerType`/`parecerRequirement` baseados no
+`supportStatus` (a decisão fina fica para D6). `sourceCore`/`sourceQuality`/`freshness`
+continuam **transitórios e não persistidos** (regras 22–23).
+
 ## 13. Testes futuros a desenhar
 
 Cenários para D4/D10 (**[IMPLEMENTAÇÃO FUTURA]**, apenas listados):

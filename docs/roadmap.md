@@ -307,10 +307,18 @@ Decisões do Bloco D:
   `documentedAnswer` por adição (fluxo `/ask` intacto); testes unitários novos e
   reforçados, tudo verde. Sem migrations, persistência, frontend ou algoritmos de
   scoring. Ver [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md).
-- **D5–D11 — ainda não iniciadas** (avaliação real de fontes; decisão fina de
-  `answerType`/`parecerRequirement` com scoring/thresholds; projecção por
-  `visibilityLevel`; integração alargada no endpoint; frontend; testes; auditoria/
-  diagnóstico interno).
+- **D5 — concluída (avaliação real de fontes):** `SourceAssessmentService` (`@Service` em
+  `com.knowledgeflow.ai.documented`) avalia cada `SourceEvidence` com heurísticas simples,
+  determinísticas e conservadoras — autoridade (legal/FAQ/administrativa/jurisprudência/
+  complementar/externa/interna), qualidade, papel, diversidade, núcleo e actualidade — a
+  partir só de `title`/`reference`, sem scoring, thresholds, deduplicação semântica nem
+  web; o `DocumentedTaxiaAnswerMapper` passou a delegar no serviço, deixando de usar
+  defaults cegos por fonte; `sourceCore`/`sourceQuality`/`freshness` continuam transitórios
+  e não persistidos; testes novos e reforçados, tudo verde. Ver
+  [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.B.
+- **D6–D11 — ainda não iniciadas** (decisão fina de `answerType`/`parecerRequirement` com
+  scoring/thresholds; projecção por `visibilityLevel`; integração alargada no endpoint;
+  frontend; testes; auditoria/diagnóstico interno).
 
 A **materialização técnica** do Bloco C (thresholds, scoring, ranking, enums
 definitivos, limiares por sinal) vive **aqui**, no Bloco D, e **não** abre novo bloco

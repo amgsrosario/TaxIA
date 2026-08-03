@@ -16,7 +16,8 @@ import org.junit.jupiter.api.Test;
  */
 class DocumentedTaxiaAnswerMapperTest {
 
-    private final DocumentedTaxiaAnswerMapper mapper = new DocumentedTaxiaAnswerMapper();
+    private final DocumentedTaxiaAnswerMapper mapper =
+            new DocumentedTaxiaAnswerMapper(new SourceAssessmentService());
 
     private GroundedAIResponse grounded(AnswerSupportStatus status, List<AnswerSource> sources,
             boolean requiresHumanValidation) {
@@ -49,7 +50,8 @@ class DocumentedTaxiaAnswerMapperTest {
     }
 
     @Test
-    void sources_mappedToSourceEvidence_withDefaultRoleAndQuality() {
+    void sources_mappedToSourceEvidence_usingSourceAssessmentService() {
+        // Referência legal (CIVA) → o serviço avalia LEGAL / STRONG e usa a referência como núcleo.
         var src = new AnswerSource("IVA — Regime Geral", "CIVA art. 18.º", 0.9);
         DocumentedTaxiaAnswer answer = mapper.fromGroundedResponse(
                 "Pergunta", grounded(AnswerSupportStatus.SUPPORTED, List.of(src), false));
@@ -58,11 +60,29 @@ class DocumentedTaxiaAnswerMapperTest {
         SourceEvidence evidence = answer.sources().get(0);
         assertThat(evidence.title()).isEqualTo("IVA — Regime Geral");
         assertThat(evidence.legalReference()).isEqualTo("CIVA art. 18.º");
+        // Campos vindos do SourceAssessmentService (D5), já não são defaults cegos.
+        assertThat(evidence.authorityLevel()).isEqualTo(AuthorityLevel.LEGAL);
+        assertThat(evidence.sourceQuality()).isEqualTo(SourceQuality.STRONG);
         assertThat(evidence.sourceRole()).isEqualTo(SourceRole.PRIMARY);
-        assertThat(evidence.sourceQuality()).isEqualTo(SourceQuality.ADEQUATE);
+        assertThat(evidence.sourceCore()).isEqualTo("civa art. 18.º");
+        assertThat(evidence.sourceDiversityGroup()).isEqualTo("civa art. 18.º");
         assertThat(evidence.freshnessStatus()).isEqualTo(FreshnessStatus.UNCERTAIN);
         assertThat(evidence.usedInAnswer()).isTrue();
         assertThat(evidence.supportsConclusion()).isTrue();
+        assertThat(evidence.derivativeOrReplicated()).isFalse();
+    }
+
+    @Test
+    void sources_defaultsStaySafe_forInternalCuratedWithoutReference() {
+        var src = new AnswerSource("Nota interna sobre enquadramento", "", 0.5);
+        DocumentedTaxiaAnswer answer = mapper.fromGroundedResponse(
+                "Pergunta", grounded(AnswerSupportStatus.PARTIALLY_SUPPORTED, List.of(src), false));
+
+        SourceEvidence evidence = answer.sources().get(0);
+        assertThat(evidence.authorityLevel()).isEqualTo(AuthorityLevel.INTERNAL_CURATED);
+        assertThat(evidence.sourceQuality()).isEqualTo(SourceQuality.LIMITED);
+        assertThat(evidence.freshnessStatus()).isEqualTo(FreshnessStatus.UNCERTAIN);
+        assertThat(evidence.sourceDiversity()).isEqualTo(SourceDiversity.MIXED_OR_UNCLEAR);
     }
 
     @Test
