@@ -13,6 +13,13 @@
 > [taxia-boundary-answer.md](taxia-boundary-answer.md) ·
 > [grounding-policy.md](grounding-policy.md) · [roadmap.md](roadmap.md).
 
+> **Actualização (D3).** O **contrato DTO/enums final** — nomes definitivos,
+> campos, enums, visibilidade externa/interna e estratégia de evolução por adição —
+> está fixado em
+> [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md). Este plano
+> mantém-se como a **arquitectura e sequência** (D1); o contrato detalhado vive em D3 e
+> **não** é aqui duplicado.
+
 Cada afirmação deste plano é rotulada como uma de três categorias:
 
 - **[FECHADO]** — decisão conceptual já tomada no Bloco C (C1–C9); não se reabre.
@@ -259,7 +266,7 @@ verificados a fundo ficam marcados **a confirmar**.
 | Passo | Objectivo |
 |---|---|
 | **D2** | ✅ Inventário técnico do estado actual do código — ver [taxia-documented-answer-code-inventory.md](taxia-documented-answer-code-inventory.md). |
-| **D3** | Contrato DTO/enums documentado final (nomes/tipos definitivos). |
+| **D3** | ✅ Contrato DTO/enums documentado final (nomes/tipos definitivos) — ver [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md). |
 | **D4** | Implementação backend mínima do `DocumentedTaxiaAnswer`. |
 | **D5** | Avaliação de fontes / `SourceEvidence` (papel, qualidade, núcleo, actualidade). |
 | **D6** | Decisão de `answerType`/`parecerRequirement`. |

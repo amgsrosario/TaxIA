@@ -293,10 +293,16 @@ Decisões do Bloco D:
   entidades, endpoints, frontend, testes) e o contrato D1 — o que existe, é parcial,
   falta, colide ou se reaproveita, com riscos e ordem para D3. Ver
   [taxia-documented-answer-code-inventory.md](taxia-documented-answer-code-inventory.md).
-- **D3–D11 — ainda não iniciadas** (contrato DTO/enums final; backend mínimo do
-  `DocumentedTaxiaAnswer`; avaliação de fontes; decisão de
-  `answerType`/`parecerRequirement`; projecção por `visibilityLevel`; integração no
-  endpoint; frontend; testes; auditoria/diagnóstico interno).
+- **D3 — concluída (contrato DTO/enums final documentado):** nomes finais
+  (`DocumentedTaxiaAnswer`, `SourceEvidence`, `AnswerProjection` e serviços conceptuais),
+  campos com visibilidade externa/interna, enums finais propostos, compatibilidade por
+  adição com `GroundedAIResponse`/`AnswerSource`/`AdminAIController`, persistência adiada,
+  regras de não confusão e escopo de D4. Ver
+  [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md).
+- **D4–D11 — ainda não iniciadas** (backend mínimo do `DocumentedTaxiaAnswer`; avaliação
+  de fontes; decisão de `answerType`/`parecerRequirement`; projecção por
+  `visibilityLevel`; integração no endpoint; frontend; testes; auditoria/diagnóstico
+  interno).
 
 A **materialização técnica** do Bloco C (thresholds, scoring, ranking, enums
 definitivos, limiares por sinal) vive **aqui**, no Bloco D, e **não** abre novo bloco

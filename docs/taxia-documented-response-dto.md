@@ -14,6 +14,20 @@
 > [taxia-documented-answer-technical-plan.md](taxia-documented-answer-technical-plan.md)
 > (Bloco D, D1). Este documento continua a ser a referência do **contrato/enums**;
 > o plano D1 **não** o duplica.
+>
+> **Contrato final fixado em D3.** O contrato DTO/enums **definitivo de referência**
+> está em
+> [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) (Bloco D,
+> D3). Onde este documento divergir de D3, **prevalece D3** (o alinhamento é apenas
+> documental, sem implementação). Divergências conhecidas, a reconciliar na
+> implementação futura: o DTO principal passa a chamar-se **`DocumentedTaxiaAnswer`**
+> (aqui referido como `DocumentedTaxAnswerDto`); o `VisibilityLevel` final é
+> **`EXTERNAL`/`DEMO`/`INTERNAL`/`CURATION_ONLY`** (aqui listado como
+> `INTERNAL_ONLY`/`PROFESSIONAL_ONLY`/`CLIENT_VISIBLE`/`CLIENT_VISIBLE_WITH_WARNING`);
+> e D3 separa **autoridade** (`AuthorityLevel`) de **força qualitativa**
+> (`SourceQuality` = `STRONG`/`ADEQUATE`/`LIMITED`/`WEAK`), enquanto a `SourceQuality`
+> deste documento (`OFFICIAL`/`LEGAL`/`INTERNAL`/`UNVERIFIED`/`MIXED`) exprime
+> **origem/autoridade**. Estes valores continuam **candidatos de desenho** até D4+.
 
 ## 1. Objectivo
 

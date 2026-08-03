@@ -1,0 +1,379 @@
+# TaxIA — Bloco D — D3 — Contrato DTO/enums da resposta documentada
+
+> **Natureza deste documento.** Fixa o **contrato técnico/documental** da resposta
+> documentada da TaxIA — nomes finais, campos, enums, visibilidade e estratégia de
+> evolução. É **preparação para implementação futura**: **não** implementa Java, **não**
+> cria DTOs/enums reais, **não** altera API, **não** define migrations, **não** toca em
+> frontend, dados, publicações ou embeddings. Parte do inventário técnico D2.
+>
+> Enquadramento: [taxia-documented-answer-technical-plan.md](taxia-documented-answer-technical-plan.md)
+> (D1) · [taxia-documented-answer-code-inventory.md](taxia-documented-answer-code-inventory.md)
+> (D2) · [taxia-documented-response-dto.md](taxia-documented-response-dto.md) ·
+> [taxia-response-model.md](taxia-response-model.md) ·
+> [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) (C1–C9) ·
+> [grounding-policy.md](grounding-policy.md) · [roadmap.md](roadmap.md).
+>
+> **Convenção de leitura.** Ao longo do documento distinguem-se: **[CONTRATO FINAL]**
+> (proposta a implementar em D4+); **[COMPAT. TRANSITÓRIA]** (o que se mantém para não
+> quebrar consumidores actuais); **[IMPLEMENTAÇÃO FUTURA]** (fica para D4+);
+> **[PERSISTÊNCIA FUTURA]** (a decidir depois de estabilizar o contrato); **[EXTERNO]**
+> (campo/valor visível em `EXTERNAL`/`DEMO`); **[INTERNO]** (apenas
+> `INTERNAL`/`CURATION_ONLY`).
+
+## 1. Objectivo
+
+Este documento **fixa o contrato técnico/documental** da resposta documentada da TaxIA,
+para servir de referência estável à implementação futura (D4+). Concretamente:
+
+- é **preparação para implementação futura** — nada é implementado nesta tarefa;
+- **não** implementa Java (sem DTOs/enums reais);
+- **não** altera a API nem os endpoints existentes;
+- **não** define migrations nem colunas;
+- parte directamente do **inventário D2**
+  ([taxia-documented-answer-code-inventory.md](taxia-documented-answer-code-inventory.md)),
+  que confirmou o que existe, é parcial ou falta no código actual;
+- preserva integralmente as decisões conceptuais **C1–C9** e os documentos **D1** e
+  **D2** — **não** reabre nenhuma decisão conceptual.
+
+## 2. Princípio de evolução
+
+**Regra:** *a evolução deve ser incremental, por adição, preservando o fluxo actual
+enquanto se introduz o contrato documentado.* Nada é quebrado de imediato.
+
+Concretização:
+
+- **`GroundedAIResponse` é o ponto de compatibilidade** — evolui como base a expandir
+  ou a envolver por `DocumentedTaxiaAnswer`, mantendo os campos actuais enquanto o
+  frontend e os testes deles dependerem.
+- **`AnswerSource` pode evoluir ou ser adaptado para `SourceEvidence`** — a estrutura
+  rica nova convive com a vista simples actual (que pode passar a ser **derivada** dela).
+- **Contratos existentes não são quebrados de imediato** — `AdminAIController.AskResponse`
+  e o endpoint `/api/v1/admin/ai/ask` mantêm compatibilidade transitória.
+- **Campos novos são introduzidos de forma aditiva** — nunca por substituição destrutiva
+  de campos ainda consumidos.
+- **A projecção externa/interna é uma camada própria** (`AnswerProjection` +
+  `AnswerProjectionService`), não lógica dispersa dentro do grounding.
+- **Decisão e projecção não se misturam** — a decisão de produto (`answerType`,
+  `parecerRequirement`, risco agregado) é separada da transformação de apresentação por
+  `visibilityLevel` (C7).
+
+## 3. Nomes finais propostos
+
+Nomes técnicos/documentais fixados como **[CONTRATO FINAL]** de referência para D4+:
+
+**DTO principal**
+- `DocumentedTaxiaAnswer`
+
+**DTO de fonte/evidência**
+- `SourceEvidence`
+
+**DTO de projecção**
+- `AnswerProjection`
+
+**Serviços conceptuais**
+- `GroundingEvidenceCollector` — recolhe candidatos/evidência a partir do RAG e do grounding.
+- `SourceAssessmentService` — avalia papel, qualidade, núcleo e actualidade das fontes (C9/C8).
+- `RiskAggregationService` — calcula `aggregatedRiskLevel` sobre os fundamentos usados (C4).
+- `AnswerDecisionService` — decide `answerType` e `parecerRequirement` (C2/C3/C5/C6).
+- `AnswerProjectionService` — projecta a resposta por `visibilityLevel` (C7).
+- `BoundaryAnswerBuilder` — constrói a Resposta-limite (evolução do `SafeResponseFactory`).
+- `ParecerRoutingService` — encaminhamento para Pedido de parecer (C3/C6).
+- `InternalDiagnosticsBuilder` — monta o diagnóstico interno (bastidores C7).
+
+> **Nota.** Estes nomes ficam como **contrato de referência** para D4+. A implementação
+> pode optar por **compatibilidade transitória** com nomes já existentes (p. ex. manter
+> `GroundingService`/`GroundedAIResponse` como base), **desde que a semântica seja
+> preservada**. Renomear é decisão de implementação, não desta tarefa.
+
+## 4. DTO principal — `DocumentedTaxiaAnswer`
+
+**[CONTRATO FINAL]** Campos propostos, com tipo conceptual, visibilidade e origem.
+Tipos são **conceptuais** (não Java). Visibilidade segue C1/C7.
+
+| Campo | Tipo conceptual | Visibilidade | Origem / notas |
+|---|---|---|---|
+| `answerId` | UUID/String | **[INTERNO]**; opcional [EXTERNO] se não for ID técnico sensível | Gerado pela resposta. |
+| `question` | String | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | Pergunta original. |
+| `normalizedQuestion` | String | **[INTERNO]** | Pergunta normalizada para pesquisa/diagnóstico. |
+| `shortAnswer` | String | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | Resposta curta (bloco A). |
+| `technicalAnswer` | String | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | Resposta técnica documentada (bloco B). |
+| `answerType` | `AnswerType` | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY (linguagem profissional) | Forma da resposta (C5); campo central. |
+| `supportStatus` | `AnswerSupportStatus` | EXTERNAL/DEMO em linguagem profissional; INTERNAL/CURATION_ONLY com detalhe | **Reutiliza** o enum existente (§7). |
+| `aggregatedRiskLevel` | `AggregatedRiskLevel` **ou** `KnowledgeRiskLevel` reutilizado com semântica própria documentada | EXTERNAL/DEMO em linguagem legível; detalhe [INTERNO] | Risco máximo dos **fundamentos usados** (C4). **Não** é o `riskLevel` da entidade `KnowledgeQuestionAnswer`. |
+| `parecerRequirement` | `ParecerRequirement` | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | `NONE`/`SUGGESTED`/`REQUIRED` (C3/C6). |
+| `visibilityLevel` | `VisibilityLevel` | Usado para projecção; pode **não** ser exposto como campo cru em EXTERNAL/DEMO | Alvo/permissão de projecção (C7). |
+| `freshnessStatus` | `FreshnessStatus` | EXTERNAL/DEMO em linguagem profissional; detalhe [INTERNO] | Actualidade agregada da resposta (C8). |
+| `confidenceSummary` | String | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | Resumo legível de confiança/prudência. |
+| `limitations` | List&lt;String&gt; | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | Limites da resposta. |
+| `assumptions` | List&lt;String&gt; | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | Pressupostos assumidos. |
+| `missingFacts` | List&lt;String&gt; | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | Factos/documentos em falta. |
+| `sourceSummary` | String | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | Síntese da robustez documental (C9). |
+| `sources` | List&lt;`SourceEvidence`&gt; | Projectado conforme `visibilityLevel` | Fontes/evidência (§5). |
+| `warnings` | List&lt;String&gt; | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | Avisos legíveis. |
+| `nextSteps` | List&lt;String&gt; | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | Próximos passos (bloco H). |
+| `internalDiagnostics` | `InternalDiagnostics` | **[INTERNO]** | Diagnóstico técnico (scores, ranking, contagens, prompts) — nunca EXTERNAL/DEMO. |
+
+> `internalDiagnostics` é um agregado **[INTERNO]** (bastidores C7): scores de
+> relevância, ranking, chunks, `unsupportedClaimsCount`, provider/modelo/tokens,
+> estado editorial. A sua estrutura detalhada fica para **[IMPLEMENTAÇÃO FUTURA]** (D11).
+
+## 5. DTO de fonte — `SourceEvidence`
+
+**[CONTRATO FINAL]** Campos propostos, com tipo conceptual e visibilidade. Reaproveita
+o modelo rico de `KnowledgeSourceReference` (D2) como origem natural.
+
+| Campo | Tipo conceptual | Visibilidade | Notas |
+|---|---|---|---|
+| `sourceId` | UUID/String | **[INTERNO]**; opcional [EXTERNO] se referência pública não sensível | Identificador da fonte. |
+| `title` | String | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | Título legível. |
+| `sourceType` | `SourceType` **ou** `KnowledgeSourceType` | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY (linguagem profissional) | Tipo documental (legislação, FAQ oficial, etc.). |
+| `authorityLevel` | `AuthorityLevel` | **[INTERNO]**; EXTERNAL/DEMO só traduzido para linguagem profissional se útil | Autoridade da fonte (C9). |
+| `sourceRole` | `SourceRole` | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY (linguagem profissional) | Papel: principal/complementar/derivada-replicada (C9). |
+| `sourceQuality` | `SourceQuality` | EXTERNAL/DEMO em linguagem profissional; detalhe [INTERNO] | Força/robustez (C9). |
+| `sourceCore` | String/`SourceCoreRef` | **[INTERNO]** | Núcleo material comum — evita efeito eco (C9). |
+| `sourceDiversityGroup` | String/`SourceCoreRef` | **[INTERNO]** | Grupo material para diversidade documental (C9). |
+| `freshnessStatus` | `FreshnessStatus` | EXTERNAL/DEMO em linguagem profissional; detalhe [INTERNO] | Actualidade da fonte (C8). |
+| `legalReference` | String | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY | Referência legal. |
+| `url` | String | EXTERNAL/DEMO/INTERNAL/CURATION_ONLY, quando pública e segura | URL da fonte. |
+| `usedInAnswer` | Boolean | **[INTERNO]** | Distingue candidato **recuperado** de fundamento **usado** (C4). |
+| `supportsConclusion` | Boolean | **[INTERNO]** | A fonte sustenta a conclusão. |
+| `supportsLimitation` | Boolean | **[INTERNO]** | A fonte sustenta uma limitação. |
+| `supportsWarning` | Boolean | **[INTERNO]** | A fonte sustenta um aviso. |
+| `isDerivativeOrReplicated` | Boolean | **[INTERNO]** | Fonte derivada/replicada (não é confirmação independente — C9). |
+| `relatedSources` | List&lt;String/UUID&gt; | **[INTERNO]** | Fontes do mesmo núcleo/relacionadas. |
+| `excerpt` | String (opcional) | **[INTERNO]**; EXTERNAL apenas se jurídica/funcionalmente apropriado | Excerto de suporte. |
+| `notesInternal` | String/List&lt;String&gt; | **[INTERNO]** | Notas internas de curadoria/diagnóstico. |
+
+## 6. DTO de projecção — `AnswerProjection`
+
+**[CONTRATO FINAL]** Campos propostos:
+
+| Campo | Tipo conceptual | Notas |
+|---|---|---|
+| `targetVisibilityLevel` | `VisibilityLevel` | Nível-alvo da projecção. |
+| `visibleAnswer` | estrutura projectada da resposta | Vista transformada de `DocumentedTaxiaAnswer`. |
+| `visibleSources` | List&lt;`SourceEvidence` projectada&gt; | Fontes filtradas/transformadas conforme o nível. |
+| `visibleWarnings` | List&lt;String&gt; | Avisos legíveis. |
+| `visibleLimitations` | List&lt;String&gt; | Limitações legíveis. |
+| `visibleParecerRequirement` | `ParecerRequirement` | Encaminhamento projectado. |
+| `hiddenDiagnostics` | List&lt;String&gt; | Elementos **ocultados** por política C7 (registo do que foi omitido). |
+| `projectionRulesApplied` | List&lt;String&gt; | Regras aplicadas — **[INTERNO]** ou logs internos. |
+
+Regras do `AnswerProjection`:
+
+- **não decide `answerType`** — recebe-o já decidido pelo `AnswerDecisionService`;
+- **apenas transforma a apresentação** (o que se mostra e como), não o conteúdo lógico;
+- **não esconde limitações relevantes** — limitações, factos em falta e
+  `parecerRequirement` continuam visíveis em EXTERNAL/DEMO;
+- **não reduz a qualidade em EXTERNAL/DEMO** — produto profissional limpo, apenas sem
+  bastidores (C7).
+
+## 7. Enums finais propostos
+
+**[CONTRATO FINAL]** Enums e valores (sem thresholds, sem scoring — C22/C23).
+
+**`AnswerType`**
+- `CONSULTA_DOCUMENTADA`
+- `CONSULTA_DOCUMENTADA_COM_LIMITACOES`
+- `RESPOSTA_LIMITE`
+- `PEDIDO_DE_PARECER`
+
+**`ParecerRequirement`**
+- `NONE`
+- `SUGGESTED`
+- `REQUIRED`
+
+**`VisibilityLevel`**
+- `EXTERNAL`
+- `DEMO`
+- `INTERNAL`
+- `CURATION_ONLY`
+
+**`FreshnessStatus`**
+- `CURRENT`
+- `STABLE_BUT_OLD`
+- `UNCERTAIN`
+- `OUTDATED`
+
+**`SourceRole`**
+- `PRIMARY`
+- `COMPLEMENTARY`
+- `DERIVATIVE_REPLICATED`
+
+**`SourceQuality`** (valores conceptuais, sem thresholds)
+- `STRONG`
+- `ADEQUATE`
+- `LIMITED`
+- `WEAK`
+
+**`SourceDiversity`** (valores conceptuais)
+- `MATERIAL_DIVERSITY`
+- `SAME_CORE`
+- `MIXED_OR_UNCLEAR`
+
+**`AuthorityLevel`** (valores conceptuais)
+- `LEGAL`
+- `OFFICIAL_ADMINISTRATIVE`
+- `OFFICIAL_FAQ`
+- `JURISPRUDENCE`
+- `OFFICIAL_COMPLEMENTARY`
+- `INTERNAL_CURATED`
+- `EXTERNAL_NON_OFFICIAL`
+
+**`AggregatedRiskLevel`**
+- **Opção preferencial:** reutilizar `KnowledgeRiskLevel` (`LOW`/`MEDIUM`/`HIGH`/`CRITICAL`,
+  já existente), **documentando semanticamente** que `aggregatedRiskLevel` é **calculado
+  sobre os fundamentos usados** e **não** é o `riskLevel` persistido da entidade.
+- **Alternativa futura:** criar enum próprio `AggregatedRiskLevel` **se** a reutilização
+  gerar ambiguidade. Decisão fica para **[IMPLEMENTAÇÃO FUTURA]** (D4/D6).
+
+**`AnswerSupportStatus`**
+- **Reutilizar** o enum existente (`SUPPORTED`, `PARTIALLY_SUPPORTED`,
+  `INSUFFICIENT_CONTEXT`, `REQUIRES_HUMAN_REVIEW`, `REJECTED_UNSUPPORTED`) se cobrir os
+  estados necessários.
+- Se **não** cobrir, propor **extensão futura** — mas **não** alterar o enum nesta tarefa.
+
+> **Nota de terminologia (C9).** O documento
+> [taxia-documented-response-dto.md](taxia-documented-response-dto.md) descreve uma
+> `SourceQuality` com valores `OFFICIAL/LEGAL/INTERNAL/UNVERIFIED/MIXED` (eixo de
+> **origem/autoridade**). O contrato D3 separa dois eixos: **autoridade** →
+> `AuthorityLevel` (que absorve `OFFICIAL_FAQ`/`LEGAL`/`JURISPRUDENCE`/…) e **força
+> qualitativa** → `SourceQuality` (`STRONG`/`ADEQUATE`/`LIMITED`/`WEAK`). A conciliação
+> definitiva entre os dois eixos fica para **[IMPLEMENTAÇÃO FUTURA]** (D5); ambos são de
+> **desenho**, sem thresholds.
+
+## 8. Compatibilidade com o contrato actual
+
+**[COMPAT. TRANSITÓRIA]** Como evoluir sem quebra:
+
+**`GroundedAIResponse`**
+- É o **ponto de compatibilidade**.
+- Pode ser **expandido** ou **envolvido** por `DocumentedTaxiaAnswer` (camada acima).
+- Deve **manter os campos actuais** enquanto o frontend e os testes deles dependerem.
+
+**`AnswerSource`**
+- Pode **continuar como vista simples** (`title`, `reference`, `relevanceScore`).
+- `SourceEvidence` é criado como **estrutura mais rica**.
+- `AnswerSource` pode passar a ser **derivado/projectado** de `SourceEvidence`.
+
+**`AdminAIController.AskResponse`**
+- Deve **manter compatibilidade transitória** (consumidores actuais: POC `qa-builder.html`,
+  testes).
+- Pode, em fase futura, passar a devolver a **resposta documentada** ou um **envelope
+  compatível** (campos novos aditivos).
+- **D4** deve propor **implementação mínima sem quebrar consumidores**.
+
+**`AssistedInteraction`/`Portal`**
+- É um **circuito paralelo** e **não fundamentado** (D2).
+- **Não** deve ser alterado em D4 **sem decisão própria**.
+- Pode ser **integrado no futuro** no fluxo documentado, mas **não agora**.
+
+## 9. Campos externos vs. internos
+
+Regra (C7): **EXTERNAL/DEMO** recebem **linguagem profissional limpa**;
+**INTERNAL/CURATION_ONLY** podem receber **diagnóstico técnico**.
+
+| Campo/conceito | EXTERNAL/DEMO | INTERNAL/CURATION_ONLY |
+|---|---|---|
+| `answerType` | Sim (linguagem profissional) | Sim (com detalhe) |
+| `supportStatus` | Sim (traduzido, sem jargão de grounding) | Sim (valor cru) |
+| `aggregatedRiskLevel` | Sim (linguagem legível) | Sim (valor + fundamentos) |
+| `parecerRequirement` | Sim | Sim |
+| `freshnessStatus` | Sim (linguagem profissional) | Sim (detalhe temporal) |
+| `sourceQuality` | Sim (linguagem profissional) | Sim (valor + critérios) |
+| `sourceRole` | Sim (linguagem profissional) | Sim |
+| `sourceCore` | **Não** | Sim |
+| chunks / fragmentos | **Não** | Sim |
+| scores de relevância | **Não** (só a prudência que deles decorre) | Sim |
+| ranking | **Não** | Sim |
+| prompts internos | **Não** | Sim |
+| logs | **Não** | Sim |
+| `internalDiagnostics` | **Não** | Sim |
+| IDs técnicos | **Não** (salvo referência pública não sensível) | Sim |
+
+## 10. Persistência e migrations
+
+**[PERSISTÊNCIA FUTURA]**
+
+- **D3 não define migrations** (regra 24) — nenhuma coluna nova é decidida aqui.
+- Muitos campos podem ser **calculados em runtime** inicialmente (`answerType`,
+  `parecerRequirement`, `aggregatedRiskLevel`, `freshnessStatus`, `sourceQuality`,
+  `sourceRole`, `visibilityLevel`), reduzindo a necessidade de migrations prematuras.
+- A **persistência futura** só deve ser decidida **depois de estabilizar o contrato** —
+  quando for claro o que precisa de histórico/auditoria persistente.
+- `sourceCore`, `sourceQuality` e `freshnessStatus` podem **começar como avaliação
+  transitória** (calculada por pedido), não como colunas.
+- **Não criar colunas cedo demais.**
+- `KnowledgeCurationStatus.OUTDATED` **não** deve ser reutilizado como
+  `FreshnessStatus.OUTDATED` — são conceitos distintos (§11).
+
+## 11. Regras de não confusão
+
+Explicitamente:
+
+- `riskLevel` da `KnowledgeQuestionAnswer` **≠** `aggregatedRiskLevel` da resposta.
+  (O primeiro é por caso/persistido; o segundo é calculado sobre os fundamentos usados — C4.)
+- `KnowledgeCurationStatus.OUTDATED` **≠** `FreshnessStatus.OUTDATED`.
+  (O primeiro é estado editorial de curadoria; o segundo é actualidade da fonte na resposta — C8.)
+- Fonte **recuperada pelo RAG** **≠** fonte **usada como fundamento**.
+  (`usedInAnswer` distingue-as; só as usadas contam para risco/robustez — C4/C9.)
+- **Número de fontes** **≠** **diversidade material**.
+  (Várias fontes do mesmo `sourceCore` são eco documental, não confirmações independentes — C9.)
+- **Projecção por `visibilityLevel`** **≠** **decisão de `answerType`**.
+  (A projecção transforma apresentação; não decide a forma da resposta — C7.)
+- **Pedido de parecer** **≠** **falha da resposta automática**.
+  (É encaminhamento estrutural para o circuito humano, sempre disponível — C3/C6.)
+- **Resposta-limite** **≠** **não resposta**.
+  (É uma forma de resposta de pleno direito; "não concluir" pode ser útil — C5.)
+
+## 12. Escopo recomendado para D4
+
+**[IMPLEMENTAÇÃO FUTURA]** D4 deve ser **implementação mínima backend, sem frontend, por
+adição**.
+
+D4 **deve**:
+- introduzir os **enums Java mínimos necessários**;
+- **criar/expandir DTOs** sem quebrar `GroundedAIResponse`;
+- **mapear `GroundedAIResponse`** para o contrato documentado;
+- manter `AdminAIController` **compatível**;
+- **não** criar migrations;
+- **não** alterar `AssistedInteraction`;
+- **não** alterar frontend;
+- **adicionar testes unitários mínimos** se houver implementação.
+
+D4 **não** deve ainda:
+- implementar o **algoritmo completo de `sourceQuality`**;
+- implementar **`sourceCore` automático sofisticado**;
+- implementar **projecção no frontend**;
+- **persistir** `freshness`/`sourceQuality`;
+- **mexer na ingestão massiva**.
+
+## 13. Testes futuros a desenhar
+
+Cenários para D4/D10 (**[IMPLEMENTAÇÃO FUTURA]**, apenas listados):
+
+- `CURRENT` + suporte forte → `CONSULTA_DOCUMENTADA`;
+- `STABLE_BUT_OLD` → nota de actualidade;
+- `UNCERTAIN` → limitações fortes;
+- `OUTDATED` → histórico/`RESPOSTA_LIMITE`;
+- fonte HIGH **usada** → `aggregatedRiskLevel` HIGH;
+- fonte HIGH **recuperada mas não usada** → **não** contamina `aggregatedRiskLevel`;
+- várias fontes `SAME_CORE` → **não** contam como diversidade independente;
+- fonte externa isolada → **não** sustenta conclusão fiscal actual;
+- `EXTERNAL` **oculta** chunks/scores/ranking;
+- `INTERNAL` **mostra** diagnóstico;
+- `parecerRequirement REQUIRED` **não** é erro;
+- Resposta-limite **não** é resposta vazia.
+
+## 14. Critério de conclusão de D3
+
+- Documento **criado** (este ficheiro).
+- **Nomes finais** propostos (DTOs e serviços — §3).
+- **Enums finais** propostos (§7).
+- **Campos principais** fixados (`DocumentedTaxiaAnswer` §4, `SourceEvidence` §5,
+  `AnswerProjection` §6).
+- **Compatibilidade** descrita (`GroundedAIResponse`, `AnswerSource`,
+  `AdminAIController.AskResponse`, `AssistedInteraction` — §8).
+- **Escopo de D4** preparado (§12) e **testes futuros** listados (§13).
+- **Sem implementação** — nenhum código, enum, DTO, migration, API, frontend, dado,
+  publicação, embedding ou teste alterado/executado.
