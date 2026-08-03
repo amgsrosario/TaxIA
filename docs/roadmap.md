@@ -327,8 +327,21 @@ Decisões do Bloco D:
   serviço; `AdminAIController`/`GroundedAIResponse`/`AnswerSource` inalterados; decisões não
   persistidas; testes novos e reforçados, tudo verde. Ver
   [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.C.
-- **D7–D11 — ainda não iniciadas** (projecção por `visibilityLevel`; integração alargada no
-  endpoint; frontend; testes; auditoria/diagnóstico interno).
+- **D7 — concluída (projecção por visibilidade):** `AnswerProjectionService` (`@Service` em
+  `com.knowledgeflow.ai.documented`) projecta uma `DocumentedTaxiaAnswer` numa
+  `AnswerProjection` conforme o `VisibilityLevel`-alvo, transformando só a apresentação —
+  **sem recalcular** `answerType`/`parecerRequirement`/`supportStatus`/`aggregatedRiskLevel`/
+  `freshnessStatus` (recebe-os já decididos em D6). `EXTERNAL`/`DEMO` recebem produto
+  profissional limpo (ocultam diagnóstico interno, núcleo/diversidade de fontes,
+  identificadores técnicos, notas internas e excertos, mas preservam limitações, avisos e
+  `parecerRequirement`); `DEMO` mantém a mesma qualidade de `EXTERNAL`; `INTERNAL` preserva
+  diagnóstico moderado (oculta só `notesInternal`); `CURATION_ONLY` preserva tudo. O
+  `AnswerProjection` ganhou `visibleAnswerType` por adição; o `AdminAIController` devolve
+  `projectedAnswer` (INTERNAL) por adição não quebrante; projecção não persistida; frontend
+  inalterado; testes novos e reforçados, tudo verde. Ver
+  [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.D.
+- **D8–D11 — ainda não iniciadas** (integração alargada no endpoint de consulta; frontend
+  da resposta profissional; testes de cenários críticos; auditoria/diagnóstico interno).
 
 A **materialização técnica** do Bloco C (thresholds, scoring, ranking, enums
 definitivos, limiares por sinal) vive **aqui**, no Bloco D, e **não** abre novo bloco

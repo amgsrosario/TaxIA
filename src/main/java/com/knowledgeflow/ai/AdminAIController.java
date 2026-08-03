@@ -1,7 +1,10 @@
 package com.knowledgeflow.ai;
 
+import com.knowledgeflow.ai.documented.AnswerProjection;
+import com.knowledgeflow.ai.documented.AnswerProjectionService;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswer;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
+import com.knowledgeflow.ai.documented.VisibilityLevel;
 import com.knowledgeflow.ai.grounding.AnswerSource;
 import com.knowledgeflow.ai.grounding.GroundedAIResponse;
 import com.knowledgeflow.ai.grounding.GroundingService;
@@ -26,16 +29,19 @@ public class AdminAIController {
     private final AuthenticatedUserContext authenticatedUserContext;
     private final com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics;
     private final DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper;
+    private final AnswerProjectionService answerProjectionService;
 
     public AdminAIController(GroundingService groundingService, RagSearchService ragSearchService,
             AuthenticatedUserContext authenticatedUserContext,
             com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics,
-            DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper) {
+            DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper,
+            AnswerProjectionService answerProjectionService) {
         this.groundingService = groundingService;
         this.ragSearchService = ragSearchService;
         this.authenticatedUserContext = authenticatedUserContext;
         this.metrics = metrics;
         this.documentedTaxiaAnswerMapper = documentedTaxiaAnswerMapper;
+        this.answerProjectionService = answerProjectionService;
     }
 
     @PostMapping("/ask")
@@ -55,7 +61,11 @@ public class AdminAIController {
         DocumentedTaxiaAnswer documentedAnswer =
                 documentedTaxiaAnswerMapper.fromGroundedResponse(request.question(), grounded);
 
-        return ResponseEntity.ok(AskResponse.from(grounded, documentedAnswer));
+        // Endpoint de admin: projecção INTERNAL (diagnóstico moderado), por adição.
+        AnswerProjection projectedAnswer =
+                answerProjectionService.project(documentedAnswer, VisibilityLevel.INTERNAL);
+
+        return ResponseEntity.ok(AskResponse.from(grounded, documentedAnswer, projectedAnswer));
     }
 
     public record AskRequest(
@@ -79,9 +89,11 @@ public class AdminAIController {
             boolean providerCalled,
             boolean responseRejected,
             int unsupportedClaimsCount,
-            DocumentedTaxiaAnswer documentedAnswer
+            DocumentedTaxiaAnswer documentedAnswer,
+            AnswerProjection projectedAnswer
     ) {
-        public static AskResponse from(GroundedAIResponse g, DocumentedTaxiaAnswer documentedAnswer) {
+        public static AskResponse from(GroundedAIResponse g, DocumentedTaxiaAnswer documentedAnswer,
+                AnswerProjection projectedAnswer) {
             List<String> sourceTitles = g.sources().stream()
                     .map(AnswerSource::title)
                     .toList();
@@ -101,7 +113,8 @@ public class AdminAIController {
                     g.providerCalled(),
                     g.responseRejected(),
                     g.unsupportedClaimsCount(),
-                    documentedAnswer);
+                    documentedAnswer,
+                    projectedAnswer);
         }
     }
 }

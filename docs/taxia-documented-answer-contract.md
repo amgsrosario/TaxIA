@@ -458,6 +458,49 @@ delegar-lhe toda a decisão; deixou de ter os métodos privados de `answerType`/
 `AdminAIController` (`/api/v1/admin/ai/ask`) e o `GroundedAIResponse`/`AnswerSource` ficam
 inalterados (regras 14–16). A projecção por visibilidade continua reservada para D7.
 
+## 12.D. Estado de D7 — projecção por visibilidade (AnswerProjectionService)
+
+**[CONCLUÍDO]** D7 introduziu o `AnswerProjectionService` (`@Service`, pacote
+`com.knowledgeflow.ai.documented`) — projecção **simples, determinística e conservadora** de
+uma `DocumentedTaxiaAnswer` numa `AnswerProjection`, conforme o `VisibilityLevel`-alvo.
+Transforma apenas a **apresentação** (o que se mostra e como): **não decide nem recalcula**
+`answerType`, `parecerRequirement`, `supportStatus`, `aggregatedRiskLevel` nem
+`freshnessStatus` (regras 24–26) — recebe-os já decididos pelo `AnswerDecisionService` (D6)
+e limita-se a preservá-los.
+
+Assinatura: `AnswerProjection project(DocumentedTaxiaAnswer answer, VisibilityLevel target)`.
+Fallback de nível: `target` → senão `answer.visibilityLevel()` → senão `INTERNAL` (default
+seguro). Não altera o objecto original nem persiste (regras 22–23).
+
+Ao `AnswerProjection` foi acrescentado (por adição) o campo `visibleAnswerType`, para
+preservar a forma já decidida — o contrato (§4) já marca `answerType` como visível em todos
+os níveis; nunca é recalculado na projecção.
+
+Regras de projecção por nível:
+- **`EXTERNAL`/`DEMO`** — produto profissional limpo: `visibleSources` mantém só campos
+  seguros (`title`, `sourceType`, `sourceRole`, `sourceQuality`, `freshnessStatus`,
+  `legalReference`, `url`, flags `supportsConclusion/Limitation/Warning`) e **oculta**
+  `sourceId`, `authorityLevel`, `sourceCore`, `sourceDiversityGroup`, `sourceDiversity`,
+  `usedInAnswer`, `derivativeOrReplicated`, `relatedSources`, `excerpt` e `notesInternal`;
+  `internalDiagnostics` nunca é exposto. **Preserva** sempre `visibleLimitations`,
+  `visibleWarnings` e `visibleParecerRequirement` (regras 27–30). `DEMO` segue exactamente
+  a mesma ocultação e qualidade de `EXTERNAL`, com a regra explícita
+  `demo:same-quality-as-external` (regra 29).
+- **`INTERNAL`** — diagnóstico moderado: mantém `sourceCore`/`sourceDiversityGroup`/
+  `sourceDiversity`/`usedInAnswer`/`derivativeOrReplicated`/`relatedSources`/`excerpt`/
+  `sourceId`, ocultando apenas `notesInternal` (reservadas a `CURATION_ONLY`).
+- **`CURATION_ONLY`** — preserva os bastidores completos, incluindo `notesInternal`; nada é
+  ocultado.
+
+`hiddenDiagnostics` regista apenas os **nomes dos tipos** ocultados (nunca valores
+sensíveis); `projectionRulesApplied` regista as regras aplicadas (`visibility:<nível>`,
+`hide:*`, `preserve:*`) — é diagnóstico da **projecção**, não decisão de resposta (regra 31).
+
+O `AdminAIController` (`/api/v1/admin/ai/ask`) passou a injectar o serviço e a devolver, por
+adição não quebrante, o campo `projectedAnswer` no `AskResponse` — projecção `INTERNAL` por
+defeito, por ser endpoint de admin; `documentedAnswer` e todos os campos antigos mantêm-se.
+**Frontend ainda não foi alterado** (regra 18). A projecção **não é persistida** (regra 22).
+
 ## 13. Testes futuros a desenhar
 
 Cenários para D4/D10 (**[IMPLEMENTAÇÃO FUTURA]**, apenas listados):

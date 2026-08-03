@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.knowledgeflow.ai.documented.AnswerDecisionService;
+import com.knowledgeflow.ai.documented.AnswerProjectionService;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
 import com.knowledgeflow.ai.documented.SourceAssessmentService;
 import com.knowledgeflow.ai.grounding.AnswerSource;
@@ -48,6 +49,9 @@ class AdminAIControllerTest {
     // Mapper real (stateless, aditivo) — usado pelo @InjectMocks para não partir o fluxo.
     @Spy private DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper =
             new DocumentedTaxiaAnswerMapper(new SourceAssessmentService(), new AnswerDecisionService());
+
+    // Serviço de projecção real (stateless, aditivo) — projecta INTERNAL no endpoint admin.
+    @Spy private AnswerProjectionService answerProjectionService = new AnswerProjectionService();
 
     @InjectMocks private AdminAIController controller;
 
@@ -118,6 +122,25 @@ class AdminAIControllerTest {
                 .andExpect(jsonPath("$.documentedAnswer.parecerRequirement").value("NONE"))
                 .andExpect(jsonPath("$.documentedAnswer.supportStatus").value("SUPPORTED"))
                 .andExpect(jsonPath("$.documentedAnswer.technicalAnswer").value("Resposta documentada."));
+    }
+
+    // --- Projected answer (D7) present alongside documented answer ---
+
+    @Test
+    void projectedAnswer_presentAsInternal_preservesDecision_onSupportedResponse() throws Exception {
+        when(groundingService.process(anyString(), any(), anyList()))
+                .thenReturn(supportedResponse("Resposta documentada.", "anthropic", "haiku", 10, 5));
+
+        performAsk("Pergunta")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.projectedAnswer").exists())
+                .andExpect(jsonPath("$.projectedAnswer.targetVisibilityLevel").value("INTERNAL"))
+                // Projecção não recalcula: preserva a forma e o encaminhamento decididos.
+                .andExpect(jsonPath("$.projectedAnswer.visibleAnswerType").value("CONSULTA_DOCUMENTADA"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleParecerRequirement").value("NONE"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleAnswer").value("Resposta documentada."))
+                // Documentado antigo mantém-se em paralelo (aditivo).
+                .andExpect(jsonPath("$.documentedAnswer").exists());
     }
 
     // --- Insufficient context: HTTP 200 ---
