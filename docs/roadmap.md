@@ -284,12 +284,17 @@ por `visibilityLevel` (produto profissional limpo em `EXTERNAL`/`DEMO`; bastidor
 
 Decisões do Bloco D:
 
-- **D1 — em documentação/planeamento (iniciado):** contrato técnico preliminar da
+- **D1 — concluída (documentação/planeamento):** contrato técnico preliminar da
   resposta documentada, serviços conceptuais, integração com grounding/RAG, matriz de
   decisão, projecção por visibilidade, lacunas e ordem segura de implementação. Ver
   [taxia-documented-answer-technical-plan.md](taxia-documented-answer-technical-plan.md).
-- **D2–D11 — ainda não iniciadas** (inventário técnico; contrato DTO/enums final;
-  backend mínimo do `DocumentedTaxiaAnswer`; avaliação de fontes; decisão de
+- **D2 — concluída (inventário técnico do código actual):** confronto, confirmado por
+  leitura directa dos ficheiros, entre o código existente (grounding/RAG, DTOs, enums,
+  entidades, endpoints, frontend, testes) e o contrato D1 — o que existe, é parcial,
+  falta, colide ou se reaproveita, com riscos e ordem para D3. Ver
+  [taxia-documented-answer-code-inventory.md](taxia-documented-answer-code-inventory.md).
+- **D3–D11 — ainda não iniciadas** (contrato DTO/enums final; backend mínimo do
+  `DocumentedTaxiaAnswer`; avaliação de fontes; decisão de
   `answerType`/`parecerRequirement`; projecção por `visibilityLevel`; integração no
   endpoint; frontend; testes; auditoria/diagnóstico interno).
 

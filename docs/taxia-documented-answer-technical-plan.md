@@ -229,6 +229,13 @@ proposta técnica/documental, **não** implementação obrigatória imediata.
 O estado abaixo baseia-se num rastreio superficial do repositório; pontos não
 verificados a fundo ficam marcados **a confirmar**.
 
+> **Actualização (D2 concluída).** O inventário técnico aprofundado, já confirmado
+> por leitura directa dos ficheiros, está em
+> [taxia-documented-answer-code-inventory.md](taxia-documented-answer-code-inventory.md).
+> A tabela preliminar abaixo mantém-se como registo do rastreio inicial de D1; para o
+> estado detalhado (existente/parcial/inexistente, colisões e riscos) usar o documento
+> de D2, que a substitui em detalhe.
+
 | Elemento | Estado actual observado | Classificação |
 |---|---|---|
 | DTO de resposta AI (`GroundedAIResponse`) | Existe: `answer`, `supportStatus`, `supportReason`, `sources`, `missingInformation`, `limitations`, `requiresHumanValidation`, tokens, etc. **Não** tem `answerType`, `aggregatedRiskLevel`, `parecerRequirement`, `visibilityLevel`, `freshnessStatus`, `sourceQuality`. | **Existe parcialmente** — falta desenhar/estender. |
@@ -251,7 +258,7 @@ verificados a fundo ficam marcados **a confirmar**.
 
 | Passo | Objectivo |
 |---|---|
-| **D2** | Inventário técnico do estado actual do código (aprofundar a secção 10). |
+| **D2** | ✅ Inventário técnico do estado actual do código — ver [taxia-documented-answer-code-inventory.md](taxia-documented-answer-code-inventory.md). |
 | **D3** | Contrato DTO/enums documentado final (nomes/tipos definitivos). |
 | **D4** | Implementação backend mínima do `DocumentedTaxiaAnswer`. |
 | **D5** | Avaliação de fontes / `SourceEvidence` (papel, qualidade, núcleo, actualidade). |
