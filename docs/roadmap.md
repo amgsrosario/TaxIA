@@ -352,8 +352,24 @@ Decisões do Bloco D:
   request, campos antigos, `documentedAnswer` e `projectedAnswer`. Testes novos e reforçados,
   tudo verde. Ver
   [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.E.
-- **D9–D11 — ainda não iniciadas** (frontend da resposta profissional; testes de cenários
-  críticos; auditoria/diagnóstico interno).
+- **D9 — concluída (frontend da resposta profissional):** componente React/TS isolado e
+  reutilizável `DocumentedAnswerPanel` que apresenta um `AnswerProjection` já projectado
+  pelo backend — cabeçalho com o tipo de resposta, corpo, necessidade de parecer, limitações,
+  avisos e fontes visíveis — traduzindo os enums para rótulos em português de Portugal. Segue
+  o lema "Backend decide, backend projecta, frontend mostra": o frontend **não** recalcula
+  `answerType`/`parecerRequirement`/qualidade/actualidade nem esconde limitações ou a
+  necessidade de parecer; `RESPOSTA_LIMITE` e `PEDIDO_DE_PARECER` são apresentados como
+  respostas profissionais legítimas, nunca como erro. Os tipos de vista
+  (`AnswerProjection`, `VisibleSource` e enums) só declaram campos seguros, pelo que os campos
+  internos (sourceCore, hiddenDiagnostics, internalDiagnostics, notesInternal, excerpt, IDs
+  técnicos) não têm forma de serem apresentados. O componente **não** está ligado a nenhuma
+  rota nem faz chamadas à API (respeita o guard rail do cliente HTTP): não existe UI activa a
+  consumir `/admin/ai/ask`, por isso a validação foi feita por `npm run build` (typecheck +
+  build verdes), sem validação visual possível. Sem alterações ao backend, migrations, dados
+  ou providers externos. Ver
+  [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.F.
+- **D10–D11 — ainda não iniciadas** (testes de cenários críticos; auditoria/diagnóstico
+  interno).
 
 A **materialização técnica** do Bloco C (thresholds, scoring, ranking, enums
 definitivos, limiares por sinal) vive **aqui**, no Bloco D, e **não** abre novo bloco

@@ -526,6 +526,40 @@ endpoint na lente adequada, sem ler roles nem decidir permissões. Não recalcul
 `answerType`/`parecerRequirement` (regras 26–27), não persiste (regra 23) e **não altera o
 frontend** (regra 19).
 
+## 12.F. Estado de D9 — frontend da resposta profissional (DocumentedAnswerPanel)
+
+**[CONCLUÍDO]** D9 materializou a **primeira apresentação** da resposta documentada
+profissional no backoffice (React/Vite/TS), segundo o lema **"Backend decide. Backend
+projecta. Frontend mostra."** O frontend limita-se a apresentar um `AnswerProjection` já
+projectado pelo backend, traduzindo enums para rótulos em português de Portugal — **não
+decide, não recalcula, não infere**.
+
+Peças criadas:
+
+- **Tipos de vista** em `frontend/src/api/types.ts` — `AnswerProjection`, `VisibleSource` e
+  os enums `AnswerType`/`ParecerRequirement`/`VisibilityLevel`/`SourceRole`/`SourceQuality`/
+  `FreshnessStatus`. Estes tipos declaram **apenas os campos seguros**: `VisibleSource`
+  omite deliberadamente `sourceId`, `authorityLevel`, `sourceCore`, `sourceDiversityGroup`,
+  `sourceDiversity`, flags de suporte, `excerpt` e `notesInternal`; o `AnswerProjection` de
+  vista omite `hiddenDiagnostics`/`projectionRulesApplied`. Mesmo que esses campos cheguem no
+  JSON, não têm forma de serem apresentados a partir daqui.
+- **Componente** `frontend/src/components/DocumentedAnswerPanel.tsx` — isolado e reutilizável,
+  apresenta: cabeçalho com o tipo de resposta (`CONSULTA_DOCUMENTADA` → "Consulta
+  documentada"; `..._COM_LIMITACOES` → "Consulta documentada com limitações";
+  `RESPOSTA_LIMITE` → "Resposta-limite"; `PEDIDO_DE_PARECER` → "Pedido de parecer"); corpo da
+  resposta (ou mensagem prudente se vazio); necessidade de parecer (`NONE`/`SUGGESTED`/
+  `REQUIRED` → rótulos próprios); limitações e avisos (nunca escondidos); e fontes visíveis
+  (título, referência legal, papel/qualidade/actualidade traduzidos, URL como ligação só se
+  `http(s)`), com estado vazio "Sem fontes visíveis nesta projecção."
+
+`RESPOSTA_LIMITE` e `PEDIDO_DE_PARECER` são apresentados como **respostas profissionais
+legítimas**, nunca como erro ou falha. O componente **não** está ligado a nenhuma rota nem
+faz chamadas à API: respeita o guard rail do cliente HTTP (que intencionalmente não chama
+`/admin/ai/ask` nesta etapa). Não existindo UI activa a consumir o endpoint, a validação foi
+feita por `npm run build` (typecheck + build verdes); **não foi possível validação visual**.
+Sem alterações a backend, migrations, dados, scripts, contrato de endpoints, ingestão,
+publicação, embeddings ou providers externos (regras 3–14, 25).
+
 ## 13. Testes futuros a desenhar
 
 Cenários para D4/D10 (**[IMPLEMENTAÇÃO FUTURA]**, apenas listados):

@@ -166,3 +166,58 @@ export interface ApiErrorBody {
   timestamp?: string;
   details?: Record<string, unknown>;
 }
+
+// ── Resposta documentada projectada (contrato D3/D7) ──────────────────────────
+// Tipos da VISTA de apresentação de projectedAnswer. Modelam apenas os campos
+// seguros que o frontend mostra. O backend decide e projecta; o frontend só
+// apresenta e traduz rótulos — nunca recalcula nem infere estes valores.
+//
+// Os campos internos do backend (sourceId, authorityLevel, sourceCore,
+// sourceDiversityGroup, sourceDiversity, flags de suporte, excerpt,
+// notesInternal, hiddenDiagnostics, internalDiagnostics) são deliberadamente
+// omitidos destes tipos: mesmo que cheguem no JSON, não têm forma de serem
+// apresentados a partir daqui.
+
+export type AnswerType =
+  | "CONSULTA_DOCUMENTADA"
+  | "CONSULTA_DOCUMENTADA_COM_LIMITACOES"
+  | "RESPOSTA_LIMITE"
+  | "PEDIDO_DE_PARECER";
+
+export type ParecerRequirement = "NONE" | "SUGGESTED" | "REQUIRED";
+
+export type VisibilityLevel = "EXTERNAL" | "DEMO" | "INTERNAL" | "CURATION_ONLY";
+
+export type SourceRole = "PRIMARY" | "COMPLEMENTARY" | "DERIVATIVE_REPLICATED";
+
+export type SourceQuality = "STRONG" | "ADEQUATE" | "LIMITED" | "WEAK";
+
+export type FreshnessStatus = "CURRENT" | "STABLE_BUT_OLD" | "UNCERTAIN" | "OUTDATED";
+
+/**
+ * Fonte visível de uma projecção (subconjunto seguro de SourceEvidence).
+ * Só os campos apresentáveis; os campos internos não são declarados de propósito.
+ */
+export interface VisibleSource {
+  title: string | null;
+  sourceType: string | null;
+  sourceRole: SourceRole | null;
+  sourceQuality: SourceQuality | null;
+  freshnessStatus: FreshnessStatus | null;
+  legalReference: string | null;
+  url: string | null;
+}
+
+/**
+ * AnswerProjection do backend, na vista de apresentação.
+ * hiddenDiagnostics/projectionRulesApplied existem no DTO mas NÃO se mostram.
+ */
+export interface AnswerProjection {
+  targetVisibilityLevel: VisibilityLevel;
+  visibleAnswerType: AnswerType;
+  visibleAnswer: string | null;
+  visibleSources: VisibleSource[];
+  visibleWarnings: string[];
+  visibleLimitations: string[];
+  visibleParecerRequirement: ParecerRequirement;
+}
