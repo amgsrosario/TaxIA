@@ -8,6 +8,12 @@
 > Enquadramento: [taxia-product-vision.md](taxia-product-vision.md) ·
 > [taxia-response-model.md](taxia-response-model.md) · [roadmap.md](roadmap.md)
 > (Bloco B) · [grounding-policy.md](grounding-policy.md).
+>
+> **Plano de materialização (Bloco D):** o contrato técnico global, os serviços de
+> decisão/projecção e a ordem de implementação estão descritos em
+> [taxia-documented-answer-technical-plan.md](taxia-documented-answer-technical-plan.md)
+> (Bloco D, D1). Este documento continua a ser a referência do **contrato/enums**;
+> o plano D1 **não** o duplica.
 
 ## 1. Objectivo
 

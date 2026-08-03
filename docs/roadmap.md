@@ -242,7 +242,13 @@ Definir como `LOW`/`MEDIUM`/`HIGH` aparecem ao utilizador:
 - casos `HIGH` podem ser pesquisáveis, mas **nunca** apresentados como resposta
   autónoma final.
 
-### Bloco D — Ingestão massiva controlada *(por último nesta fase)*
+### Bloco D (desenho) — Ingestão massiva controlada *(por último nesta fase de desenho)*
+
+> **Nota de nomenclatura.** Este "Bloco D — Ingestão massiva controlada" pertence à
+> **sequência de desenho** (Blocos A–D acima). **Não** deve confundir-se com o **Bloco
+> D — Materialização técnica da resposta documentada** (secção seguinte, com decisões
+> D1–D11), que é a **fase técnica** que se segue ao fecho conceptual do Bloco C. A
+> ingestão massiva permanece uma fase **posterior** distinta.
 
 Preparar importação em volume de FAQs oficiais/fontes públicas **sem** publicação
 automática indiscriminada. Deve prever: ingestão industrial; deduplicação;
@@ -262,6 +268,34 @@ revisão; publicação controlada; relatórios por categoria/fonte/risco.
 **Não publicar os casos HIGH (`AT-FAQ-0959`, `AT-FAQ-4624`) como próximo passo
 automático.** Antes disso, definir política explícita de visibilidade e de
 encaminhamento para Pedido de parecer (Bloco C — Decisões C1, C2 e C3).
+
+## Bloco D — Materialização técnica da resposta documentada
+
+> **Fase técnica seguinte ao fecho conceptual do Bloco C (C1–C9).** O Bloco C
+> permanece **conceptualmente fechado**; o Bloco D **não reabre** nenhuma das decisões
+> C1–C9 — **materializa-as** tecnicamente. Documento-base:
+> [taxia-documented-answer-technical-plan.md](taxia-documented-answer-technical-plan.md).
+
+Objectivo: transformar a política conceptual (risco, visibilidade, actualidade,
+parecer e qualidade das fontes) num **contrato técnico** e numa **arquitectura** de
+serviços — construir primeiro a **resposta documentada completa** e depois **projectá-la**
+por `visibilityLevel` (produto profissional limpo em `EXTERNAL`/`DEMO`; bastidores em
+`INTERNAL`/`CURATION_ONLY`), sem alterar a qualidade conceptual da resposta.
+
+Decisões do Bloco D:
+
+- **D1 — em documentação/planeamento (iniciado):** contrato técnico preliminar da
+  resposta documentada, serviços conceptuais, integração com grounding/RAG, matriz de
+  decisão, projecção por visibilidade, lacunas e ordem segura de implementação. Ver
+  [taxia-documented-answer-technical-plan.md](taxia-documented-answer-technical-plan.md).
+- **D2–D11 — ainda não iniciadas** (inventário técnico; contrato DTO/enums final;
+  backend mínimo do `DocumentedTaxiaAnswer`; avaliação de fontes; decisão de
+  `answerType`/`parecerRequirement`; projecção por `visibilityLevel`; integração no
+  endpoint; frontend; testes; auditoria/diagnóstico interno).
+
+A **materialização técnica** do Bloco C (thresholds, scoring, ranking, enums
+definitivos, limiares por sinal) vive **aqui**, no Bloco D, e **não** abre novo bloco
+conceptual.
 
 ## Deferred Complexity
 
