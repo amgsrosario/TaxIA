@@ -501,6 +501,31 @@ adição não quebrante, o campo `projectedAnswer` no `AskResponse` — projecç
 defeito, por ser endpoint de admin; `documentedAnswer` e todos os campos antigos mantêm-se.
 **Frontend ainda não foi alterado** (regra 18). A projecção **não é persistida** (regra 22).
 
+## 12.E. Estado de D8 — resolução da lente de projecção (VisibilityLevelResolver)
+
+**[CONCLUÍDO]** D8 introduziu o `VisibilityLevelResolver` (`@Service`, pacote
+`com.knowledgeflow.ai.documented`) — ponto único, simples e determinístico, onde se decide
+**que vista mostrar** (a lente de projecção), separado de "que resposta dar" (decisão, D6) e
+de "como projectar" (transformação, D7). Métodos:
+
+- `resolveForAdminAsk()` → `INTERNAL` (usado no fluxo);
+- `resolveForExternalProfessional()` → `EXTERNAL`;
+- `resolveForDemo()` → `DEMO`;
+- `resolveForCuration()` → `CURATION_ONLY`.
+
+Os três últimos ficam **preparados para integração futura** — ainda não estão ligados a
+nenhum fluxo. O `AdminAIController` passou a obter a lente via
+`visibilityLevelResolver.resolveForAdminAsk()` (em vez do literal `VisibilityLevel.INTERNAL`)
+e continua a chamar o `AnswerProjectionService` com esse valor. Comportamento observável
+inalterado: `/api/v1/admin/ai/ask` mantém request, campos antigos, `documentedAnswer` e
+`projectedAnswer` (projecção INTERNAL).
+
+**D8 não implementa autorização**: a autenticação/autorização continua no mecanismo já
+existente (`@PreAuthorize('hasRole(''ADMIN'')')`); o resolvedor apenas traduz o contexto do
+endpoint na lente adequada, sem ler roles nem decidir permissões. Não recalcula
+`answerType`/`parecerRequirement` (regras 26–27), não persiste (regra 23) e **não altera o
+frontend** (regra 19).
+
 ## 13. Testes futuros a desenhar
 
 Cenários para D4/D10 (**[IMPLEMENTAÇÃO FUTURA]**, apenas listados):

@@ -5,6 +5,7 @@ import com.knowledgeflow.ai.documented.AnswerProjectionService;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswer;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
 import com.knowledgeflow.ai.documented.VisibilityLevel;
+import com.knowledgeflow.ai.documented.VisibilityLevelResolver;
 import com.knowledgeflow.ai.grounding.AnswerSource;
 import com.knowledgeflow.ai.grounding.GroundedAIResponse;
 import com.knowledgeflow.ai.grounding.GroundingService;
@@ -30,18 +31,21 @@ public class AdminAIController {
     private final com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics;
     private final DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper;
     private final AnswerProjectionService answerProjectionService;
+    private final VisibilityLevelResolver visibilityLevelResolver;
 
     public AdminAIController(GroundingService groundingService, RagSearchService ragSearchService,
             AuthenticatedUserContext authenticatedUserContext,
             com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics,
             DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper,
-            AnswerProjectionService answerProjectionService) {
+            AnswerProjectionService answerProjectionService,
+            VisibilityLevelResolver visibilityLevelResolver) {
         this.groundingService = groundingService;
         this.ragSearchService = ragSearchService;
         this.authenticatedUserContext = authenticatedUserContext;
         this.metrics = metrics;
         this.documentedTaxiaAnswerMapper = documentedTaxiaAnswerMapper;
         this.answerProjectionService = answerProjectionService;
+        this.visibilityLevelResolver = visibilityLevelResolver;
     }
 
     @PostMapping("/ask")
@@ -61,9 +65,11 @@ public class AdminAIController {
         DocumentedTaxiaAnswer documentedAnswer =
                 documentedTaxiaAnswerMapper.fromGroundedResponse(request.question(), grounded);
 
-        // Endpoint de admin: projecção INTERNAL (diagnóstico moderado), por adição.
+        // Lente de projecção resolvida centralmente (D8); admin → INTERNAL (diagnóstico
+        // moderado). A autorização mantém-se no @PreAuthorize; aqui só se escolhe a vista.
+        VisibilityLevel targetVisibility = visibilityLevelResolver.resolveForAdminAsk();
         AnswerProjection projectedAnswer =
-                answerProjectionService.project(documentedAnswer, VisibilityLevel.INTERNAL);
+                answerProjectionService.project(documentedAnswer, targetVisibility);
 
         return ResponseEntity.ok(AskResponse.from(grounded, documentedAnswer, projectedAnswer));
     }

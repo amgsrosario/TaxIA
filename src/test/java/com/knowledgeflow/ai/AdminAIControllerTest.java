@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,6 +14,7 @@ import com.knowledgeflow.ai.documented.AnswerDecisionService;
 import com.knowledgeflow.ai.documented.AnswerProjectionService;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
 import com.knowledgeflow.ai.documented.SourceAssessmentService;
+import com.knowledgeflow.ai.documented.VisibilityLevelResolver;
 import com.knowledgeflow.ai.grounding.AnswerSource;
 import com.knowledgeflow.ai.grounding.AnswerSupportStatus;
 import com.knowledgeflow.ai.grounding.GroundedAIResponse;
@@ -52,6 +54,9 @@ class AdminAIControllerTest {
 
     // Serviço de projecção real (stateless, aditivo) — projecta INTERNAL no endpoint admin.
     @Spy private AnswerProjectionService answerProjectionService = new AnswerProjectionService();
+
+    // Resolver real (stateless) — devolve a lente INTERNAL para o endpoint admin (D8).
+    @Spy private VisibilityLevelResolver visibilityLevelResolver = new VisibilityLevelResolver();
 
     @InjectMocks private AdminAIController controller;
 
@@ -141,6 +146,29 @@ class AdminAIControllerTest {
                 .andExpect(jsonPath("$.projectedAnswer.visibleAnswer").value("Resposta documentada."))
                 // Documentado antigo mantém-se em paralelo (aditivo).
                 .andExpect(jsonPath("$.documentedAnswer").exists());
+    }
+
+    // --- Visibility resolver drives projection (D8) ---
+
+    @Test
+    void projectedAnswer_usesInternalFromResolver_andControllerDoesNotRecalculateDecision() throws Exception {
+        when(groundingService.process(anyString(), any(), anyList()))
+                .thenReturn(supportedResponse("Resposta documentada.", "anthropic", "haiku", 10, 5));
+
+        performAsk("Pergunta")
+                .andExpect(status().isOk())
+                // Lente vem do resolver (INTERNAL para admin).
+                .andExpect(jsonPath("$.projectedAnswer.targetVisibilityLevel").value("INTERNAL"))
+                // documentedAnswer mantém visibilityLevel INTERNAL.
+                .andExpect(jsonPath("$.documentedAnswer.visibilityLevel").value("INTERNAL"))
+                // Decisão preservada (não recalculada no controller nem na projecção).
+                .andExpect(jsonPath("$.projectedAnswer.visibleAnswerType").value("CONSULTA_DOCUMENTADA"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleParecerRequirement").value("NONE"))
+                .andExpect(jsonPath("$.documentedAnswer.answerType").value("CONSULTA_DOCUMENTADA"))
+                .andExpect(jsonPath("$.documentedAnswer.parecerRequirement").value("NONE"));
+
+        // A escolha da lente passa pelo resolver central (D8).
+        verify(visibilityLevelResolver).resolveForAdminAsk();
     }
 
     // --- Insufficient context: HTTP 200 ---

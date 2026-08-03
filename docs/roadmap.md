@@ -340,8 +340,20 @@ Decisões do Bloco D:
   `projectedAnswer` (INTERNAL) por adição não quebrante; projecção não persistida; frontend
   inalterado; testes novos e reforçados, tudo verde. Ver
   [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.D.
-- **D8–D11 — ainda não iniciadas** (integração alargada no endpoint de consulta; frontend
-  da resposta profissional; testes de cenários críticos; auditoria/diagnóstico interno).
+- **D8 — concluída (resolução da lente de projecção):** `VisibilityLevelResolver`
+  (`@Service` em `com.knowledgeflow.ai.documented`) centraliza — de forma simples e
+  determinística — a escolha do `VisibilityLevel`-alvo por endpoint/contexto, separando "que
+  vista mostrar" de "que resposta dar" (D6) e "como projectar" (D7). `resolveForAdminAsk()`
+  devolve `INTERNAL` e é usado pelo `AdminAIController` (que substituiu o literal
+  `VisibilityLevel.INTERNAL` pela chamada ao serviço); `resolveForExternalProfessional()`/
+  `resolveForDemo()`/`resolveForCuration()` ficam preparados para integração futura, ainda
+  não ligados a nenhum fluxo. D8 **não** implementa autorização (mantém-se o `@PreAuthorize`
+  existente), não recalcula decisão, não persiste e não altera o frontend; o endpoint mantém
+  request, campos antigos, `documentedAnswer` e `projectedAnswer`. Testes novos e reforçados,
+  tudo verde. Ver
+  [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.E.
+- **D9–D11 — ainda não iniciadas** (frontend da resposta profissional; testes de cenários
+  críticos; auditoria/diagnóstico interno).
 
 A **materialização técnica** do Bloco C (thresholds, scoring, ranking, enums
 definitivos, limiares por sinal) vive **aqui**, no Bloco D, e **não** abre novo bloco
