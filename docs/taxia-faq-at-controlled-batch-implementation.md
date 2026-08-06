@@ -99,9 +99,96 @@ reprocessamento idempotente; lote vazio válido.
 
 Comando: `mvn -o test -Dtest=AtFaqControlledBatchServiceTest` → **15/15 verdes**.
 
-## 9. Passo seguinte (E5)
+## 9. Passo seguinte após E4 (E5)
 
 E5 = **pré-curadoria automática**: a partir deste relatório, propor `normalizedQuestion`,
 `shortAnswer`/`technicalAnswer`, `topic`, `riskLevel` e candidatos de fonte para os itens,
 mantendo tudo em quarentena e **sem publicar**. E4 continua a ser apenas simulação: os modos
 `PRE_CURATE`/`REVIEW`/`PUBLISH_GOVERNED` continuam por implementar.
+
+---
+
+# E5 — Pré-curadoria automática controlada
+
+> Frase-mestra: **"A pré-curadoria prepara o caso. Não o autoriza a responder."**
+
+E5 acrescenta, sobre o lote E4, uma camada de **pré-curadoria automática determinística**:
+produz uma **proposta estruturada de curadoria** por item, sem publicar, sem indexar, sem
+*embeddings*, sem BD, sem HTTP e **sem LLM**. A proposta não é decisão final.
+
+## E5.1 Classes criadas (mesmo subpacote `com.knowledgeflow.ingestion.atfaq.batch`)
+
+| Classe | Tipo | Papel |
+| --- | --- | --- |
+| `AtFaqPreCurationSourceCandidate` | record | Candidato de fonte **proposto** (FAQ oficial e/ou legislação): `KnowledgeSourceType`, `AuthorityLevel`, `SourceQuality`, `SourceRole`, `sourceCore`, `SourceDiversity`, `FreshnessStatus`, `official`, `primary`, `warnings`. Nunca é obtido/validado *online*. |
+| `AtFaqPreCuratedBatchItem` | record | Proposta por item: `proposedShortAnswer`/`proposedTechnicalAnswer`, `proposedTopic` (`KnowledgeTopic`), `proposedRiskLevel`, `proposedSources`, `proposedLegalReferences`, `proposedFreshnessStatus`, `proposedPublicationPath`, `duplicateCandidates`, `conflictCandidates`, `confidenceSignals`, `requiredReviewReason`, `eligibleForAutoControlledCandidate`. |
+| `AtFaqPreCurationTotals` | record | Contadores agregados (sem `published`/`indexed` por construção). |
+| `AtFaqPreCurationResult` | record | Resultado: `batchId` (herdado de E4), `generatedAt`, `totals`, `items`, `globalWarnings`, `nextActions`. Sem HTML bruto, sem *chunks*, sem *prompts*. |
+| `AtFaqPreCurationService` | @Service | Motor determinístico. Recebe o `AtFaqBatchReport` (e/ou a lista original) e produz o `AtFaqPreCurationResult`. |
+
+`AtFaqControlledBatchItem` **não foi alterado** — já continha todos os campos necessários
+(`legalReference`, `riskLevel`, `topic`, `officialSource`, `freshnessStatus`, marcadores de
+conflito/manual), pelo que E4 fica intacto.
+
+## E5.2 Regras de geração (determinísticas, sem invenção)
+
+- **`proposedShortAnswer`** — resumo simples e determinístico da resposta existente
+  (original ou técnica), truncado no fim de frase ou em fronteira de palavra (≤ 240 chars);
+  nunca inventado; `null` + aviso quando não há resposta base.
+- **`proposedTechnicalAnswer`** — resposta técnica *verbatim* se existir; caso contrário
+  `null` + aviso. **Nunca gerada por LLM nem inventada.**
+- **`proposedTopic`** — do tema explícito ou inferência simples por palavras-chave
+  (`IVA`/`IRC`/`IRS`/…); *fallback* conservador `OUTROS` + aviso.
+- **`proposedJurisdiction`** — `"PT"` para FAQ AT.
+- **`proposedRiskLevel`** — valor explícito do item; `MEDIUM` por defeito; **nunca baixado
+  por heurística**.
+- **`proposedLegalReferences`** — referência explícita, ou detecção por padrões simples
+  (`CIVA`/`CIRS`/`CIRC`/`CIMI`/…, `artigo N.º`, `art.`); vazio + aviso quando ausente.
+- **`proposedSources`** — sempre um candidato FAQ AT quando há fonte; um candidato
+  `LEGISLATION` por referência legal; `sourceCore` derivado da URL ou da referência
+  normalizada; `SourceDiversity`: `MATERIAL_DIVERSITY` quando FAQ + legislação coexistem,
+  `SAME_CORE` quando duplicado, `MIXED_OR_UNCLEAR` por defeito.
+- **`proposedFreshnessStatus`** — `UNCERTAIN` por defeito; `OUTDATED`/`CURRENT` **apenas**
+  com marcador explícito na *fixture*; nunca inferido de data isolada, nunca validado
+  *online*.
+- **`proposedPublicationPath`** — **herda a classificação E4 e só pode subir prudência,
+  nunca descer**: sem resposta técnica → `NOT_PUBLISHABLE`; `OUTDATED` → ≥ `MANUAL_REQUIRED`;
+  conflito → `MANUAL_REQUIRED`; falta de fundamento legal só transforma `AUTO_CONTROLLED` em
+  `ASSISTED`.
+- **`requiredReviewReason`** — preenchido sempre que a via ≠ `AUTO_CONTROLLED`, com a causa
+  principal (falta resposta técnica / conflito / duplicado / risco / actualidade / falta
+  fundamento legal / fonte não oficial).
+- **`confidenceSignals`** — sinais textuais simples (fonte oficial, resposta técnica,
+  referência legal, diversidade FAQ+legislação, risco explícito, duplicado, conflito).
+
+## E5.3 Invariantes
+
+- Pré-curado **não é publicado**, **não é indexado**, **não entra no RAG**.
+- Nenhum `KnowledgeQuestionAnswer` persistido; nenhum *embedding*; nenhuma chamada a IA/HTTP/BD.
+- Os *records* E5 **não têm** campos `published`/`indexed` (garantia em tempo de compilação).
+- Resultado sem HTML bruto, sem *chunks*, sem *prompts*.
+- Determinístico: mesmo *input* + `Clock` fixo → resultado idêntico (`batchId` herdado de E4).
+
+## E5.4 Testes
+
+`AtFaqPreCurationServiceTest` (16 testes): resultado completo do lote; `totalItems`/
+`preCurated` correctos; item limpo mantém `AUTO_CONTROLLED`; sem fundamento legal →
+`ASSISTED` com `requiredReviewReason`; alto risco → `MANUAL_REQUIRED`; sem resposta técnica →
+`NOT_PUBLISHABLE` e resposta técnica **não inventada**; duplicado nunca `AUTO_CONTROLLED`;
+conflito nunca `AUTO_CONTROLLED`; `freshness` `UNCERTAIN` por defeito; `OUTDATED`/`CURRENT`
+só com marcador explícito; candidato FAQ sempre criado; candidato legal criado quando há
+referência; `SourceDiversity` material quando FAQ+legislação coexistem; resultado sem
+HTML/*prompts*/*chunks*; execução determinística; totais consistentes.
+
+*Fixtures* reutilizam `ControlledBatchFixtures` (lote de 6 itens de E4, intacto) e um item
+opcional `outdatedMarked()` (7.º, marcador `OUTDATED` explícito, fora do lote de 6).
+
+Comando: `mvn -o test -Dtest=AtFaqControlledBatchServiceTest,AtFaqPreCurationServiceTest` →
+**31/31 verdes** (15 E4 + 16 E5).
+
+## E5.5 Passo seguinte (E6)
+
+E6 = **ecrã/relatório de revisão do lote**: apresentar estas propostas a um curador humano
+(agrupadas por via de publicação, com razões e sinais), mantendo tudo em quarentena. E5
+continua a ser apenas proposta: os modos `REVIEW`/`PUBLISH_GOVERNED` continuam por
+implementar.

@@ -140,6 +140,24 @@ final class ControlledBatchFixtures {
                 false);
     }
 
+    /** Optional (7th) item: explicitly marked OUTDATED at source. Not part of {@link #sixItemBatch()}. */
+    static AtFaqControlledBatchItem outdatedMarked() {
+        return new AtFaqControlledBatchItem(
+                "AT-FAQ-1007",
+                "faq://at/local/regime-revogado",
+                "FAQ AT — Regime revogado",
+                "Ainda se aplica o regime especial revogado em 2018?",
+                "Não; o regime foi revogado e substituído.",
+                "O regime referido foi revogado; a resposta serve apenas de histórico/contraste.",
+                "IVA",
+                KnowledgeRiskLevel.LOW,
+                "Diploma revogado (histórico)",
+                true,
+                FreshnessStatus.OUTDATED, // explicit outdated marker
+                false,
+                false);
+    }
+
     /** The full 6-item controlled batch, in a stable order. */
     static List<AtFaqControlledBatchItem> sixItemBatch() {
         return List.of(

@@ -472,7 +472,22 @@ Decisões conceptuais do Bloco E:
   externo, sem BD, sem embeddings, sem publicação, sem indexação, sem migrações, sem
   endpoints, sem frontend. Ver
   [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md).
-- **E5 — ainda não iniciada** (pré-curadoria automática).
+- **E5 — concluída (implementação/pré-curadoria):** camada de pré-curadoria automática
+  **determinística** sobre o lote E4, no mesmo subpacote
+  `com.knowledgeflow.ingestion.atfaq.batch`. Novos *records* `AtFaqPreCurationSourceCandidate`,
+  `AtFaqPreCuratedBatchItem`, `AtFaqPreCurationTotals`, `AtFaqPreCurationResult` e serviço
+  `AtFaqPreCurationService`: geram propostas de curadoria por item (resposta curta/técnica,
+  `KnowledgeTopic`, risco, fontes candidatas FAQ+legislação com `AuthorityLevel`/
+  `SourceQuality`/`SourceRole`/`SourceDiversity`, referências legais, `FreshnessStatus`, via
+  de publicação). Regras: resposta técnica **nunca inventada** (sem LLM); actualidade
+  `UNCERTAIN` por defeito (`OUTDATED`/`CURRENT` só com marcador explícito); via de publicação
+  **herda E4 e só sobe em prudência** (mais-restritivo-ganha). `AtFaqControlledBatchItem`
+  **não alterado**. 16 testes em `AtFaqPreCurationServiceTest` (+ *fixture* opcional
+  `outdatedMarked()`). **Pré-curado não é publicado, não é indexado, não entra no RAG**; sem
+  BD, HTTP, *scraping*, *providers* externos, *embeddings*, endpoints, frontend ou migrações.
+  Ver
+  [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
+  (secção E5).
 - **E6 — ainda não iniciada** (ecrã/relatório de revisão do lote).
 - **E7 — ainda não iniciada** (publicação governada de casos seleccionados).
 - **E8 — ainda não iniciada** (indexação/RAG do lote publicado).

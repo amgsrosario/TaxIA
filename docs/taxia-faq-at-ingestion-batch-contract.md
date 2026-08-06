@@ -564,3 +564,24 @@ controlada** na tarefa E4. A implementação vive no subpacote
 
 Detalhe completo de âmbito, classes, invariantes e passo seguinte (E5) em
 [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md).
+
+## 23. Nota de implementação — E5 (pré-curadoria automática)
+
+O conceito de `PreCuratedBatchItem` / `PreCurationResult` deste contrato foi materializado,
+pela primeira vez, na tarefa E5, ainda **em memória e sem publicação/indexação**:
+
+- os *records* `AtFaqPreCuratedBatchItem`, `AtFaqPreCurationSourceCandidate`,
+  `AtFaqPreCurationTotals` e `AtFaqPreCurationResult` (subpacote
+  `com.knowledgeflow.ingestion.atfaq.batch`) dão forma às "propostas estruturadas de
+  curadoria" — resposta curta/técnica, tema, risco, fontes candidatas, referências legais,
+  actualidade e via de publicação proposta;
+- a geração é **determinística e sem LLM**: a resposta técnica nunca é inventada; a
+  actualidade é `UNCERTAIN` por defeito (`OUTDATED`/`CURRENT` só com marcador explícito);
+- a **via de publicação herda a classificação E4 e só sobe em prudência** — regra
+  mais-restritivo-ganha, nunca relaxa;
+- mantêm-se os limites: **pré-curado não é publicado, não é indexado, não entra no RAG**; os
+  modos `REVIEW`/`PUBLISH_GOVERNED` continuam por implementar.
+
+Detalhe em
+[taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
+(secção E5).
