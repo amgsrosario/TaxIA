@@ -456,7 +456,22 @@ Decisões conceptuais do Bloco E:
   eixos (com `KnowledgeCurationStatus.OUTDATED` ≠ `FreshnessStatus.OUTDATED`). Sem
   código, migrações, embeddings ou publicação. Ver
   [taxia-faq-at-ingestion-batch-contract.md](taxia-faq-at-ingestion-batch-contract.md).
-- **E4 — ainda não iniciada** (importação controlada de pequeno lote).
+- **E4 — concluída (implementação/simulação):** primeiro lote técnico controlado sobre
+  *fixtures* locais que produz um `AtFaqBatchReport` auditável, provando o fluxo de
+  governação **sem tocar no reino publicável** (`published`/`indexed` sempre 0). Novo
+  subpacote `com.knowledgeflow.ingestion.atfaq.batch`: enum `AtFaqBatchPublicationPath`
+  (`AUTO_CONTROLLED`/`ASSISTED`/`MANUAL_REQUIRED`/`NOT_PUBLISHABLE`, sem *scoring*, regra
+  mais-restritivo-ganha), *records* `AtFaqControlledBatchItem`, `AtFaqBatchReport`,
+  `AtFaqBatchReportTotals`, `AtFaqBatchItemSummary`, e o serviço em memória
+  `AtFaqControlledBatchService` (reutiliza `AtFaqNormalizer` para `contentHash`/
+  normalização; detecta duplicados por ordem de ocorrência e conflitos por pergunta com
+  respostas divergentes; execução determinística/idempotente). *Fixtures* Java em
+  `ControlledBatchFixtures` (6 itens cobrindo limpo/sem-fundamento-legal/duplicado/
+  conflito/alto-risco/sem-resposta-técnica) e 15 testes em
+  `AtFaqControlledBatchServiceTest`. Sem *scraping*, sem HTTP externo, sem provider
+  externo, sem BD, sem embeddings, sem publicação, sem indexação, sem migrações, sem
+  endpoints, sem frontend. Ver
+  [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md).
 - **E5 — ainda não iniciada** (pré-curadoria automática).
 - **E6 — ainda não iniciada** (ecrã/relatório de revisão do lote).
 - **E7 — ainda não iniciada** (publicação governada de casos seleccionados).

@@ -540,3 +540,27 @@ E3 considera-se concluída quando:
 - está **pronto para E4** (critérios mínimos do primeiro lote técnico, §19);
 - o [roadmap.md](roadmap.md) marca E3 como concluída e referencia este documento;
 - só documentação em `docs/` foi alterada.
+
+## 22. Nota de implementação — E4 (primeira simulação controlada)
+
+Este contrato conceptual foi materializado, pela primeira vez, numa **simulação técnica
+controlada** na tarefa E4. A implementação vive no subpacote
+`com.knowledgeflow.ingestion.atfaq.batch` e produz um `AtFaqBatchReport` real a partir de
+*fixtures* locais, **ainda sem publicação e sem indexação**:
+
+- os conceitos deste documento passam a ter forma de código: `AtFaqBatchReport` (relatório
+  auditável), `AtFaqBatchReportTotals`, `AtFaqBatchItemSummary`, `AtFaqControlledBatchItem`
+  (item de entrada controlado) e o enum `AtFaqBatchPublicationPath`
+  (`AUTO_CONTROLLED`/`ASSISTED`/`MANUAL_REQUIRED`/`NOT_PUBLISHABLE`);
+- a classificação continua **sem *scoring*** e aplica a regra **mais-restritivo-ganha**:
+  `NOT_PUBLISHABLE > MANUAL_REQUIRED > ASSISTED > AUTO_CONTROLLED`;
+- a `contentHash` e a normalização reutilizam o `AtFaqNormalizer` já existente (§ inventário
+  E2), garantindo o mesmo eixo de estabilidade de conteúdo;
+- os invariantes do §19 são verificados por teste: `published == 0`, `indexed == 0`,
+  idempotência ao nível do relatório, e nenhum item publicado/indexado;
+- **os modos conceptuais `PRE_CURATE`/`REVIEW`/`PUBLISH_GOVERNED` continuam por
+  implementar**: E4 opera em `DRY_RUN` e apenas *propõe* uma via de publicação; não a
+  executa.
+
+Detalhe completo de âmbito, classes, invariantes e passo seguinte (E5) em
+[taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md).
