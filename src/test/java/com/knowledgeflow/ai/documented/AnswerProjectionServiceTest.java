@@ -38,7 +38,19 @@ class AnswerProjectionServiceTest {
                 FreshnessStatus.UNCERTAIN, "Resumo de confiança.",
                 List.of("Limitação relevante."), List.of(), List.of(),
                 "Suporte documental.", sources, List.of("Aviso relevante."),
-                List.of("Confirmar no caso concreto."), "diag=internal;score=0.9");
+                List.of("Confirmar no caso concreto."), internalDiagnostics());
+    }
+
+    private InternalDiagnostics internalDiagnostics() {
+        return new InternalDiagnostics(
+                List.of("answerType=CONSULTA_DOCUMENTADA"),
+                List.of("fonte oficial/legal presente"),
+                List.of("aggregatedRiskLevel ausente (sem risco agregado calculado)"),
+                List.of("overallFreshnessStatus=UNCERTAIN"),
+                List.of("diversidade material aparente"),
+                List.of("EXTERNAL/DEMO ocultam o diagnóstico interno e os bastidores"),
+                List.of("internalDiagnostics", "notesInternal", "technicalIdentifiers"),
+                List.of("sinalizada necessidade de apreciação humana"));
     }
 
     private DocumentedTaxiaAnswer supportedAnswer(VisibilityLevel visibility) {
@@ -73,6 +85,27 @@ class AnswerProjectionServiceTest {
         assertThat(p.hiddenDiagnostics())
                 .contains("internalDiagnostics", "sourceCore", "notesInternal", "technicalIdentifiers");
         assertThat(String.join("|", p.hiddenDiagnostics())).doesNotContain("Nota interna sensível.");
+    }
+
+    @Test
+    void externalAndDemo_neverCarryInternalDiagnosticsValues() {
+        // A AnswerProjection não tem campo internalDiagnostics; o conteúdo do diagnóstico
+        // (sinais/cautelas internas) nunca deve aparecer em nenhuma superfície visível.
+        for (VisibilityLevel level : List.of(VisibilityLevel.EXTERNAL, VisibilityLevel.DEMO)) {
+            AnswerProjection p = service.project(supportedAnswer(null), level);
+            String visibleSurface = String.join("|",
+                    p.visibleAnswer(),
+                    String.join("|", p.visibleLimitations()),
+                    String.join("|", p.visibleWarnings()),
+                    String.join("|", p.hiddenDiagnostics()),
+                    String.join("|", p.projectionRulesApplied()));
+            assertThat(visibleSurface)
+                    .doesNotContain("sinalizada necessidade de apreciação humana")
+                    .doesNotContain("aggregatedRiskLevel ausente")
+                    .doesNotContain("diversidade material aparente");
+            // hiddenDiagnostics apenas nomeia o que se oculta.
+            assertThat(p.hiddenDiagnostics()).contains("internalDiagnostics");
+        }
     }
 
     @Test

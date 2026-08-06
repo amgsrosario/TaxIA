@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.knowledgeflow.ai.documented.AnswerDecisionService;
 import com.knowledgeflow.ai.documented.AnswerProjectionService;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
+import com.knowledgeflow.ai.documented.InternalDiagnosticsBuilder;
 import com.knowledgeflow.ai.documented.SourceAssessmentService;
 import com.knowledgeflow.ai.documented.VisibilityLevelResolver;
 import com.knowledgeflow.ai.grounding.AnswerSource;
@@ -50,7 +51,8 @@ class AdminAIControllerTest {
 
     // Mapper real (stateless, aditivo) — usado pelo @InjectMocks para não partir o fluxo.
     @Spy private DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper =
-            new DocumentedTaxiaAnswerMapper(new SourceAssessmentService(), new AnswerDecisionService());
+            new DocumentedTaxiaAnswerMapper(new SourceAssessmentService(), new AnswerDecisionService(),
+                    new InternalDiagnosticsBuilder());
 
     // Serviço de projecção real (stateless, aditivo) — projecta INTERNAL no endpoint admin.
     @Spy private AnswerProjectionService answerProjectionService = new AnswerProjectionService();

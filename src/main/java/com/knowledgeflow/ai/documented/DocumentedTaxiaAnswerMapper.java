@@ -31,11 +31,14 @@ public class DocumentedTaxiaAnswerMapper {
 
     private final SourceAssessmentService sourceAssessmentService;
     private final AnswerDecisionService answerDecisionService;
+    private final InternalDiagnosticsBuilder internalDiagnosticsBuilder;
 
     public DocumentedTaxiaAnswerMapper(SourceAssessmentService sourceAssessmentService,
-            AnswerDecisionService answerDecisionService) {
+            AnswerDecisionService answerDecisionService,
+            InternalDiagnosticsBuilder internalDiagnosticsBuilder) {
         this.sourceAssessmentService = sourceAssessmentService;
         this.answerDecisionService = answerDecisionService;
+        this.internalDiagnosticsBuilder = internalDiagnosticsBuilder;
     }
 
     /**
@@ -57,6 +60,14 @@ public class DocumentedTaxiaAnswerMapper {
                 grounded.limitations(),
                 grounded.validationMessage());
 
+        // aggregatedRiskLevel mantém-se null (regra 27); o diagnóstico observa esse facto.
+        InternalDiagnostics internalDiagnostics = internalDiagnosticsBuilder.build(
+                supportStatus,
+                grounded.requiresHumanValidation(),
+                sources,
+                decision,
+                null);
+
         return new DocumentedTaxiaAnswer(
                 UUID.randomUUID().toString(),
                 question,
@@ -77,7 +88,7 @@ public class DocumentedTaxiaAnswerMapper {
                 sources,
                 decision.warnings(),
                 decision.nextSteps(),
-                internalDiagnostics(grounded));
+                internalDiagnostics);
     }
 
     private List<SourceEvidence> mapSources(List<AnswerSource> sources, AnswerSupportStatus supportStatus) {
@@ -111,15 +122,6 @@ public class DocumentedTaxiaAnswerMapper {
                     List.of()));
         }
         return List.copyOf(mapped);
-    }
-
-    private String internalDiagnostics(GroundedAIResponse grounded) {
-        return "supportReason=" + grounded.supportReason()
-                + "; provider=" + grounded.provider()
-                + "; model=" + grounded.model()
-                + "; providerCalled=" + grounded.providerCalled()
-                + "; responseRejected=" + grounded.responseRejected()
-                + "; unsupportedClaimsCount=" + grounded.unsupportedClaimsCount();
     }
 
     private List<String> safeList(List<String> list) {

@@ -383,7 +383,30 @@ Decisões do Bloco D:
   campos internos por construção dos tipos). Sem alterações a código funcional, migrations,
   dados ou providers. Suite mínima: **87 testes verdes**. Ver
   [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.G.
-- **D11 — ainda não iniciada** (auditoria/diagnóstico interno).
+- **D11 — concluída (diagnóstico interno):** `InternalDiagnostics` (record) +
+  `InternalDiagnosticsBuilder` (`@Service`) descrevem o **caminho técnico** até à conclusão —
+  «a resposta externa mostra a conclusão profissional; o diagnóstico interno mostra o caminho
+  técnico até lá». É **só runtime**: não persiste, não cria coluna, não faz auditoria em BD nem
+  logs sensíveis. **Observa, não decide** — lê `answerType`/`parecerRequirement` da
+  `AnswerDecision`, não recalcula (regras 22–24). O campo
+  `DocumentedTaxiaAnswer.internalDiagnostics` passou de `String` para `InternalDiagnostics`
+  (alteração compatível e contida; contrato do `AdminAIController` preservado, `documentedAnswer`
+  e `projectedAnswer` intactos). Recolhe sinais de decisão, fontes, risco (assinala a ausência de
+  risco agregado real), actualidade, diversidade e projecção, mais `hiddenForExternal` (só
+  nomes/tipos) e `warningsInternal` — **nunca** valores sensíveis (chunks, scores, ranking,
+  prompts, logs, notas internas, IDs). `EXTERNAL`/`DEMO` **nunca** o expõem; `INTERNAL`/
+  `CURATION_ONLY` preservam-no. Novo `InternalDiagnosticsBuilderTest` (inclui teste de
+  não-fuga de valores sensíveis); testes existentes actualizados. Sem frontend. Suite mínima:
+  **98 testes verdes**. Ver
+  [taxia-documented-answer-contract.md](taxia-documented-answer-contract.md) §12.H.
+
+**Bloco D — conceptualmente fechado com D11.** O modelo de resposta profissional documentada
+está materializado de ponta a ponta (DTO/enums → avaliação de fontes → decisão de prudência →
+projecção por visibilidade → resolução de lente → apresentação → cenários críticos →
+diagnóstico interno). O **próximo passo** natural é a afinação fina *dentro* deste bloco —
+scoring/thresholds definitivos, risco agregado real, auditoria persistida — e a preparação da
+importação real dos casos do piloto (Etapa 9B), **sem** reabrir C1–C9 nem abrir novo bloco
+conceptual.
 
 A **materialização técnica** do Bloco C (thresholds, scoring, ranking, enums
 definitivos, limiares por sinal) vive **aqui**, no Bloco D, e **não** abre novo bloco

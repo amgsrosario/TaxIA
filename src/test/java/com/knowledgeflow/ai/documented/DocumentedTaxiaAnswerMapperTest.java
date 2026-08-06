@@ -17,7 +17,8 @@ import org.junit.jupiter.api.Test;
 class DocumentedTaxiaAnswerMapperTest {
 
     private final DocumentedTaxiaAnswerMapper mapper =
-            new DocumentedTaxiaAnswerMapper(new SourceAssessmentService(), new AnswerDecisionService());
+            new DocumentedTaxiaAnswerMapper(new SourceAssessmentService(), new AnswerDecisionService(),
+                    new InternalDiagnosticsBuilder());
 
     private GroundedAIResponse grounded(AnswerSupportStatus status, List<AnswerSource> sources,
             boolean requiresHumanValidation) {
@@ -119,6 +120,27 @@ class DocumentedTaxiaAnswerMapperTest {
         assertThat(answer.parecerRequirement()).isEqualTo(ParecerRequirement.REQUIRED);
         // Resposta-limite não é "não resposta": mantém texto e diagnóstico.
         assertThat(answer.technicalAnswer()).isNotBlank();
+    }
+
+    @Test
+    void internalDiagnostics_arePopulated_observeDecision_andDoNotFabricateRisk() {
+        var src = new AnswerSource("Código do IVA — Artigo 18.º", "CIVA art. 18.º", 0.9);
+        DocumentedTaxiaAnswer answer = mapper.fromGroundedResponse(
+                "Pergunta", grounded(AnswerSupportStatus.SUPPORTED, List.of(src), false));
+
+        InternalDiagnostics diag = answer.internalDiagnostics();
+        assertThat(diag).isNotNull();
+        // Observa a decisão real (lê, não recalcula).
+        assertThat(diag.decisionSignals()).contains("answerType=CONSULTA_DOCUMENTADA");
+        assertThat(diag.sourceSignals()).contains("fontesUsadas=1", "fonte oficial/legal presente");
+        // Risco agregado não é fabricado a partir da entidade.
+        assertThat(answer.aggregatedRiskLevel()).isNull();
+        assertThat(diag.riskSignals())
+                .anyMatch(s -> s.contains("aggregatedRiskLevel ausente"));
+        // Política de projecção declarada; sem verificação online.
+        assertThat(diag.projectionSignals())
+                .anyMatch(s -> s.contains("EXTERNAL/DEMO ocultam"));
+        assertThat(diag.hiddenForExternal()).contains("internalDiagnostics", "notesInternal");
     }
 
     @Test

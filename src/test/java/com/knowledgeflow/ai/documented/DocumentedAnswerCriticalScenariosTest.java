@@ -36,7 +36,8 @@ class DocumentedAnswerCriticalScenariosTest {
     private final SourceAssessmentService sourceAssessmentService = new SourceAssessmentService();
     private final AnswerDecisionService decisionService = new AnswerDecisionService();
     private final DocumentedTaxiaAnswerMapper mapper =
-            new DocumentedTaxiaAnswerMapper(sourceAssessmentService, decisionService);
+            new DocumentedTaxiaAnswerMapper(sourceAssessmentService, decisionService,
+                    new InternalDiagnosticsBuilder());
     private final AnswerProjectionService projectionService = new AnswerProjectionService();
     private final VisibilityLevelResolver visibilityLevelResolver = new VisibilityLevelResolver();
 
@@ -76,7 +77,15 @@ class DocumentedAnswerCriticalScenariosTest {
                 List.of("Limitação relevante."), List.of(), List.of(),
                 "Suporte documental.", sources, List.of("Aviso relevante."),
                 List.of("Confirmar no caso concreto."),
-                "supportReason=X; provider=stub; score=0.9");
+                new InternalDiagnostics(
+                        List.of("answerType=" + answerType),
+                        List.of("fontesUsadas=" + sources.size()),
+                        List.of("aggregatedRiskLevel ausente (sem risco agregado calculado)"),
+                        List.of("overallFreshnessStatus=UNCERTAIN"),
+                        List.of("diversidade material aparente"),
+                        List.of("EXTERNAL/DEMO ocultam o diagnóstico interno e os bastidores"),
+                        List.of("internalDiagnostics", "notesInternal"),
+                        List.of("cautela interna sensível")));
     }
 
     // ── Cenário 1 — Consulta documentada com fonte forte ──────────────────────

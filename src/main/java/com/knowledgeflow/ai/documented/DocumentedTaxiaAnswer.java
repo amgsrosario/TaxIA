@@ -17,8 +17,10 @@ import java.util.List;
  *       risco <em>agregado da resposta</em> (máximo dos fundamentos usados — C4); não é o
  *       {@code riskLevel} persistido da entidade Knowledge QA. Pode ser {@code null}
  *       enquanto não houver base clara.</li>
- *   <li>{@code internalDiagnostics} é apenas para {@code INTERNAL}/{@code CURATION_ONLY}
- *       (bastidores C7).</li>
+ *   <li>{@code internalDiagnostics} ({@link InternalDiagnostics}, D11) descreve o caminho
+ *       técnico até à conclusão e é apenas para {@code INTERNAL}/{@code CURATION_ONLY}
+ *       (bastidores C7); {@code EXTERNAL}/{@code DEMO} nunca o expõem. Só existe em runtime,
+ *       nunca é persistido.</li>
  * </ul>
  */
 public record DocumentedTaxiaAnswer(
@@ -41,5 +43,5 @@ public record DocumentedTaxiaAnswer(
         List<SourceEvidence> sources,
         List<String> warnings,
         List<String> nextSteps,
-        String internalDiagnostics
+        InternalDiagnostics internalDiagnostics
 ) {}

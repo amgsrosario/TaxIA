@@ -616,6 +616,77 @@ externos. Suite mínima executada (`DocumentedAnswerCriticalScenariosTest` +
 `DocumentedTaxiaAnswerMapperTest` + `AdminAIControllerTest` + `VisibilityLevelResolverTest`):
 87 testes verdes.
 
+## 12.H. Estado de D11 — diagnóstico interno da resposta documentada (InternalDiagnostics)
+
+**[CONCLUÍDO]** D11 introduz o **diagnóstico interno** da resposta documentada:
+`InternalDiagnostics` (record) construído pelo `InternalDiagnosticsBuilder` (`@Service`), no
+pacote `com.knowledgeflow.ai.documented`. Regra central: **«A resposta externa mostra a
+conclusão profissional. O diagnóstico interno mostra o caminho técnico até lá.»**
+
+**Natureza — só runtime, nunca persistido.** O diagnóstico é calculado no momento do
+mapeamento e vive apenas no DTO em memória. **Não** há nova coluna, **não** há migration,
+**não** há auditoria em BD e **não** há logs técnicos sensíveis em consola (regras 16–19).
+
+**Integração.** O campo `DocumentedTaxiaAnswer.internalDiagnostics` passou de `String` para
+`InternalDiagnostics` (alteração compatível e contida — regra 8): só o produzia o mapper e só
+o consumia código de teste; nenhum contrato antigo do `AdminAIController` foi quebrado
+(`documentedAnswer`/`projectedAnswer` preservados; a `AnswerProjection` **não** tem campo de
+diagnóstico, por isso `EXTERNAL`/`DEMO` já o ocultavam por construção). O
+`DocumentedTaxiaAnswerMapper` injecta o builder e passa-lhe a decisão já tomada; o
+`aggregatedRiskLevel` mantém-se `null` (regra 27) e o diagnóstico regista esse facto.
+
+**Observa, não decide (regras 22–24).** O builder **lê** `answerType` e `parecerRequirement`
+da `AnswerDecision` do `AnswerDecisionService`; **não** os recalcula. Reobserva os sinais das
+fontes (autoridade, qualidade, actualidade, diversidade, papel) apenas para **descrever** o
+caminho.
+
+**Sinais recolhidos** (listas de nomes/contagens/enumerados, nunca valores sensíveis):
+
+- `decisionSignals` — `supportStatus`, `requiresHumanValidation`, `answerType`,
+  `parecerRequirement`, eventual rebaixamento de `SUPPORTED` por fraqueza documental, marca de
+  resposta-limite como enquadramento (não erro).
+- `sourceSignals` — contagem de fontes, presença de fonte oficial/legal, fonte forte/adequada,
+  só fontes de autoridade limitada, só derivadas/replicadas, ausência de fontes.
+- `riskSignals` — `aggregatedRiskLevel` ausente (ou nome, se existir) e a nota de que o
+  `riskLevel` persistido da entidade **não** é usado como risco agregado.
+- `freshnessSignals` — `overallFreshnessStatus`, actualidade desactualizada/incerta, sem
+  verificação online.
+- `diversitySignals` — diversidade material aparente, mesmo núcleo (`SAME_CORE`), mista/pouco
+  clara, múltiplas fontes sem diversidade material.
+- `projectionSignals` — política de visibilidade (EXTERNAL/DEMO ocultam; INTERNAL moderado;
+  CURATION_ONLY completo; runtime, não persistido).
+- `hiddenForExternal` — **apenas nomes/tipos** de campos ocultados a EXTERNAL/DEMO
+  (`internalDiagnostics`, `sourceCore`, `sourceDiversity*`, `notesInternal`, `excerpt`,
+  `scores`, `ranking`, `chunks`, `prompts`, `logs`, `technicalIdentifiers`…).
+- `warningsInternal` — cautelas internas (histórico para desactualizadas, não assentar em
+  fontes não oficiais, eco documental, apreciação humana, resposta-limite), **sem** valores
+  sensíveis.
+
+**Visibilidade.** `EXTERNAL`/`DEMO` **nunca** expõem o diagnóstico nem qualquer valor sensível
+(chunks, scores, ranking, prompts, logs, notas internas, IDs técnicos — regras 20–21);
+`INTERNAL` preserva o diagnóstico moderado e `CURATION_ONLY` preserva os bastidores completos.
+
+**Testes.** Novo `InternalDiagnosticsBuilderTest` (9 casos): observação fiel da decisão,
+rebaixamento por fontes fracas, actualidade/histórico, eco documental/`SAME_CORE`,
+resposta-limite como enquadramento, risco ausente vs. nomeado, `null` decision → diagnóstico
+vazio, apreciação humana e — crucial — **nunca fuga de valores sensíveis** (título, referência,
+excerto, nota interna, ID, URL). Actualizados `DocumentedTaxiaAnswerMapperTest` (diagnóstico
+populado, observa decisão, não fabrica risco), `AnswerProjectionServiceTest` (EXTERNAL/DEMO não
+transportam valores do diagnóstico) e os *helpers* de `DocumentedAnswerCriticalScenariosTest` e
+`AdminAIControllerTest`. Suite mínima (`InternalDiagnosticsBuilderTest` +
+`DocumentedAnswerCriticalScenariosTest` + `AnswerProjectionServiceTest` +
+`AnswerDecisionServiceTest` + `SourceAssessmentServiceTest` + `DocumentedTaxiaAnswerMapperTest`
++ `AdminAIControllerTest` + `VisibilityLevelResolverTest`): **98 testes verdes**.
+
+**Frontend.** Sem alterações: o diagnóstico interno **não** chega ao `DocumentedAnswerPanel`
+(os tipos de vista já omitem campos internos — §12.F). Nenhum ficheiro de frontend alterado.
+
+**Fecho do Bloco D.** Com D11 validado, o **Bloco D fica conceptualmente fechado**: o modelo de
+resposta profissional documentada está materializado (DTO/enums, avaliação de fontes, decisão de
+prudência, projecção por visibilidade, resolução de lente, apresentação, testes de cenários
+críticos e diagnóstico interno). A afinação fina futura (scoring/thresholds definitivos, risco
+agregado real, auditoria persistida) vive dentro deste bloco e **não** reabre C1–C9.
+
 ## 13. Testes futuros a desenhar
 
 Cenários para D4/D10 (**[IMPLEMENTAÇÃO FUTURA]**, apenas listados):
