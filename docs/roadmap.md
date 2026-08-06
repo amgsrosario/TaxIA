@@ -446,7 +446,16 @@ Decisões conceptuais do Bloco E:
   publicação automática controlada por critérios), os riscos técnicos e o âmbito de E3.
   Sem código, dados, migrações ou testes alterados. Ver
   [taxia-faq-at-ingestion-pipeline-inventory.md](taxia-faq-at-ingestion-pipeline-inventory.md).
-- **E3 — ainda não iniciada** (contrato técnico de lote de ingestão).
+- **E3 — concluída (documentação/contrato):** contrato técnico conceptual do lote de
+  ingestão FAQ AT — define `IngestionBatch` como unidade auditável de governação (não
+  importação em massa), os modos conceptuais (`DISCOVER`/`DRY_RUN`/`IMPORT` existentes +
+  `PRE_CURATE`/`REVIEW`/`PUBLISH_GOVERNED` futuros), estados do lote, `RawBatchItem`,
+  `PreCuratedBatchItem`, `SourceCandidate`, `PublicationClassification`
+  (`AUTO_CONTROLLED`/`ASSISTED`/`MANUAL_REQUIRED`/`NOT_PUBLISHABLE`, sem *scoring*),
+  `BatchReport`, idempotência, reversão/neutralização, e a separação obrigatória de
+  eixos (com `KnowledgeCurationStatus.OUTDATED` ≠ `FreshnessStatus.OUTDATED`). Sem
+  código, migrações, embeddings ou publicação. Ver
+  [taxia-faq-at-ingestion-batch-contract.md](taxia-faq-at-ingestion-batch-contract.md).
 - **E4 — ainda não iniciada** (importação controlada de pequeno lote).
 - **E5 — ainda não iniciada** (pré-curadoria automática).
 - **E6 — ainda não iniciada** (ecrã/relatório de revisão do lote).
