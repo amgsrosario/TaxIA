@@ -437,7 +437,15 @@ Decisões conceptuais do Bloco E:
   (20–50 FAQs); detecção de duplicados/ecos (C9); só a publicação aciona indexação/RAG. Sem
   código, pipeline, embeddings ou publicação. Ver
   [taxia-assisted-ingestion-curation-policy.md](taxia-assisted-ingestion-curation-policy.md).
-- **E2 — ainda não iniciada** (inventário do pipeline actual de ingestão FAQ AT).
+- **E2 — concluída (documentação/inventário):** inventário do pipeline actual de
+  ingestão FAQ AT — camada RAW (`at_faq_raw_items`), quarentena na camada Q&A
+  (`KnowledgeQuestionAnswer` em `IMPORTED`), curadoria, publicação governada por guards
+  (`isEligibleForRag`: validado + `technicalAnswer` + fonte + validade + revisão de
+  HIGH/CRITICAL), indexação só na publicação e RAG/*grounding*. Identifica as lacunas
+  face ao Bloco E (sem unidade de lote curável, sem pré-curadoria automática, sem
+  publicação automática controlada por critérios), os riscos técnicos e o âmbito de E3.
+  Sem código, dados, migrações ou testes alterados. Ver
+  [taxia-faq-at-ingestion-pipeline-inventory.md](taxia-faq-at-ingestion-pipeline-inventory.md).
 - **E3 — ainda não iniciada** (contrato técnico de lote de ingestão).
 - **E4 — ainda não iniciada** (importação controlada de pequeno lote).
 - **E5 — ainda não iniciada** (pré-curadoria automática).
