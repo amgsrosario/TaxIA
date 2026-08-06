@@ -175,6 +175,7 @@ controladas**. O objectivo é escalar a recolha e a pré-curadoria mantendo
 - [taxia-risk-visibility-policy.md](taxia-risk-visibility-policy.md) — política de risco e visibilidade (Bloco C).
 - [roadmap.md](roadmap.md) — roadmap e fase de consultoria assistida.
 - [grounding-policy.md](grounding-policy.md) — política de *grounding* e suporte.
+- [taxia-assisted-ingestion-curation-policy.md](taxia-assisted-ingestion-curation-policy.md) — ingestão e curadoria assistida, publicação governada (Bloco E). Concretiza o [Princípio 10](#10-escala-com-responsabilidade).
 
 ## 12. Implicações imediatas
 

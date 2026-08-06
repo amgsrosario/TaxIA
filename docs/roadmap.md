@@ -412,6 +412,44 @@ A **materialização técnica** do Bloco C (thresholds, scoring, ranking, enums
 definitivos, limiares por sinal) vive **aqui**, no Bloco D, e **não** abre novo bloco
 conceptual.
 
+## Bloco E — Ingestão e curadoria assistida da base de conhecimento
+
+> **Fase seguinte ao fecho técnico do Bloco D (D1–D11).** Os Blocos C e D permanecem
+> fechados; o Bloco E **não reabre** nenhuma das suas decisões — define **como alimentar** a
+> base de conhecimento em escala sem degradar a resposta profissional documentada. Documento-base:
+> [taxia-assisted-ingestion-curation-policy.md](taxia-assisted-ingestion-curation-policy.md).
+
+Princípio central: **a ingestão pode ser automática; a publicação não tem de ser sempre humana;
+mas tem de ser sempre governada.** Publicação livre/indiscriminada é **proibida**; publicação
+automática **controlada** é possível apenas para casos limpos (fonte oficial, baixo risco,
+suporte forte, actualidade aceitável, sem conflito, sem duplicado enganador, critérios
+auditáveis e reversíveis); havendo risco, incerteza, conflito, baixa qualidade documental,
+actualidade duvidosa ou impacto material, exige-se validação **assistida** ou **manual**.
+
+Decisões conceptuais do Bloco E:
+
+- **E1 — concluída (documentação/política):** política de ingestão e curadoria assistida —
+  importar não é publicar; FAQs oficiais da AT como primeira fonte de escala; caso publicado
+  exige `technicalAnswer` própria; ligação ao fundamento legal; publicação governada por
+  critérios (automática controlada / assistida / manual); curadoria assistida por sistema;
+  separação dos eixos de ingestão/curadoria/publicação/actualidade (com a regra
+  `KnowledgeCurationStatus.OUTDATED` ≠ `FreshnessStatus.OUTDATED`); lotes pequenos auditáveis
+  (20–50 FAQs); detecção de duplicados/ecos (C9); só a publicação aciona indexação/RAG. Sem
+  código, pipeline, embeddings ou publicação. Ver
+  [taxia-assisted-ingestion-curation-policy.md](taxia-assisted-ingestion-curation-policy.md).
+- **E2 — ainda não iniciada** (inventário do pipeline actual de ingestão FAQ AT).
+- **E3 — ainda não iniciada** (contrato técnico de lote de ingestão).
+- **E4 — ainda não iniciada** (importação controlada de pequeno lote).
+- **E5 — ainda não iniciada** (pré-curadoria automática).
+- **E6 — ainda não iniciada** (ecrã/relatório de revisão do lote).
+- **E7 — ainda não iniciada** (publicação governada de casos seleccionados).
+- **E8 — ainda não iniciada** (indexação/RAG do lote publicado).
+- **E9 — ainda não iniciada** (validação de respostas documentadas com casos reais).
+- **E10 — ainda não iniciada** (rollback/despublicação).
+
+> **Nota.** A numeração de tarefas técnicas E2–E10 **não** se confunde com as decisões
+> conceptuais E1–E10 da política (§3–§12 do documento-base).
+
 ## Deferred Complexity
 
 Do not introduce yet:
