@@ -488,7 +488,15 @@ Decisões conceptuais do Bloco E:
   Ver
   [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
   (secção E5).
-- **E6 — ainda não iniciada** (ecrã/relatório de revisão do lote).
+- **E6 — concluída (revisão governada em memória):** `AtFaqReviewDecisionType`,
+  `AtFaqReviewDecision`, `AtFaqReviewItemResult`, `AtFaqReviewTotals`, `AtFaqReviewResult`
+  e `AtFaqReviewService` decidem apenas o próximo portão sobre propostas E5. A regra
+  mais-restritivo-ganha impede promoções indevidas; ausências, duplicados e identificadores
+  desconhecidos têm tratamento determinístico e auditável. `AtFaqReviewServiceTest` cobre
+  os cenários críticos. Sem BD, endpoints, frontend, providers, publicação, indexação ou
+  embeddings; `published=0` e `indexed=0` sempre. Ver
+  [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
+  (secção E6).
 - **E7 — ainda não iniciada** (publicação governada de casos seleccionados).
 - **E8 — ainda não iniciada** (indexação/RAG do lote publicado).
 - **E9 — ainda não iniciada** (validação de respostas documentadas com casos reais).

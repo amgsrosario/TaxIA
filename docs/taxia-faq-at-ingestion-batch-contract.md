@@ -585,3 +585,15 @@ pela primeira vez, na tarefa E5, ainda **em memória e sem publicação/indexaç
 Detalhe em
 [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
 (secção E5).
+
+## 24. Nota de implementação — E6 (revisão governada)
+
+E6 materializa o modo conceptual `REVIEW` através de `AtFaqReviewDecision`,
+`AtFaqReviewItemResult`, `AtFaqReviewTotals`, `AtFaqReviewResult` e
+`AtFaqReviewService`. A revisão decide apenas o próximo portão e aplica a regra
+mais-restritivo-ganha: não pode relaxar a prudência proposta por E5.
+
+O `ReviewResult` continua integralmente em memória. Não cria casos persistidos, fontes,
+embeddings ou chunks; não chama `PUBLISH_GOVERNED`; não publica nem indexa. Os contadores
+`published` e `indexed` existem para tornar a invariância explícita e permanecem sempre zero.
+Uma aceitação significa somente candidatura a futura publicação governada em E7.

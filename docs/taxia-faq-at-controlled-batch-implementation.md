@@ -192,3 +192,47 @@ E6 = **ecrã/relatório de revisão do lote**: apresentar estas propostas a um c
 (agrupadas por via de publicação, com razões e sinais), mantendo tudo em quarentena. E5
 continua a ser apenas proposta: os modos `REVIEW`/`PUBLISH_GOVERNED` continuam por
 implementar.
+
+---
+
+# E6 — Revisão governada das propostas
+
+> Frase-mestra: **"Rever não é publicar. É decidir o próximo portão."**
+
+E6 materializa, ainda exclusivamente em memória, a revisão das propostas E5. Não existe
+UI, endpoint, persistência, publicação, indexação, embedding ou chamada externa.
+
+## E6.1 Tipos e serviço
+
+- `AtFaqReviewDecisionType`: aceitar candidato automático controlado futuro, encaminhar
+  para revisão assistida, exigir revisão manual, rejeitar ou diferir. Nenhum valor publica.
+- `AtFaqReviewDecision`: decisão por `externalId`, revisor, razão e notas não sensíveis.
+- `AtFaqReviewItemResult`: caminho proposto e resultante, flags de aceitação futura,
+  revisão humana, rejeição e diferimento, com avisos e bloqueios.
+- `AtFaqReviewTotals`: contadores auditáveis, incluindo `published=0` e `indexed=0`.
+- `AtFaqReviewResult`: resultado do lote, instante, revisor, itens e próximas ações.
+- `AtFaqReviewService`: aplica decisões por regras determinísticas e conservadoras.
+
+## E6.2 Regras de governação
+
+- O caminho resultante nunca é menos restritivo que o caminho proposto por E5.
+- Só um item `AUTO_CONTROLLED`, sem `requiredReviewReason`, pode ser aceite como candidato
+  a futura publicação automática controlada.
+- Tentativas de promover `ASSISTED`, `MANUAL_REQUIRED` ou `NOT_PUBLISHABLE` para
+  `AUTO_CONTROLLED` ficam bloqueadas e preservam o caminho mais prudente.
+- Uma decisão ausente é `DEFER`; um `AUTO_CONTROLLED` diferido sobe para `ASSISTED`.
+- Decisões duplicadas são resolvidas de modo determinístico pela mais restritiva, com aviso.
+- Decisões para identificadores inexistentes são ignoradas com aviso global.
+- Razão vazia numa decisão forte produz aviso explícito.
+- `acceptedForFuturePublication=true` significa apenas elegibilidade para o portão E7;
+  nunca significa publicado ou indexado.
+
+## E6.3 Invariantes e testes
+
+`AtFaqReviewServiceTest` cobre resultado completo, aceitação limpa, promoções proibidas,
+decisão ausente, duplicada e desconhecida, razão vazia, regra mais restritiva, flags de
+revisão/rejeição/diferimento, determinismo com `Clock` fixo e ausência de HTML bruto,
+prompts e chunks. Em todas as decisões, `published == 0` e `indexed == 0`.
+
+Próximo passo: E7 poderá consumir apenas candidatos explicitamente aceites e voltar a
+aplicar os guards de publicação. E6 não executa esse passo.
