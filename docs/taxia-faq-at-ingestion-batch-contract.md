@@ -597,3 +597,20 @@ O `ReviewResult` continua integralmente em memória. Não cria casos persistidos
 embeddings ou chunks; não chama `PUBLISH_GOVERNED`; não publica nem indexa. Os contadores
 `published` e `indexed` existem para tornar a invariância explícita e permanecem sempre zero.
 Uma aceitação significa somente candidatura a futura publicação governada em E7.
+
+## 25. Nota de implementação — E7 (plano de publicação governada)
+
+E7 cruza `AtFaqPreCurationResult` (E5) com `AtFaqReviewResult` (E6) e produz um **plano**
+através de `AtFaqGovernedPublicationReadiness`, `AtFaqGovernedPublicationGuardResult`,
+`AtFaqGovernedPublicationCandidate`, `AtFaqGovernedPublicationTotals`,
+`AtFaqGovernedPublicationPlan` e `AtFaqGovernedPublicationPlanService`. O plano volta a
+aplicar, por item, todas as guardas de publicação futura e regista se o item poderia seguir
+para um passo real posterior (E8+) — que continua **fora de âmbito**.
+
+Planear não é publicar. O `PublicationPlan` mantém-se integralmente em memória: não cria
+`KnowledgeQuestionAnswer` nem `KnowledgeSourceReference` persistidos, não gera embeddings,
+não corre indexação, não chama `KnowledgeQuestionAnswerPublicationService` nem
+`KnowledgeQaEmbeddingIndexerImpl`, e não toca em `RagSearchService`, `GroundingService`,
+migrations, endpoints ou frontend. Os contadores `published` e `indexed` do
+`PublicationTotals` permanecem sempre zero. `READY_FOR_FUTURE_PUBLICATION` significa apenas
+que todas as guardas passaram — nunca significa publicado ou indexado.

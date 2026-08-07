@@ -236,3 +236,60 @@ prompts e chunks. Em todas as decisões, `published == 0` e `indexed == 0`.
 
 Próximo passo: E7 poderá consumir apenas candidatos explicitamente aceites e voltar a
 aplicar os guards de publicação. E6 não executa esse passo.
+
+---
+
+# E7 — Plano de publicação governada (sem execução real)
+
+> Frase-mestra: **"Planear publicação não é publicar. É provar que nada passa sem guardas."**
+
+E7 cruza a pré-curadoria E5 (`AtFaqPreCurationResult`) com a revisão E6
+(`AtFaqReviewResult`) e produz um **plano** de publicação futura, exclusivamente em
+memória. Não há UI, endpoint, persistência, publicação, indexação, embedding, chamada
+externa nem qualquer uso de `KnowledgeQuestionAnswerPublicationService` ou
+`KnowledgeQaEmbeddingIndexerImpl`. Planear não é publicar.
+
+## E7.1 Classes e serviço
+
+- `AtFaqGovernedPublicationReadiness` (enum): `READY_FOR_FUTURE_PUBLICATION`,
+  `NEEDS_ASSISTED_REVIEW`, `NEEDS_MANUAL_REVIEW`, `BLOCKED`, `DEFERRED`. Nenhum valor
+  publica nem indexa.
+- `AtFaqGovernedPublicationGuardResult`: detalhe da avaliação de guardas — guardas
+  passadas, falhadas, avisos e razões bloqueantes.
+- `AtFaqGovernedPublicationCandidate`: entrada de plano por item, com caminho proposto/
+  resultante, prontidão, flags, respostas propostas (de fixtures), referências legais,
+  resumos de fontes e próximas acções. Nunca HTML bruto, prompts nem chunks.
+- `AtFaqGovernedPublicationTotals`: contadores auditáveis, com `published=0` e `indexed=0`.
+- `AtFaqGovernedPublicationPlan`: plano do lote, instante, autor, totais, candidatos,
+  avisos globais, bloqueios e próximas acções.
+- `AtFaqGovernedPublicationPlanService`: aplica os guards de forma determinística
+  (`Clock` injectável), sem efeitos colaterais.
+
+## E7.2 Guardas para `READY_FOR_FUTURE_PUBLICATION`
+
+Um candidato só fica pronto para publicação futura se **todas** as guardas passarem:
+decisão de revisão presente; aceite para publicação futura; caminho resultante da revisão
+`AUTO_CONTROLLED`; caminho proposto E5 `AUTO_CONTROLLED`; pergunta normalizada presente;
+resposta curta presente; resposta técnica presente; fonte legal presente (aviso, não
+bloqueante); pelo menos uma fonte; pelo menos uma fonte oficial; frescura não `OUTDATED`;
+sem `conflictCandidates`; sem duplicado **bloqueante**; sem `requiredReviewReason` (aviso);
+sem erros bloqueantes da revisão. Se faltar um critério positivo, o item nunca fica pronto.
+
+Nota sobre duplicados: o item canónico mantém, como referência informativa, os
+`duplicateCandidates` que apontam para as suas cópias a jusante — essas cópias são elas
+próprias `NOT_PUBLISHABLE`/rejeitadas. Um duplicado só é **bloqueante** para a cópia
+redundante (caminho ≠ `AUTO_CONTROLLED`), nunca para o item canónico. Assim o item limpo
+pode ficar pronto enquanto a cópia permanece bloqueada.
+
+## E7.3 Invariantes e testes
+
+`AtFaqGovernedPublicationPlanServiceTest` (17 testes) cobre a produção do plano, o item
+limpo pronto, itens assistido/manual não prontos, item rejeitado e sem resposta técnica
+bloqueados, conflito nunca pronto, diferimento, pré-curadoria sem revisão diferida, revisão
+sem pré-curadoria com aviso global, listas de guardas passadas/falhadas, resumos de fontes
+sem conteúdo bruto, `published`/`indexed` sempre zero, consistência dos totais, próximas
+acções que reforçam que nada foi publicado, determinismo e ausência de HTML/prompts/chunks.
+Em todos os candidatos, `published == 0` e `indexed == 0`.
+
+Próximo passo (E8+): publicação/indexação governada real — **não iniciado**. E7 apenas
+prova que nada passa sem guardas.

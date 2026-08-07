@@ -497,7 +497,18 @@ Decisões conceptuais do Bloco E:
   embeddings; `published=0` e `indexed=0` sempre. Ver
   [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
   (secção E6).
-- **E7 — ainda não iniciada** (publicação governada de casos seleccionados).
+- **E7 — concluída (plano de publicação governada, sem execução real):**
+  `AtFaqGovernedPublicationReadiness`, `AtFaqGovernedPublicationGuardResult`,
+  `AtFaqGovernedPublicationCandidate`, `AtFaqGovernedPublicationTotals`,
+  `AtFaqGovernedPublicationPlan` e `AtFaqGovernedPublicationPlanService` cruzam a
+  pré-curadoria E5 com a revisão E6 e reaplicam, por item, todas as guardas de publicação
+  futura. Planear não é publicar: o plano vive em memória, não cria
+  `KnowledgeQuestionAnswer`/`KnowledgeSourceReference` persistidos, não chama
+  `PublicationService` nem `EmbeddingIndexer`, e não toca em migrations, endpoints ou
+  frontend; `published=0` e `indexed=0` sempre. `AtFaqGovernedPublicationPlanServiceTest`
+  cobre os cenários críticos. Ver
+  [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
+  (secção E7).
 - **E8 — ainda não iniciada** (indexação/RAG do lote publicado).
 - **E9 — ainda não iniciada** (validação de respostas documentadas com casos reais).
 - **E10 — ainda não iniciada** (rollback/despublicação).
