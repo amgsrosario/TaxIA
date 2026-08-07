@@ -293,3 +293,36 @@ Em todos os candidatos, `published == 0` e `indexed == 0`.
 
 Próximo passo (E8+): publicação/indexação governada real — **não iniciado**. E7 apenas
 prova que nada passa sem guardas.
+
+# E8A — Materialização governada de drafts Q&A (sem publicação)
+
+E8A transforma exclusivamente candidatos E7 com
+`READY_FOR_FUTURE_PUBLICATION` num objecto Q&A curável em memória. Materializar conhecimento
+não é publicá-lo: é preparar o objecto que poderá seguir para curadoria e para um portão futuro.
+
+## E8A.1 Classes e responsabilidades
+
+- `AtFaqMaterializationCandidate` e `AtFaqMaterializationSourceCandidate` transportam conteúdo
+  curável e fontes estruturadas, sem HTML bruto, prompts, chunks ou embeddings.
+- `AtFaqKnowledgeQaDraftAssembler` reaplica guardas mínimas e produz um draft com
+  `KnowledgeCurationStatus.IMPORTED`.
+- `AtFaqGovernedMaterializationService` selecciona candidatos prontos, elimina duplicados por
+  `externalId` e produz `AtFaqMaterializationResult`, `AtFaqMaterializationTotals` e resultados
+  por item.
+- O handoff E7 foi estendido de forma aditiva para transportar `topic`, `subtopic`, `riskLevel`
+  e as fontes estruturadas já propostas em E5; nenhuma decisão E7 foi alterada.
+
+## E8A.2 Invariantes
+
+- execução exclusivamente em memória e idempotente por `externalId`;
+- `persisted=false`, `knowledgeQaId=null`, `published=false` e `indexed=false`;
+- `publishedAt` e `publishedBy` não existem no draft e, portanto, permanecem nulos;
+- nenhum repository, `KnowledgeQuestionAnswerPublicationService` ou indexador é chamado;
+- nenhum caso fica elegível para RAG;
+- sem BD, migrations, endpoints, frontend, HTTP externo ou providers.
+
+`AtFaqGovernedMaterializationServiceTest` cobre selecção, bloqueios de conteúdo/fontes/guardas,
+conteúdo do draft, idempotência, determinismo e ausência de publicação/indexação.
+
+Próximo passo: E8B poderá implementar publicação governada real, sem indexação automática.
+E9 permanece reservado à indexação/RAG de conhecimento efectivamente publicado.

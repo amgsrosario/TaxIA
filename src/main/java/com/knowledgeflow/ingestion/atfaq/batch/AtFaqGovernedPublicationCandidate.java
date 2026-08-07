@@ -1,5 +1,7 @@
 package com.knowledgeflow.ingestion.atfaq.batch;
 
+import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
+import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
 import java.util.List;
 
 /**
@@ -44,13 +46,18 @@ public record AtFaqGovernedPublicationCandidate(
         boolean deferred,
         String proposedShortAnswer,
         String proposedTechnicalAnswer,
+        KnowledgeTopic proposedTopic,
+        String proposedSubtopic,
         String proposedJurisdiction,
+        KnowledgeRiskLevel proposedRiskLevel,
+        List<AtFaqPreCurationSourceCandidate> proposedSources,
         List<String> proposedLegalReferences,
         List<String> sourceSummaries,
         AtFaqGovernedPublicationGuardResult guardResult,
         List<String> nextActions) {
 
     public AtFaqGovernedPublicationCandidate {
+        proposedSources = proposedSources == null ? List.of() : List.copyOf(proposedSources);
         proposedLegalReferences = proposedLegalReferences == null ? List.of() : List.copyOf(proposedLegalReferences);
         sourceSummaries = sourceSummaries == null ? List.of() : List.copyOf(sourceSummaries);
         nextActions = nextActions == null ? List.of() : List.copyOf(nextActions);

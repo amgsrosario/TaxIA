@@ -607,6 +607,15 @@ através de `AtFaqGovernedPublicationReadiness`, `AtFaqGovernedPublicationGuardR
 aplicar, por item, todas as guardas de publicação futura e regista se o item poderia seguir
 para um passo real posterior (E8+) — que continua **fora de âmbito**.
 
+## 26. Nota de implementação — E8A (materialização sem publicação)
+
+E8A materializa candidatos `READY_FOR_FUTURE_PUBLICATION` como drafts Q&A curáveis em memória.
+O draft usa o estado conservador `IMPORTED`, mantém resposta técnica, classificação e fontes,
+mas não é persistido, validado, publicado nem indexado. Um `KnowledgeQuestionAnswer` curável
+continua fora do RAG enquanto não atravessar os portões posteriores de curadoria, publicação e
+indexação. A materialização é determinística e idempotente por `externalId`; os contadores
+`published` e `indexed` permanecem sempre a zero.
+
 Planear não é publicar. O `PublicationPlan` mantém-se integralmente em memória: não cria
 `KnowledgeQuestionAnswer` nem `KnowledgeSourceReference` persistidos, não gera embeddings,
 não corre indexação, não chama `KnowledgeQuestionAnswerPublicationService` nem

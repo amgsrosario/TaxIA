@@ -509,8 +509,13 @@ Decisões conceptuais do Bloco E:
   cobre os cenários críticos. Ver
   [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
   (secção E7).
-- **E8 — ainda não iniciada** (indexação/RAG do lote publicado).
-- **E9 — ainda não iniciada** (validação de respostas documentadas com casos reais).
+- **E8A — concluída (materialização governada sem publicação):** candidatos E7
+  `READY_FOR_FUTURE_PUBLICATION` são convertidos em drafts Q&A curáveis, determinísticos e
+  idempotentes, exclusivamente em memória. O estado de curadoria é `IMPORTED`; não há
+  persistência, publicação, indexação, embeddings, RAG, endpoints, frontend ou chamadas
+  externas. `published=0` e `indexed=0` são invariantes.
+- **E8B — ainda não iniciada** (publicação governada real sem indexação automática).
+- **E9 — ainda não iniciada** (indexação/RAG do lote publicado).
 - **E10 — ainda não iniciada** (rollback/despublicação).
 
 > **Nota.** A numeração de tarefas técnicas E2–E10 **não** se confunde com as decisões
