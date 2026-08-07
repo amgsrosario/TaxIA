@@ -427,3 +427,11 @@ ausência total de publicação na BD e ausência de HTML/prompts/chunks no rela
 
 Próximo passo: E8B.3 poderá implementar a publicação governada real (sem indexação automática). E9
 permanece reservado à indexação/RAG de conhecimento efectivamente publicado.
+
+> **Nota — E8B.3-prep (inventário do acoplamento publicação-indexação).** Antes da E8B.3 real,
+> foi feito um inventário técnico-documental da ligação entre publicação, indexação, embeddings e
+> RAG: `KnowledgeQuestionAnswerPublicationService.publish(...)` chama o indexador de forma síncrona
+> e atómica (**Caso B**), mas em `test`/`pgtest` o indexador é um stub no-op, pelo que a publicação
+> corre sem gerar embeddings reais. A E8B.3-prep **não publica nem indexa**; apenas documenta e
+> recomenda. Ver
+> [taxia-publication-indexing-coupling-inventory.md](taxia-publication-indexing-coupling-inventory.md).

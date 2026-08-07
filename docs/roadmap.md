@@ -536,6 +536,16 @@ Decisões conceptuais do Bloco E:
   cenários sobre PostgreSQL real. Ver
   [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
   (secção E8B.2).
+- **E8B.3-prep — concluída (inventário do acoplamento publicação-indexação):** inventário
+  técnico-documental da ligação entre publicação, indexação, embeddings e RAG, antes da E8B.3
+  real. Classificação: **Caso B** (a publicação chama a indexação de forma síncrona e atómica),
+  **com mitigação nativa por profile** — em `test`/`pgtest` o indexador é o
+  `StubKnowledgeQaEmbeddingIndexer` (no-op), pelo que `publish(...)` corre sem gerar embeddings
+  reais. Conclusão: E8B.3 pode publicar realmente em BD isolada sem alterar produção; o gargalo
+  real é a transição de curadoria `IMPORTED → VALIDATED`, não o acoplamento de indexação. Tarefa
+  apenas de leitura/documentação (sem código, testes, migrations, endpoints, frontend, BD real ou
+  runtime). Ver
+  [taxia-publication-indexing-coupling-inventory.md](taxia-publication-indexing-coupling-inventory.md).
 - **E8B.3 — ainda não iniciada** (publicação governada real, sem indexação automática).
 - **E9 — ainda não iniciada** (indexação/RAG do lote publicado).
 - **E10 — ainda não iniciada** (rollback/despublicação/desindexação).
