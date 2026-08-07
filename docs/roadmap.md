@@ -546,7 +546,23 @@ Decisões conceptuais do Bloco E:
   apenas de leitura/documentação (sem código, testes, migrations, endpoints, frontend, BD real ou
   runtime). Ver
   [taxia-publication-indexing-coupling-inventory.md](taxia-publication-indexing-coupling-inventory.md).
-- **E8B.3 — ainda não iniciada** (publicação governada real, sem indexação automática).
+- **E8B.3 — concluída (publicação governada real em BD isolada, sem indexação efectiva):** o
+  `AtFaqGovernedPublicationExecutor` recebe o `AtFaqDraftPersistenceResult` da E8B.2, promove de
+  forma governada `IMPORTED → VALIDATED` pela API de domínio real (`markPendingReview()` +
+  `validate(...)`, sem reflexão nem atalhos) e chama o `KnowledgeQuestionAnswerPublicationService.publish(...)`
+  **real** — mas sobre BD isolada (Testcontainers) e profile `pgtest`, onde o indexador activo é o
+  `StubKnowledgeQaEmbeddingIndexer` (no-op). Resultado: só o item limpo, elegível para autonomia
+  futura, chega a `publishedAt`/`publishedBy` em estado `VALIDATED`, com
+  `COUNT(knowledge_qa_embeddings) == 0` — a entidade é `isEligibleForRag()`, mas **sem embedding não
+  é recuperável** pelo RAG. Cobertos: idempotência (segunda execução = *já publicado*, sem
+  `CONFLICT`) e todas as guardas negativas (autonomia futura ausente, intervenção humana, risco ≠
+  `LOW`, sem fonte oficial, sem referência legal, organização errada). Nenhum embedding real; nada
+  em produção; sem migrations, endpoints, frontend, chamadas externas ou base piloto real.
+  `KnowledgeQaEmbeddingIndexerImpl`, `RagSearchService` e `GroundingService` intactos.
+  `AtFaqGovernedPublicationExecutorIT` cobre os cenários sobre PostgreSQL real. As classes de
+  execução usam o infixo `Execution` para não colidirem com a família E7 do plano. Ver
+  [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
+  (secção E8B.3).
 - **E9 — ainda não iniciada** (indexação/RAG do lote publicado).
 - **E10 — ainda não iniciada** (rollback/despublicação/desindexação).
 

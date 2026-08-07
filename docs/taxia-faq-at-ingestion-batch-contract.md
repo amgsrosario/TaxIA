@@ -656,3 +656,28 @@ real não é usada. Mantém `published=0`, `indexed=0`, `embeddings=0`, não ger
 corre indexação, não chama `KnowledgeQaEmbeddingIndexerImpl` e não toca em `RagSearchService`,
 `GroundingService`, migrations, endpoints, frontend, HTTP externo, scraping, providers ou
 auditoria persistida. A execução é determinística (relógio injectável).
+
+## 29. Nota de implementação — E8B.3 (publicação governada real em BD isolada, sem indexação efectiva)
+
+E8B.3 prova a promoção governada até `publishedAt`/`publishedBy` chamando a lógica de publicação
+**real**, sem dar voz efectiva ao conhecimento. O `AtFaqGovernedPublicationExecutor` recebe o
+`AtFaqDraftPersistenceResult` da E8B.2, seleciona apenas os drafts `eligibleForAutoPublicationFuture`
+e sem `requiresHumanIntervention`, promove-os `IMPORTED → VALIDATED` pela API de domínio real
+(`markPendingReview()` + `validate(reviewedBy)` — sem reflexão nem atalhos de estado) e chama o
+`KnowledgeQuestionAnswerPublicationService.publish(...)` **real**. Como `publish(...)` indexa de
+forma síncrona e atómica antes de marcar publicado (**Caso B** do inventário E8B.3-prep), a etapa
+corre **exclusivamente** sobre BD isolada (Testcontainers) e profile `pgtest`, onde o indexador
+activo é o `StubKnowledgeQaEmbeddingIndexer` (no-op): a publicação chega a
+`publishedAt`/`publishedBy` sem gerar qualquer embedding. Cada guarda é reaplicada sobre a entidade
+real (estado `IMPORTED` antes da promoção, risco `LOW`, resposta técnica, sinal
+`OFFICIAL_SOURCE_PRESENT`, referência legal numa fonte persistida, ≥ 1 fonte); o item publicado fica
+`VALIDATED` e, embora `isEligibleForRag()`, **sem embedding não é recuperável** pelo RAG. Mantém
+`indexed=0`, `embeddings=0`, `ragExpected=0` e `COUNT(knowledge_qa_embeddings)=0` mesmo após
+publicação; é idempotente (segunda execução = *já publicado*, sem `CONFLICT`); e bloqueia/ignora
+todas as guardas negativas (autonomia futura ausente, intervenção humana, risco ≠ `LOW`, sem fonte
+oficial, sem referência legal, organização errada). Não usa `KnowledgeQaEmbeddingIndexerImpl`, não
+toca em `RagSearchService`, `GroundingService`, migrations, endpoints, frontend, HTTP externo,
+scraping, providers nem base piloto real. As classes de execução usam o infixo `Execution`
+(`AtFaqGovernedPublicationExecution{Command,ItemResult,Totals,Result}`) para não colidirem com a
+família E7 do plano de publicação. A execução é determinística (relógio injectável) e o
+`actingUserId` de auditoria é derivado de forma determinística de `publishedBy`.

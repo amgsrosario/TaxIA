@@ -435,3 +435,63 @@ permanece reservado à indexação/RAG de conhecimento efectivamente publicado.
 > corre sem gerar embeddings reais. A E8B.3-prep **não publica nem indexa**; apenas documenta e
 > recomenda. Ver
 > [taxia-publication-indexing-coupling-inventory.md](taxia-publication-indexing-coupling-inventory.md).
+
+## E8B.3.1 Classes e responsabilidades
+
+> Frase-mestra: *"Publicar em teste não é dar voz ao conhecimento. É provar que a promoção
+> governada até `publishedAt`/`publishedBy` respeita todos os guardas."*
+
+As classes de execução usam o infixo `Execution` para se distinguirem da **família E7 do plano de
+publicação** (`AtFaqGovernedPublicationPlan`, `AtFaqGovernedPublicationTotals`, …), que partilha o
+prefixo `AtFaqGovernedPublication`.
+
+- `AtFaqGovernedPublicationExecutionMode` (enum, valor único `TEST_ISOLATED_WITH_STUB_INDEXER`) —
+  não existe modo de produção nesta etapa.
+- `AtFaqGovernedPublicationExecutionCommand` — decisão inspecionável, por draft, de *tentar* publicar;
+  invariantes `indexExpected == false` e `requiresStubIndexer == true`, e `publish == true` só sem
+  razões bloqueadoras.
+- `AtFaqGovernedPublicationExecutionItemResult` — resultado por draft (`published`, `validated`,
+  `publishedAt`/`publishedBy`, `curationStatus`, `eligibleForRagByEntityRules`); invariantes de
+  `indexed == false`, `embeddingPresent == false`, `ragExpectedToRetrieve == false`.
+- `AtFaqGovernedPublicationExecutionTotals` — contadores agregados, com invariantes de zero para
+  `indexed`, `embeddings` e `ragExpected`.
+- `AtFaqGovernedPublicationExecutionResult` — único output; sem embeddings, chunks, prompts, HTML
+  bruto ou logs sensíveis.
+- `AtFaqGovernedPublicationExecutor` (`@Service`) — recebe um `AtFaqDraftPersistenceResult`, localiza
+  os Q&A persistidos, confirma a autonomia futura, promove de forma governada `IMPORTED → VALIDATED`
+  pela **API de domínio real** (`markPendingReview()` + `validate(reviewedBy)` — sem reflexão nem
+  atalhos) e chama o **`KnowledgeQuestionAnswerPublicationService.publish(...)` real**. O
+  `actingUserId` de auditoria é derivado de forma determinística de `publishedBy`
+  (`deterministicActor`), para reutilização entre execuções.
+
+## E8B.3.2 Invariantes
+
+- publicação **apenas** em BD isolada (Testcontainers) sob o profile `pgtest`, onde o indexador
+  activo é o `StubKnowledgeQaEmbeddingIndexer` (no-op) — é isto que permite ao `publish(...)` real,
+  que indexa de forma síncrona antes de marcar publicado, chegar a `publishedAt`/`publishedBy`
+  **sem** gerar qualquer embedding;
+- só são publicados drafts `eligibleForAutoPublicationFuture == true` e
+  `requiresHumanIntervention == false`; cada guarda é reaplicada sobre a entidade real (estado
+  `IMPORTED` antes da promoção, risco `LOW`, resposta técnica presente, sinal `OFFICIAL_SOURCE_PRESENT`,
+  referência legal numa fonte persistida, ≥ 1 fonte);
+- item publicado fica em `curationStatus == VALIDATED` com `publishedAt`/`publishedBy` não nulos; a
+  entidade considera-o `isEligibleForRag()`, mas **sem embedding não é recuperável** pelo RAG;
+- `indexed == 0`, `embeddings == 0`, `ragExpected == 0`; `COUNT(knowledge_qa_embeddings) == 0`
+  mesmo após publicação real;
+- idempotência: uma segunda execução encontra o Q&A já publicado e classifica-o como *ignorado (já
+  publicado)*, sem deixar o `publish(...)` lançar `CONFLICT`;
+- guardas negativas bloqueiam/ignoram sem publicar: não elegível para autonomia futura, intervenção
+  humana exigida, risco ≠ `LOW`, sem fonte oficial, sem referência legal, organização errada;
+- `KnowledgeQaEmbeddingIndexerImpl` nunca é usado; `RagSearchService`, `GroundingService` e o
+  próprio `KnowledgeQaEmbeddingIndexerImpl` não são tocados;
+- sem migrations, endpoints, frontend, HTTP externo, scraping, providers ou base piloto real;
+- execução determinística (relógio injectável).
+
+`AtFaqGovernedPublicationExecutorIT` (Testcontainers, PostgreSQL real) cobre, a partir do pipeline
+E4→E8B.2: publicação apenas do item limpo, estado `VALIDATED` + publicado, elegibilidade RAG pela
+entidade sem recuperabilidade efectiva, `COUNT(knowledge_qa_embeddings) == 0` apesar da publicação,
+idempotência, e todas as guardas negativas (autonomia futura ausente, intervenção humana, risco não
+`LOW`, sem fonte oficial, sem referência legal, organização errada), mais a higiene do relatório.
+
+Próximo passo: E9 — indexação/RAG efectiva do conhecimento publicado, sob modelo de embeddings local
+e ambiente próprio; E10 — rollback/despublicação/desindexação governada.
