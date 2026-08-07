@@ -623,3 +623,18 @@ não corre indexação, não chama `KnowledgeQuestionAnswerPublicationService` n
 migrations, endpoints ou frontend. Os contadores `published` e `indexed` do
 `PublicationTotals` permanecem sempre zero. `READY_FOR_FUTURE_PUBLICATION` significa apenas
 que todas as guardas passaram — nunca significa publicado ou indexado.
+
+## 27. Nota de implementação — E8B.1 (executor DRY-RUN de publicação)
+
+E8B.1 ensaia a publicação governada sobre o `AtFaqMaterializationResult` da E8A. Ensaiar
+publicação não é publicar: `AtFaqGovernedPublicationDryRunExecutor` reaplica os guardas usando
+o `draft` já transportado em cada item materializado e, quando passam, produz um
+`AtFaqPublicationDryRunCommand` **simulado** — com a intenção `wouldPersistKnowledgeQa`,
+`wouldCreateSources`, `wouldPublish` e `intendedCurationStatus` (nunca aplicado). `wouldIndex`
+é sempre `false`: a indexação é E9 e nunca é ensaiada. Itens não materializados ficam
+`skipped`; drafts que já tragam `knowledgeQaId`/`persisted`/`published`/`indexed` são
+bloqueados. O relatório mantém `persisted=0`, `published=0`, `indexed=0` e `wouldIndex=0`, não
+persiste `KnowledgeQuestionAnswer` nem `KnowledgeSourceReference`, não gera embeddings, não
+corre indexação, não chama `KnowledgeQuestionAnswerPublicationService` nem
+`KnowledgeQaEmbeddingIndexerImpl` e não toca em `RagSearchService`, `GroundingService`,
+migrations, endpoints ou frontend. O ensaio é determinístico e idempotente.

@@ -326,3 +326,46 @@ conteúdo do draft, idempotência, determinismo e ausência de publicação/inde
 
 Próximo passo: E8B poderá implementar publicação governada real, sem indexação automática.
 E9 permanece reservado à indexação/RAG de conhecimento efectivamente publicado.
+
+# E8B.1 — Executor DRY-RUN de publicação governada (ensaio sem efeitos)
+
+E8B.1 recebe o `AtFaqMaterializationResult` da E8A e **ensaia** a publicação futura de cada
+draft materializado, sem tocar na BD. Ensaiar publicação não é publicar: é validar que o
+executor respeita os guardas antes de tocar na BD.
+
+## E8B.1.1 Classes e responsabilidades
+
+- `AtFaqPublicationDryRunMode` (enum `DRY_RUN_ONLY`, `VALIDATE_ONLY`) — qualquer valor implica
+  zero efeitos reais.
+- `AtFaqPublicationDryRunCommand` transporta a **intenção** de uma publicação futura: acção
+  simbólica, `intendedCurationStatus` (nunca aplicado) e as flags `wouldPersistKnowledgeQa`,
+  `wouldCreateSources`, `wouldPublish` e `wouldIndex` (sempre `false`).
+- `AtFaqPublicationDryRunItemResult` e `AtFaqPublicationDryRunTotals` registam, por draft e no
+  agregado, se o item foi simulado, ignorado (não materializado) ou bloqueado (guarda falhada).
+- `AtFaqPublicationDryRunReport` é o único output do ensaio.
+- `AtFaqGovernedPublicationDryRunExecutor` selecciona apenas itens `materialized == true`, lê o
+  `draft` já transportado no resultado da E8A, reaplica os guardas de publicação e produz
+  comandos simulados. Não é necessária qualquer alteração à E8A: o draft já viaja no item.
+
+## E8B.1.2 Invariantes
+
+- só itens materializados são ensaiados; item não materializado fica `skipped`, não `blocked`;
+- um draft materializado que já traga `knowledgeQaId`, `persisted`, `published` ou `indexed` é
+  recusado (guardas `input-*`), pois indicaria um efeito real indevido a montante;
+- `persisted=0`, `published=0`, `indexed=0` e `wouldIndex=0` em todos os relatórios;
+- `eligibleForDryRunPublication + skipped + blocked == totalDrafts` e `simulated == eligible`;
+- nenhum `KnowledgeQuestionAnswer` ou `KnowledgeSourceReference` é persistido; `publishedAt` e
+  `publishedBy` permanecem nulos;
+- nenhum embedding, nenhuma indexação, nenhum caso elegível para RAG;
+- `KnowledgeQuestionAnswerPublicationService` e `KnowledgeQaEmbeddingIndexerImpl` nunca são
+  chamados; `RagSearchService` e `GroundingService` não são tocados;
+- sem BD, migrations, endpoints, frontend, HTTP externo, scraping ou providers;
+- execução determinística e idempotente (relógio injectável).
+
+`AtFaqGovernedPublicationDryRunExecutorTest` cobre o relatório a partir do pipeline E4→E8A, o
+comando simulado de um draft limpo, os totais/intenção, os casos ignorado e bloqueado, os
+bloqueios por efeito real artificial no input, a reconciliação de totais, determinismo e a
+ausência de HTML/prompts/chunks e de qualquer publicação/indexação.
+
+Próximo passo: E8B.2 poderá implementar a publicação governada real em teste isolado. E9
+permanece reservado à indexação/RAG de conhecimento efectivamente publicado.

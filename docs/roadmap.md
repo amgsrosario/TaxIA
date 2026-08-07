@@ -514,7 +514,17 @@ Decisões conceptuais do Bloco E:
   idempotentes, exclusivamente em memória. O estado de curadoria é `IMPORTED`; não há
   persistência, publicação, indexação, embeddings, RAG, endpoints, frontend ou chamadas
   externas. `published=0` e `indexed=0` são invariantes.
-- **E8B — ainda não iniciada** (publicação governada real sem indexação automática).
+- **E8B.1 — concluída (executor DRY-RUN de publicação governada):** o
+  `AtFaqGovernedPublicationDryRunExecutor` recebe o resultado da E8A, reaplica os guardas sobre
+  o draft já transportado em cada item materializado e produz comandos de publicação
+  **simulados** (`would*`), com `wouldIndex` sempre `false`. Zero efeitos reais: `persisted=0`,
+  `published=0`, `indexed=0`; nada persistido, publicado ou indexado; nenhum
+  `PublicationService`/`EmbeddingIndexer` chamado; sem BD, migrations, endpoints, frontend ou
+  chamadas externas. `AtFaqGovernedPublicationDryRunExecutorTest` cobre os cenários. Ver
+  [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
+  (secção E8B.1).
+- **E8B.2 — ainda não iniciada** (publicação governada real em teste isolado, sem indexação
+  automática).
 - **E9 — ainda não iniciada** (indexação/RAG do lote publicado).
 - **E10 — ainda não iniciada** (rollback/despublicação).
 
