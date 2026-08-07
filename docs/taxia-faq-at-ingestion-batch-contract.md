@@ -638,3 +638,21 @@ persiste `KnowledgeQuestionAnswer` nem `KnowledgeSourceReference`, não gera emb
 corre indexação, não chama `KnowledgeQuestionAnswerPublicationService` nem
 `KnowledgeQaEmbeddingIndexerImpl` e não toca em `RagSearchService`, `GroundingService`,
 migrations, endpoints ou frontend. O ensaio é determinístico e idempotente.
+
+## 28. Nota de implementação — E8B.2 (persistência governada de drafts em BD isolada)
+
+E8B.2 persiste os drafts governados sobre o `AtFaqMaterializationResult` da E8A, cruzados com o
+relatório DRY-RUN da E8B.1. Persistir draft não é publicar: `AtFaqGovernedDraftPersistenceService`
+reaplica os guardas e escreve cada draft limpo como `KnowledgeQuestionAnswer` em estado
+`IMPORTED` — draft curável persistido, não conhecimento publicável — mais as respectivas
+`KnowledgeSourceReference`, através dos repositórios JPA e **nunca** de
+`KnowledgeQuestionAnswerPublicationService`. `publishedAt` e `publishedBy` permanecem nulos, pelo
+que o QA nunca é elegível para RAG (`isEligibleForRag() == false`). A classificação de autonomia
+futura (`eligibleForAutoPublicationFuture`, `requiresHumanIntervention`) é registada para preparar
+publicação automática governada em E8B.3, mas não desencadeia qualquer efeito aqui. A persistência
+é idempotente (`findByOrganizationIdAndSourceSystemAndExternalKey`, sem nova migration) e corre
+sobre uma BD isolada de teste (Testcontainers) com uma `Organization` de teste — a base piloto
+real não é usada. Mantém `published=0`, `indexed=0`, `embeddings=0`, não gera embeddings, não
+corre indexação, não chama `KnowledgeQaEmbeddingIndexerImpl` e não toca em `RagSearchService`,
+`GroundingService`, migrations, endpoints, frontend, HTTP externo, scraping, providers ou
+auditoria persistida. A execução é determinística (relógio injectável).

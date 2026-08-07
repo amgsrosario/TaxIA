@@ -523,10 +523,22 @@ Decisões conceptuais do Bloco E:
   chamadas externas. `AtFaqGovernedPublicationDryRunExecutorTest` cobre os cenários. Ver
   [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
   (secção E8B.1).
-- **E8B.2 — ainda não iniciada** (publicação governada real em teste isolado, sem indexação
-  automática).
+- **E8B.2 — concluída (persistência governada de drafts em BD isolada, sem publicação):** o
+  `AtFaqGovernedDraftPersistenceService` recebe o resultado da E8A e o relatório DRY-RUN da E8B.1,
+  reaplica os guardas e persiste os drafts limpos como `KnowledgeQuestionAnswer` em estado
+  `IMPORTED` (draft curável, não publicável) mais as respectivas `KnowledgeSourceReference`, sobre
+  uma BD isolada de teste (Testcontainers) e uma `Organization` de teste. Persistir draft não é
+  publicar: `publishedAt`/`publishedBy` nulos, `published=0`, `indexed=0`, `embeddings=0`, nenhum
+  caso elegível para RAG; persistência idempotente (sem nova migration); nenhum
+  `PublicationService`/`EmbeddingIndexer` chamado; sem migrations, endpoints, frontend, chamadas
+  externas ou base piloto real. A classificação de autonomia futura é registada para preparar a
+  publicação automática governada de E8B.3. `AtFaqGovernedDraftPersistenceServiceIT` cobre os
+  cenários sobre PostgreSQL real. Ver
+  [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
+  (secção E8B.2).
+- **E8B.3 — ainda não iniciada** (publicação governada real, sem indexação automática).
 - **E9 — ainda não iniciada** (indexação/RAG do lote publicado).
-- **E10 — ainda não iniciada** (rollback/despublicação).
+- **E10 — ainda não iniciada** (rollback/despublicação/desindexação).
 
 > **Nota.** A numeração de tarefas técnicas E2–E10 **não** se confunde com as decisões
 > conceptuais E1–E10 da política (§3–§12 do documento-base).

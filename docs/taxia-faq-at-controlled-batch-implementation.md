@@ -367,5 +367,63 @@ comando simulado de um draft limpo, os totais/intenção, os casos ignorado e bl
 bloqueios por efeito real artificial no input, a reconciliação de totais, determinismo e a
 ausência de HTML/prompts/chunks e de qualquer publicação/indexação.
 
-Próximo passo: E8B.2 poderá implementar a publicação governada real em teste isolado. E9
+Próximo passo: E8B.2 persiste os drafts governados numa BD isolada, ainda sem publicação. E9
+permanece reservado à indexação/RAG de conhecimento efectivamente publicado.
+
+# E8B.2 — Persistência governada de drafts em BD isolada (sem publicação)
+
+E8B.2 recebe o `AtFaqMaterializationResult` da E8A e o `AtFaqPublicationDryRunReport` da E8B.1 e
+**persiste** os drafts curáveis numa base de dados isolada de teste (Testcontainers), sobre uma
+`Organization` de teste. Persistir draft não é publicar: o conhecimento sobrevive à BD como
+rascunho curável (`IMPORTED`), mantendo a classificação de autonomia futura, mas sem entrar no
+circuito de publicação, indexação ou RAG.
+
+> `IMPORTED` é usado aqui como *draft curável persistido*, não como conhecimento publicável. Só
+> o estado `VALIDATED` alimenta o RAG; um draft `IMPORTED` com `publishedAt`/`publishedBy` nulos
+> nunca é elegível (`isEligibleForRag() == false`).
+
+## E8B.2.1 Classes e responsabilidades
+
+- `AtFaqDraftPersistenceMode` (enum `TEST_ISOLATED`, `DRY_RUN_VERIFIED`) — nenhum modo publica ou
+  indexa.
+- `AtFaqDraftPersistenceCommand` transporta a **intenção** de persistir um draft: `persistKnowledgeQa`,
+  `persistSources` e as flags `publish`/`index` (invariante `false`).
+- `AtFaqDraftPersistenceItemResult` regista, por draft, o resultado real (`persisted`,
+  `sourcesPersisted`, `knowledgeQaId`) e a classificação de autonomia futura
+  (`eligibleForAutoPublicationFuture`, `requiresHumanIntervention`, `autonomySignals`).
+- `AtFaqDraftPersistenceTotals` agrega os contadores, com invariantes de zero para
+  `published`/`indexed`/`embeddings` e reconciliação `persisted + skipped + blocked == totalDrafts`.
+- `AtFaqDraftPersistenceResult` é o único output da persistência.
+- `AtFaqGovernedDraftPersistenceService` (`SOURCE_SYSTEM = "at-faq-governed-batch"`,
+  `DRAFT_CURATION_STATUS = IMPORTED`) itera os itens materializados, cruza-os com o relatório
+  DRY-RUN por `externalId`, reaplica os guardas e persiste via repositórios JPA
+  (`KnowledgeQuestionAnswerRepository`, `KnowledgeSourceReferenceRepository`) — nunca via
+  `KnowledgeQuestionAnswerPublicationService`. A idempotência assenta em
+  `findByOrganizationIdAndSourceSystemAndExternalKey` (sem nova coluna nem migration).
+
+## E8B.2.2 Invariantes
+
+- só itens materializados e verificados em DRY-RUN são persistidos; item não materializado fica
+  `skipped`, não `blocked`;
+- cada draft é escrito como `KnowledgeQuestionAnswer` em estado `IMPORTED`, com `publishedAt` e
+  `publishedBy` nulos, mais as respectivas `KnowledgeSourceReference` (incluindo referência legal);
+- persistência idempotente: uma segunda execução reutiliza o draft existente (`persisted=0`,
+  `skipped=1`), sem duplicar; isolamento por teste garante reversibilidade;
+- `published=0`, `indexed=0`, `embeddings=0` em todos os relatórios; nenhum caso elegível para RAG;
+- a classificação de autonomia futura é registada mas **não** desencadeia publicação: um item
+  `eligibleForAutoPublicationFuture` (fonte oficial + fundamento legal + resposta técnica + baixo
+  risco) prepara publicação automática governada futura (E8B.3), não a executa aqui;
+- `KnowledgeQuestionAnswerPublicationService` e `KnowledgeQaEmbeddingIndexerImpl` nunca são
+  chamados; `RagSearchService` e `GroundingService` não são tocados;
+- sem migrations, endpoints, frontend, HTTP externo, scraping, providers ou auditoria persistida;
+- BD isolada de teste (Testcontainers) e `Organization` de teste — a base piloto real não é usada;
+- execução determinística (relógio injectável).
+
+`AtFaqGovernedDraftPersistenceServiceIT` (Testcontainers, PostgreSQL real) cobre, a partir do
+pipeline E4→E8B.1: persistência apenas do item limpo, estado conservador `IMPORTED`, não
+elegibilidade para RAG, fontes persistidas com referência legal, ausência de embeddings,
+classificação de autonomia futura, idempotência, presença de um único QA na organização,
+ausência total de publicação na BD e ausência de HTML/prompts/chunks no relatório.
+
+Próximo passo: E8B.3 poderá implementar a publicação governada real (sem indexação automática). E9
 permanece reservado à indexação/RAG de conhecimento efectivamente publicado.
