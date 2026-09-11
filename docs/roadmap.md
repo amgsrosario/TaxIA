@@ -563,7 +563,25 @@ Decisões conceptuais do Bloco E:
   execução usam o infixo `Execution` para não colidirem com a família E7 do plano. Ver
   [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
   (secção E8B.3).
-- **E9 — ainda não iniciada** (indexação/RAG do lote publicado).
+- **E9A — concluída (indexação efectiva de um único Q&A publicado em BD isolada):** o
+  `AtFaqGovernedRagIndexingService` recebe o `AtFaqGovernedPublicationExecutionResult` da E8B.3 e dá
+  **voz controlada a exactamente um** Q&A publicado, `VALIDATED`, `LOW` e RAG-elegível, escrevendo o
+  seu embedding pelo contrato real `KnowledgeQaEmbeddingIndexer`. No IT (`pgtest`/Testcontainers) o
+  indexador injectado é o `KnowledgeQaEmbeddingIndexerImpl` **real**, alimentado por um
+  `EmbeddingService` determinístico de teste (768 dim, sem modelo real nem chamadas externas) —
+  provando o ciclo RAG/pgvector genuíno: antes de E9A `COUNT(knowledge_qa_embeddings) == 0`, depois
+  **exactamente 1** linha, e o `RagSearchService` real recupera esse Q&A para uma pergunta
+  semanticamente compatível (similaridade ≈ 1.0). Cobertos: idempotência (reindexar faz *upsert* →
+  continua 1 linha), política single-Q&A (vários publicados ⇒ indexa 1 e difere os restantes para
+  E9B, **sem lote**) e todas as guardas negativas (não publicado, entidade `IMPORTED`/não publicada,
+  organização errada, risco ≠ `LOW` mesmo quando a entidade se diz RAG-elegível) e higiene do
+  relatório (sem vector bruto, HTML, prompts ou chunks). Nada em produção; sem migrations, endpoints,
+  frontend, scheduler, chamadas externas ou base piloto real. `KnowledgeQaEmbeddingIndexerImpl`,
+  `RagSearchService` e `GroundingService` intactos. `AtFaqGovernedRagIndexingServiceIT` cobre os
+  cenários sobre PostgreSQL real. Ver
+  [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
+  (secção E9A).
+- **E9B — ainda não iniciada** (lote governado pequeno de indexação/RAG do conhecimento publicado).
 - **E10 — ainda não iniciada** (rollback/despublicação/desindexação).
 
 > **Nota.** A numeração de tarefas técnicas E2–E10 **não** se confunde com as decisões

@@ -681,3 +681,31 @@ scraping, providers nem base piloto real. As classes de execução usam o infixo
 (`AtFaqGovernedPublicationExecution{Command,ItemResult,Totals,Result}`) para não colidirem com a
 família E7 do plano de publicação. A execução é determinística (relógio injectável) e o
 `actingUserId` de auditoria é derivado de forma determinística de `publishedBy`.
+
+## 30. Nota de implementação — E9A (indexação efectiva de um único Q&A publicado, em BD isolada)
+
+Frase-mestra: **"Indexar não é escalar. É dar voz controlada a um único conhecimento publicado."**
+
+Onde E8B.3 publica **sem** voz no RAG (zero embeddings sob o stub), E9A dá essa voz a **exactamente
+um** Q&A já publicado. O `AtFaqGovernedRagIndexingService` recebe o
+`AtFaqGovernedPublicationExecutionResult` da E8B.3, filtra os itens publicados, escolhe o primeiro
+como alvo (difere os restantes para E9B — política *single-Q&A*, **não-lote**) e, se o Q&A passar
+todas as guardas de BD (pertence à organização, `isPublished()`, `VALIDATED`, risco `LOW`, resposta
+técnica, ≥ 1 fonte, `isEligibleForRag()`), escreve o embedding pelo contrato real
+`KnowledgeQaEmbeddingIndexer` e confirma a linha por SQL. No IT (`pgtest`/Testcontainers) o indexador
+injectado é o `KnowledgeQaEmbeddingIndexerImpl` **real** alimentado por um `EmbeddingService`
+determinístico de teste (768 dim) — o SQL de *upsert* de produção corre de verdade, mas **sem** o
+modelo de embeddings real e **sem qualquer chamada externa** (sem OpenAI, Anthropic, scraping ou
+providers). Prova-se o ciclo RAG/pgvector genuíno: antes de E9A `COUNT(knowledge_qa_embeddings)=0`,
+depois **exactamente 1** linha, e o `RagSearchService` real (construído no IT com o mesmo embedding
+determinístico) recupera esse Q&A para uma pergunta semanticamente compatível
+(`KNOWLEDGE_QA`, similaridade ≈ 1.0). É idempotente (o *upsert* sobre `knowledge_qa_id` mantém 1
+linha); E9A é deliberadamente mais restrita do que a entidade (recusa risco ≠ `LOW` mesmo quando
+`isEligibleForRag()` é `true`); e bloqueia/ignora todas as guardas negativas (nenhum publicado,
+entidade `IMPORTED`/não publicada, organização errada, risco ≠ `LOW`). Os contadores trazem *hard
+caps* (`indexed ≤ 1`, `embeddingRows ≤ 1`, `ragExpected ≤ 1`) e o relatório não transporta vectores,
+passagens, prompts, chunks, HTML nem logs sensíveis. Não altera o `KnowledgeQaEmbeddingIndexerImpl`
+de produção, `RagSearchService`, `GroundingService`, migrations, endpoints, frontend nem a base
+piloto real. As classes usam o prefixo `AtFaqRagIndexing{Mode,Command,ItemResult,Totals,Result}`. A
+execução é determinística (relógio injectável). Próximo passo: E9B (lote governado pequeno sob o mesmo
+mecanismo controlado); E10 (rollback/despublicação/desindexação).

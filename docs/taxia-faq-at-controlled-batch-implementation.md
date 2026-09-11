@@ -493,5 +493,73 @@ entidade sem recuperabilidade efectiva, `COUNT(knowledge_qa_embeddings) == 0` ap
 idempotência, e todas as guardas negativas (autonomia futura ausente, intervenção humana, risco não
 `LOW`, sem fonte oficial, sem referência legal, organização errada), mais a higiene do relatório.
 
-Próximo passo: E9 — indexação/RAG efectiva do conhecimento publicado, sob modelo de embeddings local
-e ambiente próprio; E10 — rollback/despublicação/desindexação governada.
+Próximo passo: E9A — indexação/RAG efectiva de um único Q&A publicado, em BD isolada, sob o
+mecanismo de embeddings controlado do projecto.
+
+## E9A Indexação efectiva de um único Q&A publicado (BD isolada)
+
+Frase-mestra: **"Indexar não é escalar. É dar voz controlada a um único conhecimento publicado."**
+
+E8B.3 provou que a publicação governada chega a `publishedAt`/`publishedBy` **sem** voz no RAG
+(zero embeddings sob o stub). E9A dá essa voz — a **exactamente um** Q&A publicado — escrevendo o seu
+embedding pelo contrato real, e prova que o RAG passa a recuperá-lo. Não é lote, não é produção, não
+é a base piloto real.
+
+### E9A.1 Classes e responsabilidades
+
+- `AtFaqRagIndexingMode` — enum de modo; valor único `TEST_ISOLATED_SINGLE_QA` (não há modo de
+  produção; E9A prova o ciclo em isolamento, tal como E8B.3).
+- `AtFaqRagIndexingCommand` — decisão inspeccionável por item (guardas baratas pré-BD);
+  invariantes estruturais: `index && !blockingReasons.isEmpty()` é ilegal, `singleQaOnly` tem de ser
+  `true`, `productionDataAllowed` tem de ser `false`.
+- `AtFaqRagIndexingItemResult` — desfecho por Q&A; invariantes: `embeddingRows ∈ {0,1}`,
+  `embeddingPresent == (embeddingRows ≥ 1)`, um item `indexed` tem `embeddingRows == 1`, e
+  `ragExpectedToRetrieve` implica `indexed`.
+- `AtFaqRagIndexingTotals` — contadores com *hard caps* `indexed ≤ 1`, `embeddingRows ≤ 1`,
+  `ragExpected ≤ 1` — a frase-mestra codificada em tipos: nenhuma execução pode indexar mais do que um.
+- `AtFaqRagIndexingResult` — relatório; não transporta vectores, passagens, prompts, chunks, HTML nem
+  logs sensíveis.
+- `AtFaqGovernedRagIndexingService` — orquestrador. Recebe o `AtFaqGovernedPublicationExecutionResult`
+  da E8B.3, filtra os itens publicados, escolhe o **primeiro** como alvo (difere os restantes para
+  E9B), reaplica as guardas de BD e, se todas passarem, chama `indexer.index(...)` e confirma a linha
+  de embedding por SQL. Tem construtor `@Autowired` de produção e um *test seam* com `Clock` injectável.
+
+### E9A.2 Guardas de indexação (indexa só se **todas** se verificarem)
+
+1. o item foi publicado em E8B.3 (`published == true`) e tem `knowledgeQaId`;
+2. o item de publicação não trazia razões bloqueadoras e era elegível para publicação governada;
+3. o Q&A existe e pertence à organização fornecida;
+4. `isPublished() == true`;
+5. `curationStatus == VALIDATED`;
+6. risco `== LOW` (E9A é mais restrita do que a entidade: recusa `HIGH`/`CRITICAL` mesmo quando
+   `isEligibleForRag()` é `true`);
+7. resposta técnica presente;
+8. ≥ 1 fonte associada;
+9. `isEligibleForRag() == true`.
+
+### E9A.3 Invariantes
+
+- indexação efectiva **apenas** em BD isolada (Testcontainers); no IT o indexador injectado é o
+  `KnowledgeQaEmbeddingIndexerImpl` **real**, alimentado por um `EmbeddingService` determinístico de
+  teste (768 dim, `[1,0,…]`) — SQL de *upsert* de produção, **zero** chamadas externas, sem OpenAI,
+  Anthropic, scraping ou modelo de embeddings real;
+- antes de E9A `COUNT(knowledge_qa_embeddings) == 0`; depois **exactamente 1** linha para esse Q&A;
+- o `RagSearchService` real (construído no IT com o mesmo embedding determinístico) recupera o Q&A
+  indexado para uma pergunta semanticamente compatível (`KNOWLEDGE_QA`, similaridade ≈ 1.0);
+- idempotência: reindexar o mesmo Q&A faz *upsert* sobre `knowledge_qa_id` → continua 1 linha;
+- política single-Q&A (não-lote): com vários publicados, indexa 1 e difere os restantes para E9B;
+- guardas negativas recusam sem indexar: nenhum item publicado, entidade `IMPORTED`/não publicada,
+  organização errada, risco ≠ `LOW`;
+- relatório sem vector bruto, HTML, prompts nem chunks;
+- `RagSearchService`, `GroundingService` e o `KnowledgeQaEmbeddingIndexerImpl` de produção não são
+  alterados; sem migrations, endpoints, frontend, scheduler, providers ou base piloto real;
+- execução determinística (relógio injectável).
+
+`AtFaqGovernedRagIndexingServiceIT` (Testcontainers, PostgreSQL real) cobre, a partir do pipeline
+E4→E8B.3: pré-condição (publicado mas 0 embeddings), indexação de exactamente 1 Q&A, *exactamente 1*
+linha em `knowledge_qa_embeddings`, recuperação pelo RAG real, idempotência, política single-Q&A,
+todas as guardas negativas e a higiene do relatório, mais a prova de ausência de chamadas externas
+(datasource ligado ao container local).
+
+Próximo passo: E9B — lote governado pequeno de indexação/RAG sob o mesmo mecanismo controlado;
+E10 — rollback/despublicação/desindexação governada.
