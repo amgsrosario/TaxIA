@@ -735,3 +735,17 @@ sem indexar (`IMPORTED`, organização errada, risco ≠ `LOW`). O relatório n�
 prompts nem chunks. Não se alteram o `KnowledgeQaEmbeddingIndexerImpl` de produção, `RagSearchService`,
 `GroundingService`, migrations, endpoints, frontend nem a base piloto real. Próximo passo: E9C (lote
 **real/piloto** controlado sob o mesmo mecanismo governado); E10 (rollback/despublicação/desindexação).
+
+## 32. Nota de decisão — E9C-prep (matriz do lote piloto, apenas documentação)
+
+A **E9C-prep** formaliza os **critérios de transição** entre o lote pequeno de teste (E9B, `maxItems
+∈ [2,3]`, determinístico) e um eventual **lote piloto** real (E9C): o lote piloto é pequeno
+(**máximo recomendado 5–10, preferência por 5**), apenas FAQ AT e apenas `LOW`, com fundamento legal
+claro e sem conflitos/duplicados materiais. Fixa a **matriz de autonomia**
+(`AUTO_GOVERNED`/`ASSISTED_REQUIRED`/`MANUAL_REQUIRED`/`BLOCKED`) e reafirma que a **intervenção
+humana é excepcional e mensurável**, não condição normal de publicação. O **rollback mínimo**
+(despublicar, remover embedding, confirmar que o RAG deixou de recuperar, preservar auditoria,
+registar motivo, não apagar histórico, permitir reindexação) é **pré-condição de escala**: manual
+aceitável para um lote muito pequeno, governado obrigatório para lote maior. Recomendação cautelosa:
+preparar o rollback (E10-prep) antes de aumentar o lote. Tarefa **apenas documental**. Ver
+[taxia-e9c-pilot-batch-decision-matrix.md](taxia-e9c-pilot-batch-decision-matrix.md).

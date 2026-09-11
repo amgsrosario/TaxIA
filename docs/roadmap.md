@@ -602,6 +602,21 @@ Decisões conceptuais do Bloco E:
   verde. Ver
   [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
   (secção E9B).
+- **E9C-prep — concluída (matriz de decisão, apenas documentação):** documentação técnica e
+  estratégica que enquadra o salto do lote pequeno de teste (E9B) para um eventual lote piloto
+  controlado (E9C). Define **o que conta como lote piloto** (apenas FAQ AT, apenas `LOW`, fonte
+  oficial com fundamento legal, sem conflitos nem duplicados materiais; **tamanho máximo
+  recomendado 5–10, preferência por 5**), os **critérios de entrada/exclusão**, a **matriz de
+  autonomia** (`AUTO_GOVERNED`/`ASSISTED_REQUIRED`/`MANUAL_REQUIRED`/`BLOCKED`), a **matriz de
+  intervenção humana** (medir quando é necessária, sem a tornar condição estrutural), os **riscos
+  a observar**, as **métricas de aceitação**, o **rollback mínimo** exigido (despublicar, remover
+  embedding, confirmar que o RAG deixou de recuperar, preservar auditoria, registar motivo, não
+  apagar histórico, permitir reindexação) e a **decisão recomendada**: **preparar primeiro o
+  rollback (E10-prep)** antes de aumentar o lote, com abertura condicionada a um E9C-mini (5 itens,
+  `LOW`, FAQ AT, rollback manual documentado, sem produção). Tarefa **apenas documental**: sem
+  código, testes, frontend, BD, dados reais, publicação, indexação, despublicação, embeddings, RAG,
+  migrations, endpoints, *scraping* ou *providers* externos. Ver
+  [taxia-e9c-pilot-batch-decision-matrix.md](taxia-e9c-pilot-batch-decision-matrix.md).
 - **E9C — ainda não iniciada** (lote real/piloto controlado de indexação/RAG).
 - **E10 — ainda não iniciada** (rollback/despublicação/desindexação).
 

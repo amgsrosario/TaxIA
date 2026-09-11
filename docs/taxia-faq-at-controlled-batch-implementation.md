@@ -624,3 +624,17 @@ fluxo single (continua a indexar 1 e a diferir o resto). A E9A (`AtFaqGovernedRa
 
 Próximo passo: E9C — lote **real/piloto** controlado de indexação/RAG sob o mesmo mecanismo governado;
 E10 — rollback/despublicação/desindexação governada.
+
+### E9C-prep — Matriz de decisão do lote piloto (apenas documentação)
+
+Antes de implementar o lote piloto ou o rollback, a **E9C-prep** fixa o enquadramento de decisão:
+define o que conta como **lote piloto** (apenas FAQ AT, apenas `LOW`, fonte oficial com fundamento
+legal, sem conflitos nem duplicados materiais; **tamanho máximo recomendado 5–10, preferência por
+5**), os **critérios de entrada/exclusão**, a **matriz de autonomia**
+(`AUTO_GOVERNED`/`ASSISTED_REQUIRED`/`MANUAL_REQUIRED`/`BLOCKED`), a **matriz de intervenção humana**
+(medir quando é necessária, sem a tornar condição estrutural), os **riscos a observar**, as
+**métricas de aceitação** e o **rollback mínimo** exigido. Recomendação cautelosa: **preparar
+primeiro o rollback (E10-prep)** antes de aumentar o lote, com abertura condicionada a um E9C-mini
+(5 itens, `LOW`, FAQ AT, rollback manual documentado, sem produção). **Não** implementa o lote real
+**nem** o rollback — é exclusivamente documental. Ver
+[taxia-e9c-pilot-batch-decision-matrix.md](taxia-e9c-pilot-batch-decision-matrix.md).
