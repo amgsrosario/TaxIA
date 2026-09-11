@@ -581,7 +581,28 @@ Decisões conceptuais do Bloco E:
   cenários sobre PostgreSQL real. Ver
   [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
   (secção E9A).
-- **E9B — ainda não iniciada** (lote governado pequeno de indexação/RAG do conhecimento publicado).
+- **E9B — concluída (lote governado pequeno de indexação em BD isolada):** o mesmo
+  `AtFaqGovernedRagIndexingService` ganha, de forma **aditiva**, o método `indexSmallPublishedBatch(...)`
+  (o `indexSinglePublishedQa(...)` da E9A fica intacto). Dá voz controlada a um **lote pequeno** de
+  Q&A publicados — **mais do que um, no máximo três** (`maxItems ∈ [2,3]`; `maxItems < 2` recusa como
+  configuração inválida, `> 3` excede o teto) — sob as **mesmas guardas por Q&A** do caso único. Os
+  itens elegíveis acima do limite são **diferidos** (reportados, nunca descartados em silêncio). Novo
+  modo `SMALL_BATCH_TEST_ISOLATED` (o `TEST_ISOLATED_SINGLE_QA` mantém-se); os *caps* do
+  `AtFaqRagIndexingTotals` passaram a ser **por modo** (single ≤ 1, lote ≤ 3), preservando o cap
+  estrutural do caso único; campos aditivos `requestedMaxItems`/`effectiveMaxItems` no resultado. No IT
+  (`pgtest`/Testcontainers) o indexador é o `KnowledgeQaEmbeddingIndexerImpl` **real** com o mesmo
+  `EmbeddingService` determinístico (768 dim): antes 0 embeddings, depois **exactamente N** linhas
+  (1 < N ≤ 3), uma por Q&A; o `RagSearchService` real recupera **os indexados** (validado por **pertença
+  ao conjunto**, não por ordem, porque o embedding determinístico dá similaridade ≈ 1.0); idempotência
+  (reindexar o lote mantém N); limite (4 elegíveis + `maxItems=3` ⇒ indexa 3, difere 1); mesmas guardas
+  negativas do caso único (não publicado, `IMPORTED`, organização errada, risco ≠ `LOW`); higiene do
+  relatório. Nada em produção; sem migrations, endpoints, frontend, scheduler, chamadas externas ou base
+  piloto real. `KnowledgeQaEmbeddingIndexerImpl`, `RagSearchService` e `GroundingService` intactos.
+  `AtFaqGovernedRagBatchIndexingServiceIT` (13 testes) cobre os cenários; a E9A (12 testes) continua
+  verde. Ver
+  [taxia-faq-at-controlled-batch-implementation.md](taxia-faq-at-controlled-batch-implementation.md)
+  (secção E9B).
+- **E9C — ainda não iniciada** (lote real/piloto controlado de indexação/RAG).
 - **E10 — ainda não iniciada** (rollback/despublicação/desindexação).
 
 > **Nota.** A numeração de tarefas técnicas E2–E10 **não** se confunde com as decisões

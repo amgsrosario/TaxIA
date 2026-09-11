@@ -24,6 +24,8 @@ import java.util.List;
  * @param globalWarnings batch-level non-blocking observations
  * @param blockingErrors batch-level blocking errors (empty on a clean run)
  * @param nextActions    recommended follow-ups (E9B small governed batch; E10 rollback/deindex)
+ * @param requestedMaxItems batch limit requested by the caller (1 in E9A single mode)
+ * @param effectiveMaxItems batch limit actually applied after clamping/validation (1 in E9A)
  */
 public record AtFaqRagIndexingResult(
         String batchId,
@@ -34,12 +36,20 @@ public record AtFaqRagIndexingResult(
         List<AtFaqRagIndexingItemResult> itemResults,
         List<String> globalWarnings,
         List<String> blockingErrors,
-        List<String> nextActions) {
+        List<String> nextActions,
+        int requestedMaxItems,
+        int effectiveMaxItems) {
 
     public AtFaqRagIndexingResult {
         itemResults = itemResults == null ? List.of() : List.copyOf(itemResults);
         globalWarnings = globalWarnings == null ? List.of() : List.copyOf(globalWarnings);
         blockingErrors = blockingErrors == null ? List.of() : List.copyOf(blockingErrors);
         nextActions = nextActions == null ? List.of() : List.copyOf(nextActions);
+        if (requestedMaxItems < 0) {
+            throw new IllegalArgumentException("requestedMaxItems must be >= 0");
+        }
+        if (effectiveMaxItems < 0) {
+            throw new IllegalArgumentException("effectiveMaxItems must be >= 0");
+        }
     }
 }

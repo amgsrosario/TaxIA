@@ -709,3 +709,29 @@ de produção, `RagSearchService`, `GroundingService`, migrations, endpoints, fr
 piloto real. As classes usam o prefixo `AtFaqRagIndexing{Mode,Command,ItemResult,Totals,Result}`. A
 execução é determinística (relógio injectável). Próximo passo: E9B (lote governado pequeno sob o mesmo
 mecanismo controlado); E10 (rollback/despublicação/desindexação).
+
+## 31. Nota de implementação — E9B (indexação efectiva de um lote pequeno governado, em BD isolada)
+
+Frase-mestra: *"Indexar vários não é escalar livremente. É provar que o lote obedece aos mesmos
+guardas do caso único."* A E9B é a **transição controlada** entre o caso único (E9A) e a escala: um
+**lote pequeno** — mais do que um, no máximo três — nunca uma automação massiva. Evolui a E9A de forma
+**aditiva**: o `AtFaqGovernedRagIndexingService` ganha `indexSmallPublishedBatch(..., int maxItems)` e o
+`indexSinglePublishedQa(...)` da E9A fica intacto; as guardas por Q&A são partilhadas pelos dois fluxos,
+pelo que o lote obedece **exactamente** às mesmas guardas do caso único (item publicado em E8B.3 e com
+`knowledgeQaId`; entidade existente e da organização; `isPublished()`; `VALIDATED`; `isEligibleForRag()`;
+resposta técnica não vazia; ≥ 1 fonte; risco `LOW`). `maxItems ∈ [2,3]`: `< 2` recusa como configuração
+inválida (o único Q&A usa o fluxo single) e `> 3` excede o teto; em ambos nada é indexado. Os elegíveis
+acima do limite são **diferidos** (reportados, nunca descartados). Novo modo `SMALL_BATCH_TEST_ISOLATED`
+(o `TEST_ISOLATED_SINGLE_QA` mantém-se); os *caps* do `AtFaqRagIndexingTotals` passam a ser **por modo**
+(single ≤ 1, lote ≤ 3), preservando o cap estrutural do caso único; campos aditivos
+`requestedMaxItems`/`effectiveMaxItems` no resultado. A indexação efectiva corre **só** em BD isolada
+(Testcontainers) com o `KnowledgeQaEmbeddingIndexerImpl` **real** alimentado pelo `EmbeddingService`
+determinístico de teste (768 dim), **zero** chamadas externas (sem OpenAI, Anthropic, scraping ou modelo
+real). Prova-se: antes 0 embeddings, depois **exactamente N** linhas (1 < N ≤ 3, uma por Q&A); o
+`RagSearchService` real recupera **apenas** os indexados, validado por **pertença ao conjunto** (não por
+ordem — o embedding determinístico dá similaridade ≈ 1.0 a todos); idempotência (reindexar o lote mantém
+N); limite (4 elegíveis + `maxItems=3` ⇒ 3 indexados, 1 diferido); as mesmas guardas negativas recusam
+sem indexar (`IMPORTED`, organização errada, risco ≠ `LOW`). O relatório não expõe vector bruto, HTML,
+prompts nem chunks. Não se alteram o `KnowledgeQaEmbeddingIndexerImpl` de produção, `RagSearchService`,
+`GroundingService`, migrations, endpoints, frontend nem a base piloto real. Próximo passo: E9C (lote
+**real/piloto** controlado sob o mesmo mecanismo governado); E10 (rollback/despublicação/desindexação).

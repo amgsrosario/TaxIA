@@ -563,3 +563,64 @@ todas as guardas negativas e a higiene do relatório, mais a prova de ausência 
 
 Próximo passo: E9B — lote governado pequeno de indexação/RAG sob o mesmo mecanismo controlado;
 E10 — rollback/despublicação/desindexação governada.
+
+## E9B Indexação efectiva de um lote pequeno governado (BD isolada)
+
+Frase-mestra: *"Indexar vários não é escalar livremente. É provar que o lote obedece aos mesmos
+guardas do caso único."* A E9B é a transição controlada entre o caso único (E9A) e a escala — um
+**lote pequeno**, nunca uma automação massiva.
+
+### E9B.1 Classes e responsabilidades (evolução aditiva da E9A)
+
+- `AtFaqGovernedRagIndexingService` — **estendido aditivamente**: novo método
+  `indexSmallPublishedBatch(AtFaqGovernedPublicationExecutionResult, Organization, String indexedBy, int maxItems)`.
+  O `indexSinglePublishedQa(...)` da E9A mantém-se **intacto**. As guardas por Q&A foram extraídas para
+  um avaliador interno partilhado (`evaluateGuards`) usado por **ambos** os fluxos, garantindo que o
+  lote obedece exactamente às mesmas guardas do caso único; a escrita efectiva vive em `doIndex(...)`.
+- `AtFaqRagIndexingMode` — novo valor `SMALL_BATCH_TEST_ISOLATED`; o `TEST_ISOLATED_SINGLE_QA` mantém-se.
+- `AtFaqRagIndexingTotals` — passa a carregar o `mode` e os *caps* de `indexed`/`embeddingRows`/
+  `ragExpected` tornam-se **por modo**: single ≤ 1 (cap estrutural do caso único preservado), lote ≤ 3
+  (`MAX_SMALL_BATCH`).
+- `AtFaqRagIndexingResult` — campos aditivos `requestedMaxItems`/`effectiveMaxItems` (o limite pedido e
+  o limite efectivamente aplicado após validação). `AtFaqRagIndexingCommand` **não** foi alterado: cada
+  comando descreve a decisão sobre **um** Q&A (`singleQaOnly == true` por item), e um lote são N dessas
+  decisões.
+
+### E9B.2 Regra do `maxItems` e limite do lote
+
+- `maxItems ∈ [2, 3]`. `maxItems < 2` é recusado como **configuração inválida** (para um único Q&A
+  usa-se o fluxo single); `maxItems > 3` **excede o teto** do lote pequeno e é recusado. Em ambos os
+  casos nada é indexado e o resultado traz `blockingErrors`.
+- Nunca se indexa mais do que `maxItems` nem mais do que 3. Com mais elegíveis do que o limite, os
+  excedentes são **diferidos** (`eligibleForIndexing == true`, `indexed == false`, aviso "diferido pelo
+  limite"), nunca descartados em silêncio.
+
+### E9B.3 Invariantes
+
+- indexação efectiva **apenas** em BD isolada (Testcontainers); indexador `KnowledgeQaEmbeddingIndexerImpl`
+  **real** com `EmbeddingService` determinístico (768 dim), **zero** chamadas externas;
+- antes do lote `COUNT(knowledge_qa_embeddings) == 0`; depois **exactamente N** linhas para N elegíveis
+  publicados com 1 < N ≤ 3, **uma linha por Q&A**;
+- o `RagSearchService` real recupera **apenas** os Q&A indexados (validados/publicados/elegíveis);
+  validação por **pertença ao conjunto**, não por ordem exacta (o embedding determinístico dá
+  similaridade ≈ 1.0 a todos — ver aviso §11 do prompt sobre empates);
+- idempotência: reindexar o lote faz *upsert* → continua N linhas;
+- limite respeitado: 4 elegíveis + `maxItems = 3` ⇒ indexa 3, difere 1;
+- mesmas guardas negativas do caso único recusam sem indexar: não publicado, entidade `IMPORTED`,
+  organização errada, risco ≠ `LOW`;
+- relatório sem vector bruto, HTML, prompts nem chunks;
+- `RagSearchService`, `GroundingService` e o `KnowledgeQaEmbeddingIndexerImpl` de produção não são
+  alterados; sem migrations, endpoints, frontend, scheduler, providers ou base piloto real;
+- execução determinística (relógio injectável).
+
+`AtFaqGovernedRagBatchIndexingServiceIT` (Testcontainers, PostgreSQL real, 13 testes) cobre:
+pré-condição (três publicados, 0 embeddings), indexação do lote de três, *exactamente 1* linha por Q&A
+(3 no total), recuperação dos três pelo RAG (pertença ao conjunto), idempotência do lote, limite
+(4 + `maxItems=3` ⇒ 3 indexados / 1 diferido), configurações inválidas (`maxItems=1` e `maxItems=4`
+recusadas), lote misto sob as mesmas guardas (2 `LOW` indexados; `IMPORTED`/`HIGH`/outra-organização
+bloqueados), lote sem publicados, higiene do relatório, ausência de chamadas externas e regressão do
+fluxo single (continua a indexar 1 e a diferir o resto). A E9A (`AtFaqGovernedRagIndexingServiceIT`,
+12 testes) permanece verde.
+
+Próximo passo: E9C — lote **real/piloto** controlado de indexação/RAG sob o mesmo mecanismo governado;
+E10 — rollback/despublicação/desindexação governada.
