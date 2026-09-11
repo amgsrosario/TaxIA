@@ -762,3 +762,25 @@ vector). Fixa também que **despublicação e desindexação são operações co
 Recomendação: **E10A primeiro** (rollback governado de um único Q&A, simétrico com E9A),
 incorporando o registo de motivo desde o início. Tarefa **apenas documental**. Ver
 [taxia-e10-rollback-unpublish-deindex-inventory.md](taxia-e10-rollback-unpublish-deindex-inventory.md).
+
+## 34. Nota de implementação — E10A (rollback governado de um único Q&A, em BD isolada)
+
+Frase-mestra: *"Retirar voz não é apagar conhecimento. É neutralizar a recuperação preservando rasto
+e motivo."* A **E10A** implementa, apenas em BD isolada (Testcontainers), o rollback governado de
+**exactamente um** Q&A já publicado e indexado — o inverso coordenado de E8B.3→E9A. **Despublicar**
+(limpar `publishedAt`/`publishedBy`) e **desindexar** (remover a linha de embedding) são efeitos
+**distintos-mas-coordenados**: o `unpublish(...)` real fá-los atomicamente e o RAG deixa de recuperar
+por **dupla porta** (embedding + `published_at`). Rollback **neutraliza a recuperação sem apagar
+conhecimento**: a entidade permanece, `curationStatus` continua `VALIDATED`, e a auditoria
+`KNOWLEDGE_QA_UNPUBLISHED` é preservada.
+
+Contrato: o **motivo é obrigatório** no comando e no relatório (embora o `unpublish(...)` ainda não o
+persista — lacuna assinalada para E10B/E10-policy, sem migration nesta etapa). O serviço só reverte
+com um *probe* de RAG que confirme a recuperação **antes**, e só declara sucesso depois de observar
+`publishedAt == null`, `embeddingRows == 0` e RAG a **não** recuperar **depois**. Um segundo rollback
+é **idempotente** (*skipped*, nunca erro); motivo vazio, organização errada, publicado sem embedding
+e mais de um item elegível em modo *single* **bloqueiam sem efeito destrutivo**. Rollback de **lote**
+é E10B. Não altera o `KnowledgeQuestionAnswerPublicationService`, o `KnowledgeQaEmbeddingIndexerImpl`,
+o `RagSearchService`, o `GroundingService`, migrations, endpoints, frontend nem a base piloto real.
+Próximo passo: E10B (lote pequeno) → E10-policy (motivo persistido + auditoria dedicada) → E9C (lote
+piloto real).

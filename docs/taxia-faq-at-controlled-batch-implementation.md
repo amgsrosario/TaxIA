@@ -651,3 +651,69 @@ relatório próprio, distinção formal despublicar ≠ desindexar, comando gove
 métrica e teste E2E. Recomendação: **E10A primeiro** (rollback de um único Q&A, simétrico com E9A).
 **Não** implementa o rollback — é exclusivamente documental. Ver
 [taxia-e10-rollback-unpublish-deindex-inventory.md](taxia-e10-rollback-unpublish-deindex-inventory.md).
+
+## E10A Rollback governado de um único Q&A publicado/indexado (BD isolada)
+
+Frase-mestra: *"Retirar voz não é apagar conhecimento. É neutralizar a recuperação preservando rasto
+e motivo."*
+
+Seguindo a recomendação da E10-prep (**E10A primeiro**, simétrico com E9A), a E10A implementa —
+apenas em BD isolada (Testcontainers) — o rollback governado de **exactamente um** Q&A já publicado
+e indexado. O rollback é o inverso coordenado do ciclo E8B.3→E9A: **despublicar** (limpar
+`publishedAt`/`publishedBy`) e **desindexar** (remover a linha de embedding) são efeitos
+distintos-mas-coordenados, executados atomicamente pelo `unpublish(...)` **real** — nunca uma
+destruição de conhecimento (a entidade permanece, `curationStatus == VALIDATED`, e a auditoria
+`KNOWLEDGE_QA_UNPUBLISHED` fica registada).
+
+### E10A.1 Classes e responsabilidades
+
+- `AtFaqRollbackMode` — modo único `TEST_ISOLATED_SINGLE_QA` (nunca *scheduler*, nunca lote, nunca
+  base real).
+- `AtFaqRollbackRagProbe` — `@FunctionalInterface` (`boolean recovers(orgId, qaId)`): costura fina
+  para provar a recuperação RAG antes/depois **sem** dependência dura do `RagSearchService`. O IT
+  fornece um *probe* apoiado num `RagSearchService` real; **sem** *probe* o serviço recusa reverter.
+- `AtFaqRollbackItemResult` / `AtFaqRollbackTotals` / `AtFaqRollbackResult` — relatório governado
+  (estado antes/depois, motivo, avisos, bloqueios, próximas acções). Sem vector bruto, sem
+  *prompt*/*chunk*/HTML.
+- `AtFaqGovernedRollbackService` — orquestra o rollback através do
+  `KnowledgeQuestionAnswerPublicationService#unpublish` **real**. Em BD isolada, esse serviço é
+  construído com o `KnowledgeQaEmbeddingIndexerImpl` **real** (nunca o *stub* do perfil `pgtest`),
+  pelo que o `unpublish(...)` apaga fisicamente a linha de `knowledge_qa_embeddings`. Não altera o
+  `PublicationService`, o `KnowledgeQaEmbeddingIndexerImpl`, o `RagSearchService` nem migrations.
+
+### E10A.2 Guardas de rollback (reverte só se **todas** se verificarem)
+
+1. motivo não vazio (**obrigatório** no comando e no relatório);
+2. item efectivamente indexado em E9A/E9B (`indexed && embeddingPresent`) com `knowledgeQaId`;
+3. **exactamente um** item elegível na indexação (modo *single*; lote é E10B — mais de um bloqueia);
+4. o Q&A existe e pertence à organização fornecida;
+5. `isPublished()` com `publishedAt`/`publishedBy` consistentes;
+6. `curationStatus == VALIDATED`;
+7. `embeddingRowsBefore == 1`;
+8. *probe* de RAG disponível **e** a confirmar recuperação **antes** do rollback.
+
+### E10A.3 Invariantes
+
+- **Antes:** publicado, `VALIDATED`, `publishedAt`/`publishedBy != null`, `embeddingRows == 1`, o RAG
+  recupera-o.
+- **Depois:** `publishedAt == null`, `publishedBy == null`, `curationStatus` **continua** `VALIDATED`
+  (rollback neutraliza a recuperação, não rebaixa a curadoria), `embeddingRows == 0`, o RAG **não**
+  recupera; auditoria `KNOWLEDGE_QA_UNPUBLISHED` preservada.
+- **Idempotência:** um segundo rollback do mesmo Q&A (sem publicação, sem embedding) é classificado
+  como *skipped (already rolled back)* — detectado **antes** de chamar `unpublish(...)`, pelo que o
+  `INVALID_STATE_TRANSITION` nunca escapa, nada é recriado nem republicado.
+- **Guardas negativas** (bloqueiam sem efeito destrutivo, nunca falham): motivo vazio; organização
+  errada; publicado mas `embeddingRows != 1`; mais de um item elegível em modo *single*.
+- **Higiene do relatório:** sem vector bruto, sem HTML, sem *prompts* nem *chunks*.
+- **Lacuna documentada:** o `unpublish(...)` **não** persiste o motivo — o motivo é transportado no
+  comando/relatório e a ausência de persistência formal fica assinalada como aviso global, para
+  resolução em **E10B/E10-policy** (nenhuma migration nem alteração de esquema de auditoria em E10A).
+
+Cobertura: `AtFaqGovernedRollbackServiceIT` (13 casos, BD isolada) prova a pré-condição (publicado +
+indexado + RAG recupera), o rollback com motivo, o estado depois, a preservação da auditoria, o
+motivo no relatório, a idempotência e todas as guardas negativas — com embedding determinístico e
+zero chamadas externas.
+
+Próximo passo: E10B — rollback governado de um **lote pequeno** sob os mesmos guardas; depois
+E10-policy — persistência formal do motivo e auditoria dedicada de rollback; só então E9C — lote
+piloto real.

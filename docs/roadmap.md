@@ -636,9 +636,33 @@ Decisões conceptuais do Bloco E:
   despublicação, indexação, remoção de embeddings, RAG, migrations, endpoints, *scraping* ou
   *providers* externos. Ver
   [taxia-e10-rollback-unpublish-deindex-inventory.md](taxia-e10-rollback-unpublish-deindex-inventory.md).
-- **E10A — ainda não iniciada** (rollback governado de um único Q&A publicado/indexado em BD
-  isolada).
-- **E10 — ainda não iniciada** (rollback/despublicação/desindexação — família completa).
+- **E10A — concluída (rollback governado de um único Q&A publicado/indexado em BD isolada):**
+  implementação, apenas em Testcontainers, do inverso coordenado de E8B.3→E9A. **Despublicar**
+  (limpar `publishedAt`/`publishedBy`) e **desindexar** (remover o embedding) são efeitos
+  distintos-mas-coordenados, executados atomicamente pelo `unpublish(...)` **real** — em BD isolada o
+  `PublicationService` é construído com o `KnowledgeQaEmbeddingIndexerImpl` **real** (nunca o *stub*
+  `pgtest`), pelo que o embedding é fisicamente apagado. Novos tipos em
+  `com.knowledgeflow.ingestion.atfaq.batch`: `AtFaqRollbackMode` (só `TEST_ISOLATED_SINGLE_QA`),
+  `AtFaqRollbackRagProbe` (costura para provar a recuperação RAG antes/depois sem dependência dura do
+  `RagSearchService`), `AtFaqRollbackCommand`, `AtFaqRollbackItemResult`, `AtFaqRollbackTotals`,
+  `AtFaqRollbackResult` e o serviço `AtFaqGovernedRollbackService`. **Motivo obrigatório** no comando
+  e no relatório. Prova o ciclo completo: **antes** publicado + `VALIDATED` + `embeddingRows == 1` + o
+  RAG recupera; **depois** `publishedAt`/`publishedBy == null`, `curationStatus` continua `VALIDATED`,
+  `embeddingRows == 0`, o RAG não recupera, auditoria `KNOWLEDGE_QA_UNPUBLISHED` preservada;
+  idempotência (segundo rollback *skipped*, nunca erro) e guardas negativas (motivo vazio, organização
+  errada, publicado sem embedding, mais de um item elegível em modo *single*). Lacuna documentada: o
+  `unpublish(...)` não persiste o motivo — transportado no relatório e assinalado para E10B/E10-policy
+  (sem migration). Cobertura: `AtFaqGovernedRollbackServiceIT` (13 casos, embedding determinístico,
+  zero chamadas externas). Sem alterar `PublicationService`, `KnowledgeQaEmbeddingIndexerImpl`,
+  `RagSearchService`, `GroundingService`, migrations, endpoints, frontend ou base piloto real.
+- **E10B — ainda não iniciada** (rollback governado de um lote pequeno sob os mesmos guardas).
+- **E10-policy — ainda não iniciada** (persistência formal do motivo e auditoria dedicada de
+  rollback).
+- **E10 — em curso** (rollback/despublicação/desindexação — família completa; E10A concluída,
+  E10B e E10-policy por iniciar).
+
+**Próximos passos:** E10B (rollback de lote pequeno) → E10-policy (motivo persistido + auditoria
+dedicada) → E9C (lote piloto real).
 
 > **Nota.** A numeração de tarefas técnicas E2–E10 **não** se confunde com as decisões
 > conceptuais E1–E10 da política (§3–§12 do documento-base).
