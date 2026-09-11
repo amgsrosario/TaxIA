@@ -618,7 +618,27 @@ Decisões conceptuais do Bloco E:
   migrations, endpoints, *scraping* ou *providers* externos. Ver
   [taxia-e9c-pilot-batch-decision-matrix.md](taxia-e9c-pilot-batch-decision-matrix.md).
 - **E9C — ainda não iniciada** (lote real/piloto controlado de indexação/RAG).
-- **E10 — ainda não iniciada** (rollback/despublicação/desindexação).
+- **E10-prep — concluída (inventário de rollback, despublicação e desindexação, apenas
+  documentação):** inventário técnico-documental, por leitura apenas, dos mecanismos existentes de
+  rollback no backend — `KnowledgeQuestionAnswerPublicationService.unpublish(...)` (remove o
+  embedding via `indexer.remove(...)` **e** limpa `publishedAt`/`publishedBy`, mantendo
+  `curationStatus == VALIDATED`, numa transacção atómica, com auditoria `KNOWLEDGE_QA_UNPUBLISHED`
+  **sem motivo** e **sem métrica própria**), `reindex(...)` (*upsert* idempotente que exige Q&A
+  publicado e `technicalAnswer`), `remove(...)` (`DELETE` físico em `knowledge_qa_embeddings`, sem
+  *soft-delete*, idempotente) e a **dupla porta** do RAG (embedding **+** `published_at` **+**
+  `VALIDATED` **+** janela de validade **+** organização). Lacunas identificadas para E10: motivo
+  obrigatório, relatório próprio de rollback, distinção formal despublicar ≠ desindexar, comando
+  governado, *batch rollback*, neutralização sem apagar histórico de embedding, enum/estado de
+  rollback, métrica própria e teste E2E. Recomendação: **E10A primeiro** — rollback governado de um
+  único Q&A publicado/indexado em BD isolada (simétrico com E9A, máximo controlo), incorporando
+  desde o início o registo de motivo; E10-policy primeiro apenas se surgir lacuna estrutural grave.
+  Tarefa **apenas documental**: sem código, testes, frontend, BD, dados reais, publicação,
+  despublicação, indexação, remoção de embeddings, RAG, migrations, endpoints, *scraping* ou
+  *providers* externos. Ver
+  [taxia-e10-rollback-unpublish-deindex-inventory.md](taxia-e10-rollback-unpublish-deindex-inventory.md).
+- **E10A — ainda não iniciada** (rollback governado de um único Q&A publicado/indexado em BD
+  isolada).
+- **E10 — ainda não iniciada** (rollback/despublicação/desindexação — família completa).
 
 > **Nota.** A numeração de tarefas técnicas E2–E10 **não** se confunde com as decisões
 > conceptuais E1–E10 da política (§3–§12 do documento-base).

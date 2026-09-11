@@ -749,3 +749,16 @@ registar motivo, não apagar histórico, permitir reindexação) é **pré-condi
 aceitável para um lote muito pequeno, governado obrigatório para lote maior. Recomendação cautelosa:
 preparar o rollback (E10-prep) antes de aumentar o lote. Tarefa **apenas documental**. Ver
 [taxia-e9c-pilot-batch-decision-matrix.md](taxia-e9c-pilot-batch-decision-matrix.md).
+
+## 33. Nota de decisão — E10-prep (inventário de rollback/despublicação/desindexação)
+
+A **E10-prep** formaliza a **necessidade de reversibilidade antes de escalar o lote piloto**: só se
+deve aumentar a voz do conhecimento depois de provado como se a retira. O inventário confirma que o
+`unpublish(...)` já desfaz publicação **e** indexação de forma atómica (o RAG deixa de recuperar por
+dupla porta), mas que o **rollback não deve apagar histórico** — hoje preserva curadoria, originais,
+versões e auditoria, ainda que remova fisicamente o embedding (sem *soft-delete* nem histórico de
+vector). Fixa também que **despublicação e desindexação são operações conceptualmente distintas**
+(eixo de publicação *vs.* eixo de indexação/RAG), ainda que o acto actual as acople num só passo.
+Recomendação: **E10A primeiro** (rollback governado de um único Q&A, simétrico com E9A),
+incorporando o registo de motivo desde o início. Tarefa **apenas documental**. Ver
+[taxia-e10-rollback-unpublish-deindex-inventory.md](taxia-e10-rollback-unpublish-deindex-inventory.md).

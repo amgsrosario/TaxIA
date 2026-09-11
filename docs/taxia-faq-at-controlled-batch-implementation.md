@@ -638,3 +638,16 @@ primeiro o rollback (E10-prep)** antes de aumentar o lote, com abertura condicio
 (5 itens, `LOW`, FAQ AT, rollback manual documentado, sem produção). **Não** implementa o lote real
 **nem** o rollback — é exclusivamente documental. Ver
 [taxia-e9c-pilot-batch-decision-matrix.md](taxia-e9c-pilot-batch-decision-matrix.md).
+
+### E10-prep — Inventário de rollback/despublicação/desindexação (apenas documentação)
+
+Seguindo a recomendação da matriz E9C-prep, a **E10-prep** inventaria — por leitura apenas — os
+mecanismos existentes de **rollback**, **despublicação**, **remoção de embeddings** e
+**desindexação**: o `unpublish(...)` remove o embedding **e** limpa a publicação de forma atómica,
+mantendo `curationStatus == VALIDATED` (histórico preservado), mas **sem motivo** e **sem métrica
+própria**; o `remove(...)` é `DELETE` físico idempotente (sem *soft-delete*); o RAG deixa de
+recuperar por **dupla porta** (embedding + `published_at`). Lacunas para E10: motivo obrigatório,
+relatório próprio, distinção formal despublicar ≠ desindexar, comando governado, *batch rollback*,
+métrica e teste E2E. Recomendação: **E10A primeiro** (rollback de um único Q&A, simétrico com E9A).
+**Não** implementa o rollback — é exclusivamente documental. Ver
+[taxia-e10-rollback-unpublish-deindex-inventory.md](taxia-e10-rollback-unpublish-deindex-inventory.md).
