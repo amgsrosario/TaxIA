@@ -35,6 +35,11 @@ import java.util.UUID;
  * @param warnings           non-blocking observations
  * @param blockingReasons    reasons rollback was refused (empty when rolled back / skipped-clean)
  * @param nextActions        recommended follow-ups
+ * @param skippedAlreadyRolledBack whether this run skipped the item because it was already rolled back
+ *                                 (equals {@code alreadyRolledBack}; idempotent skip)
+ * @param skippedNotIndexed  whether this run skipped the item because it was never indexed (E10B batch)
+ * @param deferredDueToLimit whether this eligible item was deferred because the batch limit was reached
+ * @param batchPosition      1-based position within the small batch (1 in single mode; 0 when not applicable)
  */
 public record AtFaqRollbackItemResult(
         String externalId,
@@ -54,7 +59,11 @@ public record AtFaqRollbackItemResult(
         String reason,
         List<String> warnings,
         List<String> blockingReasons,
-        List<String> nextActions) {
+        List<String> nextActions,
+        boolean skippedAlreadyRolledBack,
+        boolean skippedNotIndexed,
+        boolean deferredDueToLimit,
+        int batchPosition) {
 
     public AtFaqRollbackItemResult {
         warnings = warnings == null ? List.of() : List.copyOf(warnings);
@@ -64,9 +73,24 @@ public record AtFaqRollbackItemResult(
             throw new IllegalArgumentException(
                     "embedding row counts must be >= 0 for " + externalId);
         }
+        if (batchPosition < 0) {
+            throw new IllegalArgumentException("batchPosition must be >= 0 for " + externalId);
+        }
         if (deindexed != embeddingRemoved) {
             throw new IllegalArgumentException(
                     "deindexed and embeddingRemoved must agree for " + externalId);
+        }
+        if (skippedAlreadyRolledBack != alreadyRolledBack) {
+            throw new IllegalArgumentException(
+                    "skippedAlreadyRolledBack must agree with alreadyRolledBack for " + externalId);
+        }
+        if (skippedNotIndexed && eligibleForRollback) {
+            throw new IllegalArgumentException(
+                    "a not-indexed skip cannot be eligible for rollback: " + externalId);
+        }
+        if (rolledBack && (skippedAlreadyRolledBack || skippedNotIndexed || deferredDueToLimit)) {
+            throw new IllegalArgumentException(
+                    "a rolled-back Q&A cannot also be skipped or deferred: " + externalId);
         }
         if (rolledBack) {
             if (!unpublished) {

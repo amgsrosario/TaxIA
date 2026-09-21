@@ -4,11 +4,13 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Full report of a governed AT-FAQ rollback run (Bloco E — E10A).
+ * Full report of a governed AT-FAQ rollback run (Bloco E — E10A/E10B).
  *
- * <p>Frase-mestra: "Retirar voz não é apagar conhecimento. É neutralizar a recuperação preservando
- * rasto e motivo." This report records that at most one published/indexed Q&amp;A was rolled back in
- * an isolated database — unpublished through the real
+ * <p>E10A frase-mestra: "Retirar voz não é apagar conhecimento. É neutralizar a recuperação
+ * preservando rasto e motivo." E10B frase-mestra: "Calar uma voz prova o travão. Calar um pequeno
+ * coro prova a governação." This report records that one Q&amp;A (E10A) or a small governed batch of
+ * up to {@link AtFaqRollbackTotals#MAX_SMALL_BATCH} Q&amp;A (E10B) was rolled back in an isolated
+ * database — each unpublished through the real
  * {@code KnowledgeQuestionAnswerPublicationService#unpublish}, its embedding physically removed, and
  * proven to be no longer retrievable by the RAG — while the existing
  * {@code KNOWLEDGE_QA_UNPUBLISHED} audit trail is preserved and the mandatory reason is carried
@@ -18,15 +20,17 @@ import java.util.List;
  * <p>It carries no embeddings/vectors, no passages, no prompts, no chunks, no raw HTML and no
  * sensitive logs — only governance-relevant state.
  *
- * @param batchId        batch identifier carried from the indexing result
- * @param rolledBackAt   instant the rollback ran (from an injected clock)
- * @param rolledBackBy   actor that requested the rollback
- * @param mode           execution mode; the only mode is the single-Q&amp;A isolated test
- * @param totals         aggregate counters, capped at a single rolled-back Q&amp;A
- * @param itemResults    per-Q&amp;A rollback outcomes
- * @param globalWarnings run-level non-blocking observations
- * @param blockingErrors run-level blocking errors (empty on a clean run)
- * @param nextActions    recommended follow-ups (E10B batch rollback; E10-policy; then E9C)
+ * @param batchId           batch identifier carried from the indexing result
+ * @param rolledBackAt      instant the rollback ran (from an injected clock)
+ * @param rolledBackBy      actor that requested the rollback
+ * @param mode              execution mode (single-Q&amp;A or small-batch isolated test)
+ * @param totals            aggregate counters, capped at the effective batch limit
+ * @param itemResults       per-Q&amp;A rollback outcomes
+ * @param globalWarnings    run-level non-blocking observations
+ * @param blockingErrors    run-level blocking errors (empty on a clean run)
+ * @param nextActions       recommended follow-ups (E10-policy; then E9C)
+ * @param requestedMaxItems batch limit requested by the caller (1 for single mode), or {@code null}
+ * @param effectiveMaxItems batch limit actually applied after clamping, or {@code null}
  */
 public record AtFaqRollbackResult(
         String batchId,
@@ -37,7 +41,9 @@ public record AtFaqRollbackResult(
         List<AtFaqRollbackItemResult> itemResults,
         List<String> globalWarnings,
         List<String> blockingErrors,
-        List<String> nextActions) {
+        List<String> nextActions,
+        Integer requestedMaxItems,
+        Integer effectiveMaxItems) {
 
     public AtFaqRollbackResult {
         itemResults = itemResults == null ? List.of() : List.copyOf(itemResults);
