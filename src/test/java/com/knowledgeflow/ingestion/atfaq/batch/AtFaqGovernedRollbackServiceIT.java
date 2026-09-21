@@ -82,7 +82,8 @@ class AtFaqGovernedRollbackServiceIT {
     private static final String INDEXED_BY = "taxia-governed-indexing-test";
     private static final String ROLLED_BACK_BY = "taxia-governed-rollback-test";
     private static final String SOURCE_SYSTEM = "at-faq-governed-batch";
-    private static final String REASON = "Alteração legislativa: resposta desatualizada; retirar do RAG.";
+    private static final AtFaqRollbackMotive MOTIVE = AtFaqRollbackMotive.of(
+            AtFaqRollbackReason.LEGAL_CHANGE, "resposta desatualizada; retirar do RAG.");
     private static final String RAG_QUERY = "Qual o limiar do volume de negócios para IVA mensal?";
     private static final int DIM = 768;
 
@@ -102,6 +103,7 @@ class AtFaqGovernedRollbackServiceIT {
     private Organization otherOrg;
     private AtFaqGovernedRollbackService rollbackService;
     private RagSearchService ragSearch;
+    private KnowledgeQaEmbeddingIndexerImpl realIndexer;
 
     private UUID cleanQaId;
     private AtFaqRagIndexingResult mainIndexResult; // the E9A indexing of AT-FAQ-1001
@@ -163,7 +165,7 @@ class AtFaqGovernedRollbackServiceIT {
 
         // ---- Shared real indexer + deterministic embedding (no external calls) ------------------
         EmbeddingService embedding = fixedEmbedding();
-        KnowledgeQaEmbeddingIndexerImpl realIndexer = new KnowledgeQaEmbeddingIndexerImpl(embedding, jdbc);
+        realIndexer = new KnowledgeQaEmbeddingIndexerImpl(embedding, jdbc);
 
         // E9A: give controlled voice to the single published Q&A through the real indexer.
         AtFaqGovernedRagIndexingService ragService = new AtFaqGovernedRagIndexingService(
@@ -214,7 +216,7 @@ class AtFaqGovernedRollbackServiceIT {
     @Test @Order(2)
     @DisplayName("TC-02: rollback governado reverte exactamente o único Q&A indexado (com motivo)")
     void rollsBackExactlyOneIndexedQa() {
-        mainRollback = rollbackService.rollbackSingleIndexedQa(mainIndexResult, org, ROLLED_BACK_BY, REASON);
+        mainRollback = rollbackService.rollbackSingleIndexedQa(mainIndexResult, org, ROLLED_BACK_BY, MOTIVE);
 
         assertThat(mainRollback.mode()).isEqualTo(AtFaqRollbackMode.TEST_ISOLATED_SINGLE_QA);
         assertThat(mainRollback.rolledBackAt()).isEqualTo(FIXED_INSTANT);
@@ -287,7 +289,7 @@ class AtFaqGovernedRollbackServiceIT {
     @Test @Order(5)
     @DisplayName("TC-05: o motivo obrigatório consta do relatório do item revertido")
     void reasonIsPresentInReport() {
-        assertThat(mainRollback.itemResults().get(0).reason()).isEqualTo(REASON);
+        assertThat(mainRollback.itemResults().get(0).reason()).isEqualTo(MOTIVE.auditDetail());
         assertThat(mainRollback.globalWarnings())
                 .anyMatch(w -> w.toLowerCase().contains("motivo"));
     }
@@ -300,7 +302,7 @@ class AtFaqGovernedRollbackServiceIT {
     @DisplayName("TC-06: segundo rollback é idempotente/skipped (não lança INVALID_STATE_TRANSITION)")
     void secondRollbackIsIdempotent() {
         AtFaqRollbackResult second =
-                rollbackService.rollbackSingleIndexedQa(mainIndexResult, org, ROLLED_BACK_BY, REASON);
+                rollbackService.rollbackSingleIndexedQa(mainIndexResult, org, ROLLED_BACK_BY, MOTIVE);
 
         assertThat(second.blockingErrors()).isEmpty();
         assertThat(second.totals().rolledBack()).isZero();
@@ -321,7 +323,8 @@ class AtFaqGovernedRollbackServiceIT {
     @DisplayName("TC-07: motivo vazio bloqueia o rollback (motivo obrigatório)")
     void emptyReasonIsBlocked() {
         AtFaqRollbackResult run =
-                rollbackService.rollbackSingleIndexedQa(mainIndexResult, org, ROLLED_BACK_BY, "   ");
+                rollbackService.rollbackSingleIndexedQa(
+                        mainIndexResult, org, ROLLED_BACK_BY, (AtFaqRollbackMotive) null);
 
         assertThat(run.totals().rolledBack()).isZero();
         assertThat(run.blockingErrors()).anyMatch(e -> e.toLowerCase().contains("motivo"));
@@ -337,7 +340,7 @@ class AtFaqGovernedRollbackServiceIT {
         KnowledgeQuestionAnswer qa = newPublishedQa("AT-FAQ-9103", KnowledgeRiskLevel.LOW, org);
 
         AtFaqRollbackResult run = rollbackService.rollbackSingleIndexedQa(
-                wrapIndex(indexItem("AT-FAQ-9103", qa.getId())), otherOrg, ROLLED_BACK_BY, REASON);
+                wrapIndex(indexItem("AT-FAQ-9103", qa.getId())), otherOrg, ROLLED_BACK_BY, MOTIVE);
 
         assertThat(run.totals().rolledBack()).isZero();
         assertThat(run.totals().blocked()).isEqualTo(1);
@@ -357,7 +360,7 @@ class AtFaqGovernedRollbackServiceIT {
         KnowledgeQuestionAnswer qa = newImportedQa("AT-FAQ-9104", KnowledgeRiskLevel.LOW, org);
 
         AtFaqRollbackResult run = rollbackService.rollbackSingleIndexedQa(
-                wrapIndex(indexItem("AT-FAQ-9104", qa.getId())), org, ROLLED_BACK_BY, REASON);
+                wrapIndex(indexItem("AT-FAQ-9104", qa.getId())), org, ROLLED_BACK_BY, MOTIVE);
 
         assertThat(run.blockingErrors()).isEmpty();
         assertThat(run.totals().rolledBack()).isZero();
@@ -377,7 +380,7 @@ class AtFaqGovernedRollbackServiceIT {
 
         AtFaqRollbackResult run = rollbackService.rollbackSingleIndexedQa(
                 wrapIndex(indexItem("AT-FAQ-9105", qaA.getId()), indexItem("AT-FAQ-9106", qaB.getId())),
-                org, ROLLED_BACK_BY, REASON);
+                org, ROLLED_BACK_BY, MOTIVE);
 
         assertThat(run.totals().rolledBack()).isZero();
         assertThat(run.blockingErrors()).anyMatch(e -> e.contains("Mais de um item"));
@@ -397,7 +400,7 @@ class AtFaqGovernedRollbackServiceIT {
         assertThat(embeddingRowsFor(qa.getId())).isZero(); // publicado, mas nunca indexado
 
         AtFaqRollbackResult run = rollbackService.rollbackSingleIndexedQa(
-                wrapIndex(indexItem("AT-FAQ-9107", qa.getId())), org, ROLLED_BACK_BY, REASON);
+                wrapIndex(indexItem("AT-FAQ-9107", qa.getId())), org, ROLLED_BACK_BY, MOTIVE);
 
         assertThat(run.totals().rolledBack()).isZero();
         assertThat(run.totals().blocked()).isEqualTo(1);
@@ -444,8 +447,106 @@ class AtFaqGovernedRollbackServiceIT {
     }
 
     // =========================================================================
+    // TC-14 — motivo (reasonCode + detail) persistido no audit log — LEGAL_CHANGE com detalhe
+    // =========================================================================
+
+    @Test @Order(14)
+    @DisplayName("TC-14: audit KNOWLEDGE_QA_UNPUBLISHED persiste reasonCode+reasonDetail (LEGAL_CHANGE)")
+    void auditPersistsReasonCodeAndDetailForLegalChange() {
+        // O rollback principal (TC-02) usou MOTIVE = LEGAL_CHANGE com detalhe.
+        String metadata = latestUnpublishMetadata(cleanQaId);
+        assertThat(metadata).isEqualTo(MOTIVE.auditDetail());
+        assertThat(metadata).startsWith("reasonCode=LEGAL_CHANGE");
+        assertThat(metadata).contains("reasonDetail=");
+
+        // Actor e entidade correctos.
+        assertThat(latestUnpublishActor(cleanQaId))
+                .isEqualTo(AtFaqGovernedRollbackService.deterministicActor(ROLLED_BACK_BY).toString());
+        // Sem dados sensíveis: só o par governado key=value.
+        assertAuditMetadataHasNoSensitiveData(metadata);
+    }
+
+    // =========================================================================
+    // TC-15 — motivo sem detalhe persistido — PUBLICATION_ERROR
+    // =========================================================================
+
+    @Test @Order(15)
+    @DisplayName("TC-15: audit persiste apenas reasonCode quando não há detalhe (PUBLICATION_ERROR)")
+    void auditPersistsReasonCodeOnlyWhenNoDetail() {
+        KnowledgeQuestionAnswer qa = newPublishedIndexedQa("AT-FAQ-9114", org);
+
+        AtFaqRollbackResult run = rollbackService.rollbackSingleIndexedQa(
+                wrapIndex(indexItem("AT-FAQ-9114", qa.getId())), org, ROLLED_BACK_BY,
+                AtFaqRollbackMotive.of(AtFaqRollbackReason.PUBLICATION_ERROR));
+
+        assertThat(run.totals().rolledBack()).isEqualTo(1);
+
+        String metadata = latestUnpublishMetadata(qa.getId());
+        assertThat(metadata).isEqualTo("reasonCode=PUBLICATION_ERROR");
+        assertThat(metadata).doesNotContain("reasonDetail");
+        assertThat(latestUnpublishActor(qa.getId()))
+                .isEqualTo(AtFaqGovernedRollbackService.deterministicActor(ROLLED_BACK_BY).toString());
+        assertAuditMetadataHasNoSensitiveData(metadata);
+    }
+
+    // =========================================================================
+    // TC-16 — OTHER exige detalhe e ambos são persistidos
+    // =========================================================================
+
+    @Test @Order(16)
+    @DisplayName("TC-16: audit persiste reasonCode=OTHER e o detalhe obrigatório")
+    void auditPersistsOtherWithMandatoryDetail() {
+        KnowledgeQuestionAnswer qa = newPublishedIndexedQa("AT-FAQ-9116", org);
+        AtFaqRollbackMotive other =
+                AtFaqRollbackMotive.of(AtFaqRollbackReason.OTHER, "decisão operacional pontual do gestor");
+
+        AtFaqRollbackResult run = rollbackService.rollbackSingleIndexedQa(
+                wrapIndex(indexItem("AT-FAQ-9116", qa.getId())), org, ROLLED_BACK_BY, other);
+
+        assertThat(run.totals().rolledBack()).isEqualTo(1);
+
+        String metadata = latestUnpublishMetadata(qa.getId());
+        assertThat(metadata)
+                .isEqualTo("reasonCode=OTHER; reasonDetail=decisão operacional pontual do gestor");
+        assertThat(metadata).startsWith("reasonCode=OTHER");
+        assertThat(metadata).contains("reasonDetail=decisão operacional pontual do gestor");
+        assertAuditMetadataHasNoSensitiveData(metadata);
+    }
+
+    // =========================================================================
     // Helpers
     // =========================================================================
+
+    private String latestUnpublishMetadata(UUID qaId) {
+        return jdbc.queryForObject(
+                "SELECT metadata FROM audit_events WHERE entity_id = ?::uuid AND action = ? "
+                        + "ORDER BY occurred_at DESC LIMIT 1",
+                String.class, qaId.toString(), "KNOWLEDGE_QA_UNPUBLISHED");
+    }
+
+    private String latestUnpublishActor(UUID qaId) {
+        return jdbc.queryForObject(
+                "SELECT user_id::text FROM audit_events WHERE entity_id = ?::uuid AND action = ? "
+                        + "ORDER BY occurred_at DESC LIMIT 1",
+                String.class, qaId.toString(), "KNOWLEDGE_QA_UNPUBLISHED");
+    }
+
+    /** The audit motive is a governed key=value pair only — never raw vectors, HTML, prompts or chunks. */
+    private static void assertAuditMetadataHasNoSensitiveData(String metadata) {
+        assertThat(metadata).isNotNull();
+        assertThat(metadata).startsWith("reasonCode=");
+        assertThat(metadata).doesNotContain("<").doesNotContain("```").doesNotContain("[0.");
+        assertThat(metadata.toLowerCase()).doesNotContain("prompt").doesNotContain("chunk");
+    }
+
+    /** A VALIDATED + published Q&A that is also given one real embedding row (retrievable by the probe). */
+    private KnowledgeQuestionAnswer newPublishedIndexedQa(String externalKey, Organization owner) {
+        KnowledgeQuestionAnswer qa = newPublishedQa(externalKey, KnowledgeRiskLevel.LOW, owner);
+        realIndexer.index(
+                qa.getId(), qa.getOriginalQuestion(), qa.getTechnicalAnswer(),
+                qa.getTopic() != null ? qa.getTopic().name() : null);
+        return qa;
+    }
 
     /** Deterministic 768-dim embedding: first component 1.0, remaining 0.0 — same for query/passage. */
     private static EmbeddingService fixedEmbedding() {

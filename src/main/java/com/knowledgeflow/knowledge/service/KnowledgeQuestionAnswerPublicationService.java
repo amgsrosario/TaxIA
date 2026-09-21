@@ -128,6 +128,18 @@ public class KnowledgeQuestionAnswerPublicationService {
 
     @Transactional
     public void unpublish(UUID organizationId, UUID actingUserId, UUID id) {
+        unpublish(organizationId, actingUserId, id, null);
+    }
+
+    /**
+     * Unpublishes an entry and records the {@code KNOWLEDGE_QA_UNPUBLISHED} audit event with an
+     * optional governance detail (e.g. the taxonomy-based rollback motive — Bloco E, E10-policy-impl).
+     * The three-argument overload delegates here with {@code null}, so its behaviour is unchanged.
+     * The detail is persisted in the existing {@code audit_events.metadata} TEXT column — no new audit
+     * action, no schema change.
+     */
+    @Transactional
+    public void unpublish(UUID organizationId, UUID actingUserId, UUID id, String governanceDetail) {
         KnowledgeQuestionAnswer qa = requireOwned(organizationId, id);
 
         if (!qa.isPublished()) {
@@ -139,8 +151,9 @@ public class KnowledgeQuestionAnswerPublicationService {
         qa.markUnpublished();
         qaRepository.save(qa);
 
+        String detail = (governanceDetail == null || governanceDetail.isBlank()) ? null : governanceDetail;
         auditService.record(organizationId, actingUserId,
-                AuditAction.KNOWLEDGE_QA_UNPUBLISHED, "KnowledgeQuestionAnswer", id);
+                AuditAction.KNOWLEDGE_QA_UNPUBLISHED, "KnowledgeQuestionAnswer", id, detail);
 
         log.info("Unpublished QA qaId={} org={}", id, organizationId);
     }

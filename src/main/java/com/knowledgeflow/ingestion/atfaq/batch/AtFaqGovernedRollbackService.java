@@ -96,7 +96,8 @@ public class AtFaqGovernedRollbackService {
     private static final int MAX_SMALL_BATCH = AtFaqRollbackTotals.MAX_SMALL_BATCH;
 
     private static final List<String> NEXT_ACTIONS = List.of(
-            "E10-policy: persistência formal do motivo e auditoria dedicada de rollback.",
+            "E10-policy-impl: motivo (reasonCode) persistido em audit log; entidade dedicada de "
+                    + "rollback fica para fase futura.",
             "E9C: lote piloto real apenas depois de rollback e política consolidados.");
 
     private final KnowledgeQuestionAnswerPublicationService publicationService;
@@ -137,22 +138,23 @@ public class AtFaqGovernedRollbackService {
      * @param indexingResult output of the E9A/E9B governed RAG indexing
      * @param organization   the owning organization (never the real pilot base outside tests)
      * @param rolledBackBy   actor recorded as the rollback requester
-     * @param reason         mandatory, non-blank motive for the rollback
+     * @param motive         mandatory taxonomy motive (reasonCode + optional detail), persisted in audit
      */
     public AtFaqRollbackResult rollbackSingleIndexedQa(
             AtFaqRagIndexingResult indexingResult,
             Organization organization,
             String rolledBackBy,
-            String reason) {
+            AtFaqRollbackMotive motive) {
 
         Instant rolledBackAt = clock.instant();
         String batchId = indexingResult != null ? indexingResult.batchId() : null;
 
-        if (reason == null || reason.isBlank()) {
+        if (motive == null) {
             return emptyResult(SINGLE_MODE, batchId, rolledBackAt, rolledBackBy, 0, 1, 1,
                     "Motivo de rollback ausente — o motivo é obrigatório em E10A.",
-                    "Fornecer um motivo não vazio para o rollback governado.");
+                    "Fornecer um motivo (reasonCode) não vazio para o rollback governado.");
         }
+        String reason = motive.auditDetail();
         if (indexingResult == null) {
             return emptyResult(SINGLE_MODE, null, rolledBackAt, rolledBackBy, 0, 1, 1,
                     "Resultado de indexação ausente.",
@@ -214,7 +216,7 @@ public class AtFaqGovernedRollbackService {
      * @param indexingResult output of the E9A/E9B governed RAG indexing
      * @param organization   the owning organization (never the real pilot base outside tests)
      * @param rolledBackBy   actor recorded as the rollback requester
-     * @param reason         mandatory, non-blank motive for the whole batch
+     * @param motive         mandatory taxonomy motive (reasonCode + optional detail) for the whole batch
      * @param maxItems       batch limit; must be in [{@value #MIN_SMALL_BATCH}, {@value #MAX_SMALL_BATCH}]
      *                       — 1 belongs to the single flow, &gt;3 is refused (never massive rollback)
      */
@@ -222,7 +224,7 @@ public class AtFaqGovernedRollbackService {
             AtFaqRagIndexingResult indexingResult,
             Organization organization,
             String rolledBackBy,
-            String reason,
+            AtFaqRollbackMotive motive,
             int maxItems) {
 
         Instant rolledBackAt = clock.instant();
@@ -245,11 +247,12 @@ public class AtFaqGovernedRollbackService {
                             + "; rollback massivo fica fora de âmbito.");
         }
 
-        if (reason == null || reason.isBlank()) {
+        if (motive == null) {
             return emptyResult(BATCH_MODE, batchId, rolledBackAt, rolledBackBy, 0, maxItems, maxItems,
                     "Motivo de rollback ausente — o motivo é obrigatório para o lote em E10B.",
-                    "Fornecer um motivo não vazio para o rollback governado do lote.");
+                    "Fornecer um motivo (reasonCode) não vazio para o rollback governado do lote.");
         }
+        String reason = motive.auditDetail();
         if (indexingResult == null) {
             return emptyResult(BATCH_MODE, null, rolledBackAt, rolledBackBy, 0, maxItems, maxItems,
                     "Resultado de indexação ausente.",
@@ -427,8 +430,10 @@ public class AtFaqGovernedRollbackService {
         }
 
         // --- effective rollback through the real publication service (real indexer in IT) ---
+        // reason is the motive's audit detail (reasonCode[; reasonDetail]) — persisted in the
+        // KNOWLEDGE_QA_UNPUBLISHED audit event (E10-policy-impl, decision D2).
         try {
-            publicationService.unpublish(organizationId, actingUserId, qaId);
+            publicationService.unpublish(organizationId, actingUserId, qaId, reason);
         } catch (BusinessException e) {
             log.warn("Rollback recusado pelo serviço para {}: {}", externalId, e.getMessage());
             return blocked(externalId, qaId, reason, embeddingRowsBefore, publishedBefore,
@@ -606,8 +611,8 @@ public class AtFaqGovernedRollbackService {
     }
 
     private static String motivePersistenceWarning() {
-        return "Motivo de rollback não é persistido formalmente (unpublish não guarda motivo). "
-                + "Lacuna documentada para E10-policy.";
+        return "Motivo de rollback (reasonCode) persistido no audit log via KNOWLEDGE_QA_UNPUBLISHED "
+                + "(E10-policy-impl, D2). Entidade dedicada de rollback fica para fase futura.";
     }
 
     private int countEmbeddingRows(UUID qaId) {

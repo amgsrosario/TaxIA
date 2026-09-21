@@ -82,8 +82,8 @@ class AtFaqGovernedRollbackBatchServiceIT {
     private static final String INDEXED_BY = "taxia-governed-indexing-test";
     private static final String ROLLED_BACK_BY = "taxia-governed-rollback-test";
     private static final String SOURCE_SYSTEM = "at-faq-governed-batch";
-    private static final String REASON =
-            "Alteração legislativa: respostas desatualizadas; retirar o coro do RAG.";
+    private static final AtFaqRollbackMotive MOTIVE = AtFaqRollbackMotive.of(
+            AtFaqRollbackReason.LEGAL_CHANGE, "respostas desatualizadas; retirar o coro do RAG.");
     private static final String RAG_QUERY = "Qual o limiar do volume de negócios para IVA mensal?";
     private static final int DIM = 768;
     // Generous top-k: the deterministic embedding is identical for every Q&A, so a small k could
@@ -178,7 +178,7 @@ class AtFaqGovernedRollbackBatchServiceIT {
                 indexItem(scenarioAExternalIds.get(2), scenarioAQaIds.get(2)));
 
         AtFaqRollbackResult run =
-                rollbackService.rollbackSmallIndexedBatch(index, org, ROLLED_BACK_BY, REASON, 3);
+                rollbackService.rollbackSmallIndexedBatch(index, org, ROLLED_BACK_BY, MOTIVE, 3);
 
         assertThat(run.mode()).isEqualTo(AtFaqRollbackMode.SMALL_BATCH_TEST_ISOLATED);
         assertThat(run.rolledBackAt()).isEqualTo(FIXED_INSTANT);
@@ -211,7 +211,7 @@ class AtFaqGovernedRollbackBatchServiceIT {
             assertThat(item.embeddingRemoved()).isTrue();
             assertThat(item.ragRecoveredBefore()).isTrue();
             assertThat(item.ragRecoveredAfter()).isFalse();
-            assertThat(item.reason()).isEqualTo(REASON);
+            assertThat(item.reason()).isEqualTo(MOTIVE.auditDetail());
         });
     }
 
@@ -251,7 +251,7 @@ class AtFaqGovernedRollbackBatchServiceIT {
                 indexItem("AT-FAQ-2104", qa4.getId()));
 
         AtFaqRollbackResult run =
-                rollbackService.rollbackSmallIndexedBatch(index, org, ROLLED_BACK_BY, REASON, 3);
+                rollbackService.rollbackSmallIndexedBatch(index, org, ROLLED_BACK_BY, MOTIVE, 3);
 
         assertThat(run.mode()).isEqualTo(AtFaqRollbackMode.SMALL_BATCH_TEST_ISOLATED);
         assertThat(run.blockingErrors()).isEmpty();
@@ -304,7 +304,7 @@ class AtFaqGovernedRollbackBatchServiceIT {
                 indexItem(scenarioAExternalIds.get(2), scenarioAQaIds.get(2)));
 
         AtFaqRollbackResult run =
-                rollbackService.rollbackSmallIndexedBatch(index, org, ROLLED_BACK_BY, REASON, 3);
+                rollbackService.rollbackSmallIndexedBatch(index, org, ROLLED_BACK_BY, MOTIVE, 3);
 
         assertThat(run.blockingErrors()).isEmpty();
         AtFaqRollbackTotals t = run.totals();
@@ -341,7 +341,8 @@ class AtFaqGovernedRollbackBatchServiceIT {
                 indexItem("AT-FAQ-2202", UUID.randomUUID()));
 
         AtFaqRollbackResult run =
-                rollbackService.rollbackSmallIndexedBatch(index, org, ROLLED_BACK_BY, "   ", 3);
+                rollbackService.rollbackSmallIndexedBatch(
+                        index, org, ROLLED_BACK_BY, (AtFaqRollbackMotive) null, 3);
 
         assertThat(run.totals().rolledBack()).isZero();
         assertThat(run.blockingErrors()).anyMatch(e -> e.toLowerCase().contains("motivo"));
@@ -355,7 +356,7 @@ class AtFaqGovernedRollbackBatchServiceIT {
 
         AtFaqRollbackResult run = rollbackService.rollbackSmallIndexedBatch(
                 wrapIndex(indexItem("AT-FAQ-2211", qaA.getId()), indexItem("AT-FAQ-2212", qaB.getId())),
-                otherOrg, ROLLED_BACK_BY, REASON, 3);
+                otherOrg, ROLLED_BACK_BY, MOTIVE, 3);
 
         assertThat(run.totals().rolledBack()).isZero();
         assertThat(run.totals().blocked()).isEqualTo(2);
@@ -376,7 +377,7 @@ class AtFaqGovernedRollbackBatchServiceIT {
                 indexItem("AT-FAQ-2222", UUID.randomUUID()));
 
         AtFaqRollbackResult run =
-                rollbackService.rollbackSmallIndexedBatch(index, org, ROLLED_BACK_BY, REASON, 1);
+                rollbackService.rollbackSmallIndexedBatch(index, org, ROLLED_BACK_BY, MOTIVE, 1);
 
         assertThat(run.totals().rolledBack()).isZero();
         assertThat(run.blockingErrors()).anyMatch(e -> e.toLowerCase().contains("maxitems"));
@@ -390,7 +391,7 @@ class AtFaqGovernedRollbackBatchServiceIT {
                 indexItem("AT-FAQ-2232", UUID.randomUUID()));
 
         AtFaqRollbackResult run =
-                rollbackService.rollbackSmallIndexedBatch(index, org, ROLLED_BACK_BY, REASON, 4);
+                rollbackService.rollbackSmallIndexedBatch(index, org, ROLLED_BACK_BY, MOTIVE, 4);
 
         assertThat(run.totals().rolledBack()).isZero();
         assertThat(run.blockingErrors()).anyMatch(e -> e.contains("3"));
@@ -406,7 +407,7 @@ class AtFaqGovernedRollbackBatchServiceIT {
 
         AtFaqRollbackResult run = rollbackService.rollbackSmallIndexedBatch(
                 wrapIndex(indexItem("AT-FAQ-2241", qaA.getId()), indexItem("AT-FAQ-2242", qaB.getId())),
-                org, ROLLED_BACK_BY, REASON, 3);
+                org, ROLLED_BACK_BY, MOTIVE, 3);
 
         assertThat(run.totals().rolledBack()).isZero();
         assertThat(run.totals().blocked()).isEqualTo(2);
@@ -424,7 +425,7 @@ class AtFaqGovernedRollbackBatchServiceIT {
                 wrapIndex(
                         notIndexedItem("AT-FAQ-2251", UUID.randomUUID()),
                         notIndexedItem("AT-FAQ-2252", UUID.randomUUID())),
-                org, ROLLED_BACK_BY, REASON, 3);
+                org, ROLLED_BACK_BY, MOTIVE, 3);
 
         assertThat(run.blockingErrors()).isEmpty();
         AtFaqRollbackTotals t = run.totals();
@@ -446,7 +447,7 @@ class AtFaqGovernedRollbackBatchServiceIT {
         KnowledgeQuestionAnswer qa = newIndexedPublishedQa("AT-FAQ-2301");
 
         AtFaqRollbackResult run = rollbackService.rollbackSingleIndexedQa(
-                wrapIndex(indexItem("AT-FAQ-2301", qa.getId())), org, ROLLED_BACK_BY, REASON);
+                wrapIndex(indexItem("AT-FAQ-2301", qa.getId())), org, ROLLED_BACK_BY, MOTIVE);
 
         assertThat(run.mode()).isEqualTo(AtFaqRollbackMode.TEST_ISOLATED_SINGLE_QA);
         assertThat(run.blockingErrors()).isEmpty();
