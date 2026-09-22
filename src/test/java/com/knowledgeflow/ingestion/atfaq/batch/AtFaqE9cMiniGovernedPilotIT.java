@@ -148,7 +148,7 @@ class AtFaqE9cMiniGovernedPilotIT {
         // Governed publication executor uses the autowired publication service (stub indexer under
         // pgtest) — publishing alone therefore produces zero embeddings.
         executor = new AtFaqGovernedPublicationExecutor(
-                publicationService, qaRepository, sourceRepository, clock);
+                publicationService, qaRepository, sourceRepository, jdbc, clock);
 
         // Governed indexing uses the REAL indexer fed by the deterministic embedding — genuine
         // pgvector rows, no external call.

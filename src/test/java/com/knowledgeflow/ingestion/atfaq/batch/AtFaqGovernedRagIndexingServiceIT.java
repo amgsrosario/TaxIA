@@ -123,7 +123,7 @@ class AtFaqGovernedRagIndexingServiceIT {
         AtFaqGovernedDraftPersistenceService persistenceService =
                 new AtFaqGovernedDraftPersistenceService(qaRepository, sourceRepository, clock);
         AtFaqGovernedPublicationExecutor executor = new AtFaqGovernedPublicationExecutor(
-                publicationService, qaRepository, sourceRepository, clock);
+                publicationService, qaRepository, sourceRepository, jdbc, clock);
 
         AtFaqPreCurationResult preCuration =
                 preCurationService.preCurate(ControlledBatchFixtures.sixItemBatch());

@@ -110,7 +110,7 @@ class AtFaqGovernedPublicationExecutorIT {
                 new AtFaqGovernedDraftPersistenceService(qaRepository, sourceRepository, clock);
 
         executor = new AtFaqGovernedPublicationExecutor(
-                publicationService, qaRepository, sourceRepository, clock);
+                publicationService, qaRepository, sourceRepository, jdbc, clock);
 
         AtFaqPreCurationResult preCuration =
                 preCurationService.preCurate(ControlledBatchFixtures.sixItemBatch());

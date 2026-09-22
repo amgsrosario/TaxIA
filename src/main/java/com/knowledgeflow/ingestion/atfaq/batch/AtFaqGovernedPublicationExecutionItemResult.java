@@ -22,23 +22,31 @@ import java.util.UUID;
  *       {@code blockingReasons}.</li>
  * </ul>
  *
- * <p>Whatever the shape, three invariants always hold, asserting that E8B.3 gives the knowledge no
- * "voice": {@code indexed == false}, {@code embeddingPresent == false} and
- * {@code ragExpectedToRetrieve == false}. Publication reaches {@code publishedAt}/{@code publishedBy}
- * but, under the stub indexer, produces no embedding, so the RAG can never retrieve the case.
+ * <p>{@code indexed}, {@code embeddingPresent} and {@code ragExpectedToRetrieve} are <b>observed
+ * from the persisted state</b> after {@code publish(...)}, never assumed from the mode. Under a stub
+ * indexer they stay {@code false} (publication reached {@code publishedAt}/{@code publishedBy} but
+ * produced no embedding, so the RAG can never retrieve the case); under a synchronous real indexer
+ * they become {@code true} because {@code publish(...)} created the embedding in the same
+ * transaction. Two invariants always hold, encoding what those flags mean:
+ * <ul>
+ *   <li>{@code indexed == embeddingPresent} — "indexed" means exactly one embedding row exists (the
+ *       {@code knowledge_qa_id} unique constraint guarantees it is never more than one);</li>
+ *   <li>if {@code ragExpectedToRetrieve} then {@code published && embeddingPresent} — RAG
+ *       retrievability requires both a publication and a real embedding.</li>
+ * </ul>
  *
  * @param externalId                  stable AT-FAQ identifier
  * @param knowledgeQaId               id of the persisted Q&amp;A, or {@code null}
  * @param eligibleForGovernedPublication whether every governed-publication guard passed
  * @param validated                   whether the draft was promoted to VALIDATED in this run
  * @param published                   whether the Q&amp;A is published (now, or from a prior run)
- * @param indexed                     always {@code false}
+ * @param indexed                     whether a persisted embedding was observed (equals {@code embeddingPresent})
  * @param publishedBy                 publisher name recorded on the Q&amp;A, or {@code null}
  * @param publishedAt                 publication instant recorded on the Q&amp;A, or {@code null}
  * @param curationStatus              curation status observed after the run
  * @param eligibleForRagByEntityRules result of the entity's own {@code isEligibleForRag()} check
- * @param embeddingPresent            always {@code false} (no embedding row is ever created)
- * @param ragExpectedToRetrieve       always {@code false} (no embedding → not retrievable)
+ * @param embeddingPresent            whether exactly one embedding row exists for the Q&amp;A
+ * @param ragExpectedToRetrieve       whether the Q&amp;A ended in a state expected to be RAG-retrievable
  * @param autonomySignals             audit signals carried from persistence classification
  * @param warnings                    non-blocking observations
  * @param blockingReasons             reasons publication was refused (empty when published/skipped-clean)
@@ -67,17 +75,14 @@ public record AtFaqGovernedPublicationExecutionItemResult(
         warnings = warnings == null ? List.of() : List.copyOf(warnings);
         blockingReasons = blockingReasons == null ? List.of() : List.copyOf(blockingReasons);
         nextActions = nextActions == null ? List.of() : List.copyOf(nextActions);
-        if (indexed) {
+        if (indexed != embeddingPresent) {
             throw new IllegalArgumentException(
-                    "E8B.3 must never mark an item indexed: " + externalId);
+                    "E9C invariant violated: indexed must equal embeddingPresent for " + externalId);
         }
-        if (embeddingPresent) {
+        if (ragExpectedToRetrieve && !(published && embeddingPresent)) {
             throw new IllegalArgumentException(
-                    "E8B.3 must never observe an embedding: " + externalId);
-        }
-        if (ragExpectedToRetrieve) {
-            throw new IllegalArgumentException(
-                    "E8B.3 must never expect RAG retrieval: " + externalId);
+                    "E9C invariant violated: ragExpectedToRetrieve requires published + embeddingPresent for "
+                            + externalId);
         }
     }
 }
