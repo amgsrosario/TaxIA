@@ -16,6 +16,16 @@ public class AtFaqProperties {
     /** Master switch — the whole module refuses to run while false. */
     private boolean enabled = false;
 
+    /**
+     * Master switch for the future governed E9C pilot execution (publish / index /
+     * rollback / actor provisioning driven by a controlled pilot runner).
+     * <p>
+     * Disabled by default and when the env var is absent: no governed pilot effect
+     * ever runs while this is false. There is no runner wired to it yet — it is the
+     * explicit, auditable off-switch that a future controlled runner must honour.
+     */
+    private boolean e9cPilotEnabled = false;
+
     /** Base URL of the source site. Only used to build the index URL. */
     private String baseUrl = "https://info.portaldasfinancas.gov.pt";
 
@@ -71,6 +81,8 @@ public class AtFaqProperties {
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public boolean isE9cPilotEnabled() { return e9cPilotEnabled; }
+    public void setE9cPilotEnabled(boolean e9cPilotEnabled) { this.e9cPilotEnabled = e9cPilotEnabled; }
     public String getBaseUrl() { return baseUrl; }
     public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
     public String getIndexPath() { return indexPath; }

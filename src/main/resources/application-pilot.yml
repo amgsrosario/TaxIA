@@ -1,0 +1,52 @@
+# =====================================================================
+# TaxIA — PILOT profile (Bloco E, E9C-pilot-profile / PROMPT 90)
+# =====================================================================
+# Explicit operational barrier between dev / test / pgtest and the future
+# governed pilot execution. Activated with SPRING_PROFILES_ACTIVE=pilot.
+#
+# SAFETY CONTRACT:
+#   * Datasource points UNAMBIGUOUSLY at knowledgeflow_pilot (never the dev
+#     'knowledgeflow' database). PilotDatasourceGuard fails startup closed if
+#     the resolved database is anything other than knowledgeflow_pilot on a
+#     loopback host.
+#   * Real, self-hosted embeddings (no stub, no external provider).
+#   * Every E9C effect (publish / index / rollback / actor provisioning /
+#     batch) is OFF by default — this profile never writes knowledge data at
+#     startup. There is no runner in this codebase yet; the flag below is the
+#     future switch and defaults to false.
+#   * No secrets in this file — credentials come from environment variables.
+# =====================================================================
+spring:
+  datasource:
+    # Default is unambiguously the pilot database. Overridable via env, but the
+    # PilotDatasourceGuard still refuses to boot unless the resolved database
+    # name is knowledgeflow_pilot — so a stray SPRING_DATASOURCE_URL pointing at
+    # knowledgeflow fails closed rather than writing to the wrong database.
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:15432/knowledgeflow_pilot}
+    username: ${SPRING_DATASOURCE_USERNAME:knowledgeflow_pilot}
+    # No real password in the file — must be supplied by the environment.
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+  flyway:
+    # Schema is managed by the approved Flyway migrations (V1..V15) only.
+    enabled: true
+    locations: classpath:db/migration
+  jpa:
+    hibernate:
+      # Never create/create-drop/update in pilot — schema is Flyway's job.
+      ddl-auto: validate
+    open-in-view: false
+
+knowledgeflow:
+  rag:
+    embeddings:
+      # Real, self-hosted sentence-transformers microservice — never a stub,
+      # never an external provider. Dimension is fixed at 768.
+      base-url: ${EMBEDDINGS_SERVICE_URL:http://localhost:8000}
+      expected-dimension: 768
+  ingestion:
+    at-faq:
+      # Automated FAQ ingestion stays off in pilot.
+      enabled: ${AT_FAQ_INGESTION_ENABLED:false}
+      # Master switch for the future governed E9C pilot execution.
+      # Absent env var => false. Explicit off here for auditability.
+      e9c-pilot-enabled: ${AT_FAQ_E9C_PILOT_ENABLED:false}

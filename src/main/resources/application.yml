@@ -68,6 +68,9 @@ knowledgeflow:
       # Pilot of automated ingestion of the AT public FAQs (Etapa 10A).
       # Disabled by default — no HTTP request is made unless explicitly enabled.
       enabled: ${AT_FAQ_INGESTION_ENABLED:false}
+      # Master switch for the future governed E9C pilot execution.
+      # Disabled by default; absent env var => false. No runner is wired to it yet.
+      e9c-pilot-enabled: ${AT_FAQ_E9C_PILOT_ENABLED:false}
       max-items: ${AT_FAQ_MAX_ITEMS:80}
       max-pages: ${AT_FAQ_MAX_PAGES:10}
       delay-ms: ${AT_FAQ_DELAY_MS:1500}
