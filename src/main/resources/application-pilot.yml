@@ -15,6 +15,10 @@
 #     startup. There is no runner in this codebase yet; the flag below is the
 #     future switch and defaults to false.
 #   * No secrets in this file — credentials come from environment variables.
+#   * DB username AND password are MANDATORY (no default): startup fails closed
+#     if either is absent. The username is NOT inferred from the database name.
+#   * The AI provider is an EXPLICIT operational decision: this profile never
+#     inherits Anthropic. With no explicit decision the AI layer fails closed.
 # =====================================================================
 spring:
   datasource:
@@ -23,9 +27,14 @@ spring:
     # name is knowledgeflow_pilot — so a stray SPRING_DATASOURCE_URL pointing at
     # knowledgeflow fails closed rather than writing to the wrong database.
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:15432/knowledgeflow_pilot}
-    username: ${SPRING_DATASOURCE_USERNAME:knowledgeflow_pilot}
-    # No real password in the file — must be supplied by the environment.
-    password: ${SPRING_DATASOURCE_PASSWORD:}
+    # MANDATORY — no default. The runtime role is an explicit operational
+    # decision and is NOT inferred from the database name. If
+    # SPRING_DATASOURCE_USERNAME is absent, startup fails closed with an
+    # unresolved-placeholder error.
+    username: ${SPRING_DATASOURCE_USERNAME}
+    # MANDATORY — no default. No real password ever lives in the repo; if
+    # SPRING_DATASOURCE_PASSWORD is absent, startup fails closed.
+    password: ${SPRING_DATASOURCE_PASSWORD}
   flyway:
     # Schema is managed by the approved Flyway migrations (V1..V15) only.
     enabled: true
@@ -50,3 +59,21 @@ knowledgeflow:
       # Master switch for the future governed E9C pilot execution.
       # Absent env var => false. Explicit off here for auditability.
       e9c-pilot-enabled: ${AT_FAQ_E9C_PILOT_ENABLED:false}
+  ai:
+    # The AI (LLM) provider is an EXPLICIT operational decision (D-AI). This
+    # profile deliberately does NOT inherit Anthropic from application.yml:
+    #   * primary-provider defaults to BLANK here (overrides the base 'anthropic'
+    #     default). With no explicit AI_PRIMARY_PROVIDER, AIProviderResolver
+    #     fails startup closed ("primary-provider is required").
+    #   * every provider is disabled by default, so no provider bean (least of
+    #     all Anthropic) is registered silently. To run AI in pilot, an operator
+    #     must explicitly set AI_PRIMARY_PROVIDER and enable that provider.
+    # The first governed E9C-real N=1 does NOT depend on any external LLM.
+    primary-provider: ${AI_PRIMARY_PROVIDER:}
+    providers:
+      anthropic:
+        enabled: ${ANTHROPIC_ENABLED:false}
+      openai:
+        enabled: ${OPENAI_ENABLED:false}
+      stub:
+        enabled: ${STUB_AI_ENABLED:false}

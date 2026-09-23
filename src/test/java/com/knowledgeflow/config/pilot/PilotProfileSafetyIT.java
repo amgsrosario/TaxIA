@@ -44,8 +44,16 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * </ul>
  */
 @SpringBootTest(properties = {
-        // Dummy key so AnthropicProvider can construct in the test; never used (no AI call at startup).
-        "knowledgeflow.ai.providers.anthropic.api-key=pilot-it-dummy-key-not-used"
+        // PASSO 11-C — synthetic DB credentials satisfy the mandatory (no-default)
+        // placeholders in application-pilot.yml so the context can bind. The actual
+        // connection still comes from @ServiceConnection (the Testcontainers container).
+        "spring.datasource.username=pilot_it_synthetic_user",
+        "spring.datasource.password=pilot_it_synthetic_password",
+        // PASSO 10 — the pilot profile makes NO silent AI decision, so an explicit
+        // decision must be supplied to boot. Use the local stub (no external call,
+        // no dummy Anthropic key). This proves "with an explicit decision, it boots".
+        "knowledgeflow.ai.primary-provider=stub",
+        "knowledgeflow.ai.providers.stub.enabled=true"
 })
 @ActiveProfiles("pilot")
 @Testcontainers
