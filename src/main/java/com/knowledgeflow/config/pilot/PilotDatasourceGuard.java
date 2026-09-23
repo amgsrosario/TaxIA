@@ -65,8 +65,11 @@ public class PilotDatasourceGuard implements InitializingBean {
      * Validates the datasource, throwing {@link IllegalStateException} (which aborts startup)
      * when it does not point unambiguously at {@code knowledgeflow_pilot} on a loopback host.
      * Read-only: opens a read-only connection and reads metadata only.
+     *
+     * <p>Public so the guarded one-shot pilot runner (Bloco E, E9C) can reuse the exact same
+     * fail-closed base check before any read or write, without duplicating the logic.
      */
-    static void validate(DataSource dataSource) {
+    public static void validate(DataSource dataSource) {
         String database;
         String url;
         try (Connection connection = dataSource.getConnection()) {

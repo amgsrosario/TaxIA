@@ -19,6 +19,15 @@ public interface KnowledgeQuestionAnswerRepository extends JpaRepository<Knowled
     Optional<KnowledgeQuestionAnswer> findByOrganizationIdAndSourceSystemAndExternalKey(
             UUID organizationId, String sourceSystem, String externalKey);
 
+    /**
+     * Locate a single Q&A by source system + external key across all organizations. Used only by
+     * the guarded one-shot pilot runner (Bloco E, E9C), which resolves an explicit externalKey and
+     * enforces an exactly-one match (N=1). It is intentionally organization-agnostic so the runner
+     * can fail closed — refusing to act — whenever the key is missing or ambiguous.
+     */
+    List<KnowledgeQuestionAnswer> findBySourceSystemAndExternalKey(
+            String sourceSystem, String externalKey);
+
     /** Detect exact question duplicates within an organization. */
     List<KnowledgeQuestionAnswer> findByOrganizationIdAndOriginalQuestion(
             UUID organizationId, String originalQuestion);

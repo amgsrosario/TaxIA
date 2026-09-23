@@ -148,6 +148,16 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!--
+                        Pin the application entry point. The guarded one-shot pilot runner
+                        (Bloco E, E9C) ships a second, deliberately manual main
+                        (TaxiaPilotGovernedRunnerLauncher) that is NEVER the app's startup
+                        class. Pinning start-class keeps the normal boot unambiguous and
+                        prevents repackage from failing over multiple main methods.
+                    -->
+                    <mainClass>com.knowledgeflow.KnowledgeFlowApplication</mainClass>
+                </configuration>
             </plugin>
         </plugins>
     </build>
