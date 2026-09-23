@@ -157,10 +157,34 @@ class TaxiaPilotGovernedRunnerIT {
         assertThat(r.render()).endsWith("READINESS=READY");
         assertThat(r.details()).anyMatch(l -> l.equals("flagEnabled=false"));
         assertThat(r.details()).anyMatch(l -> l.equals("published=false"));
+        // READINESS=READY is environment health, NOT write authorization: with the flag off the
+        // separate writeReadiness line must say BLOCKED so READY can never be misread as "publish-ready".
+        assertThat(r.details()).anyMatch(
+                l -> l.startsWith("writeReadiness=BLOCKED") && l.contains("AT_FAQ_E9C_PILOT_ENABLED=false"));
 
         // Read-only: nothing changed.
         assertThat(embeddingRows(fix001QaId)).isZero();
         assertThat(qaRepository.findById(fix001QaId).orElseThrow().isPublished()).isFalse();
+    }
+
+    @Test @Order(12)
+    @DisplayName("status: with E9C flag ON, READY reports writeReadiness=READY — still read-only")
+    void statusFlagOnReportsWriteReady() {
+        KnowledgeQuestionAnswer qa = newEligibleQa(org, "PILOT-RUNNER-STATUS-ON");
+        UUID id = qa.getId();
+        assertThat(embeddingRows(id)).isZero();
+
+        PilotRunnerResult r = runnerFlagOn.status("PILOT-RUNNER-STATUS-ON");
+
+        assertThat(r.outcome()).isEqualTo(PilotRunnerOutcome.READY);
+        assertThat(r.wroteChange()).isFalse();
+        assertThat(r.render()).endsWith("READINESS=READY");
+        assertThat(r.details()).anyMatch(
+                l -> l.startsWith("writeReadiness=READY") && l.contains("AT_FAQ_E9C_PILOT_ENABLED=true"));
+
+        // Read-only: reporting write-ready must not itself write anything.
+        assertThat(embeddingRows(id)).isZero();
+        assertThat(qaRepository.findById(id).orElseThrow().isPublished()).isFalse();
     }
 
     @Test @Order(2)

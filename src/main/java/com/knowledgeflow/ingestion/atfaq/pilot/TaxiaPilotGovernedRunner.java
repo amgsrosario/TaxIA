@@ -81,9 +81,16 @@ public class TaxiaPilotGovernedRunner {
 
     /**
      * Read-only preflight for a single explicit {@code externalKey}. Never writes; may run even with
-     * the E9C flag off (it reports the flag state). {@code READINESS=READY} means the base is the
-     * pilot database on loopback and exactly one target resolved; anything else is
-     * {@code READINESS=BLOCKED}.
+     * the E9C flag off (it reports the flag state).
+     *
+     * <p><b>{@code READINESS=READY} is about environment/inspection health, not write authorization.</b>
+     * It means only that the base is the pilot database on loopback and exactly one target resolved;
+     * anything else is {@code READINESS=BLOCKED}. Whether a write ({@code publish-one}/
+     * {@code rollback-one}) would actually be permitted is reported separately and unambiguously on the
+     * {@code writeReadiness=...} line (READY only when {@code AT_FAQ_E9C_PILOT_ENABLED=true}). So a
+     * healthy, inspectable environment can — and normally will, during preflight — show
+     * {@code READINESS=READY} together with {@code writeReadiness=BLOCKED}. READY here never authorizes
+     * a publish.
      */
     public PilotRunnerResult status(String externalKey) {
         PilotRunnerResult.Builder b = PilotRunnerResult.of(PilotRunnerAction.STATUS);
@@ -110,6 +117,12 @@ public class TaxiaPilotGovernedRunner {
         b.detail("published=" + qa.isPublished());
         b.detail("embeddingRows=" + embeddingRows(qa.getId()));
         b.detail("eligibleForRag=" + qa.isEligibleForRag());
+        // Environment is inspectable (READINESS=READY below). State write authorization explicitly and
+        // separately so READY can never be misread as "cleared to publish" (PROMPT 93-CORRECÇÃO).
+        boolean writeAllowed = atFaqProperties.isE9cPilotEnabled();
+        b.detail("writeReadiness=" + (writeAllowed ? "READY" : "BLOCKED")
+                + " (publish-one/rollback-one " + (writeAllowed ? "permitted" : "refused")
+                + "; AT_FAQ_E9C_PILOT_ENABLED=" + writeAllowed + ")");
         return b.build(PilotRunnerOutcome.READY, false);
     }
 
