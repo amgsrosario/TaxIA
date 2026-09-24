@@ -37,9 +37,16 @@ import org.springframework.stereotype.Service;
  *   <li>{@link #rollbackOne(String, AtFaqRollbackMotive)} — rolls back exactly one explicit Q&A
  *       with a mandatory motive; requires the flag.</li>
  * </ul>
- * Each call resolves a single target by its explicit {@code externalKey} (enforcing an
- * exactly-one match — 0 or &gt;1 is refused), performs at most one governed write, and returns.
- * There is no batch, no "next", and no auto-discovery.
+ * Each call resolves a single target by its explicit {@code (sourceSystem, externalKey)} pair
+ * (enforcing an exactly-one match — 0 or &gt;1 is refused), performs at most one governed write, and
+ * returns. There is no batch, no "next", and no auto-discovery.
+ *
+ * <p><b>sourceSystem is explicit, never implicit (PROMPT 96).</b> Every action requires the caller to
+ * name the source system (the logical origin namespace the Q&A entered TaxIA through, e.g.
+ * {@code at-faq} or {@code taxia-curated}). It is no longer taken from configuration: the runner does
+ * not carry a default source system, so it can never silently resolve against the wrong namespace.
+ * The value must be a single, non-blank, wildcard-free token; it participates in the N=1 resolution
+ * so the same {@code externalKey} living under two different source systems never collides.
  *
  * <p><b>Fail-closed, no stack traces as interface.</b> Before any write it re-runs the pilot base
  * check ({@link PilotDatasourceGuard#validate(DataSource)} — the datasource must be
@@ -92,10 +99,10 @@ public class TaxiaPilotGovernedRunner {
      * {@code READINESS=READY} together with {@code writeReadiness=BLOCKED}. READY here never authorizes
      * a publish.
      */
-    public PilotRunnerResult status(String externalKey) {
+    public PilotRunnerResult status(String sourceSystem, String externalKey) {
         PilotRunnerResult.Builder b = PilotRunnerResult.of(PilotRunnerAction.STATUS);
+        b.detail("sourceSystem=" + display(sourceSystem));
         b.detail("externalKey=" + display(externalKey));
-        b.detail("sourceSystem=" + atFaqProperties.getSourceSystem());
         b.detail("flagEnabled=" + atFaqProperties.isE9cPilotEnabled());
 
         String baseError = baseGate();
@@ -105,7 +112,7 @@ public class TaxiaPilotGovernedRunner {
         }
         b.detail("base=OK (knowledgeflow_pilot, loopback)");
 
-        Resolution r = resolve(externalKey);
+        Resolution r = resolve(sourceSystem, externalKey);
         if (!r.ok()) {
             b.detail("target=BLOCKED: " + r.reason());
             return b.build(PilotRunnerOutcome.BLOCKED, false);
@@ -135,8 +142,9 @@ public class TaxiaPilotGovernedRunner {
      * under the dedicated non-login publisher actor. Requires the E9C flag. Idempotent: an
      * already-published target yields {@code NO_CHANGE}.
      */
-    public PilotRunnerResult publishOne(String externalKey) {
+    public PilotRunnerResult publishOne(String sourceSystem, String externalKey) {
         PilotRunnerResult.Builder b = PilotRunnerResult.of(PilotRunnerAction.PUBLISH_ONE);
+        b.detail("sourceSystem=" + display(sourceSystem));
         b.detail("externalKey=" + display(externalKey));
 
         if (!atFaqProperties.isE9cPilotEnabled()) {
@@ -148,7 +156,7 @@ public class TaxiaPilotGovernedRunner {
             b.detail("base=BLOCKED: " + baseError);
             return b.build(PilotRunnerOutcome.BLOCKED, false);
         }
-        Resolution r = resolve(externalKey);
+        Resolution r = resolve(sourceSystem, externalKey);
         if (!r.ok()) {
             b.detail("target=BLOCKED: " + r.reason());
             return b.build(PilotRunnerOutcome.BLOCKED, false);
@@ -188,8 +196,9 @@ public class TaxiaPilotGovernedRunner {
      * under the dedicated non-login rollback actor, recording the mandatory motive. Requires the
      * E9C flag. Idempotent: a target that is not published yields {@code NO_CHANGE}.
      */
-    public PilotRunnerResult rollbackOne(String externalKey, AtFaqRollbackMotive motive) {
+    public PilotRunnerResult rollbackOne(String sourceSystem, String externalKey, AtFaqRollbackMotive motive) {
         PilotRunnerResult.Builder b = PilotRunnerResult.of(PilotRunnerAction.ROLLBACK_ONE);
+        b.detail("sourceSystem=" + display(sourceSystem));
         b.detail("externalKey=" + display(externalKey));
 
         if (motive == null) {
@@ -205,7 +214,7 @@ public class TaxiaPilotGovernedRunner {
             b.detail("base=BLOCKED: " + baseError);
             return b.build(PilotRunnerOutcome.BLOCKED, false);
         }
-        Resolution r = resolve(externalKey);
+        Resolution r = resolve(sourceSystem, externalKey);
         if (!r.ok()) {
             b.detail("target=BLOCKED: " + r.reason());
             return b.build(PilotRunnerOutcome.BLOCKED, false);
@@ -251,25 +260,56 @@ public class TaxiaPilotGovernedRunner {
         }
     }
 
-    /** Resolves a single target by (sourceSystem, externalKey), enforcing an exactly-one match. */
-    private Resolution resolve(String externalKey) {
+    /**
+     * Resolves a single target by the explicit {@code (sourceSystem, externalKey)} pair, enforcing an
+     * exactly-one match. Both parts are mandatory and fail closed: a missing/blank/wildcard/multi-value
+     * source system or a missing external key is refused before any query, and 0 or &gt;1 matches are
+     * refused (N=1 only). The source system is never inferred and never defaulted.
+     */
+    private Resolution resolve(String sourceSystem, String externalKey) {
+        String ssError = validateSourceSystem(sourceSystem);
+        if (ssError != null) {
+            return Resolution.blocked(ssError);
+        }
         if (externalKey == null || externalKey.isBlank()) {
             return Resolution.blocked("externalKey is required");
         }
+        String system = sourceSystem.trim();
         String key = externalKey.trim();
-        String sourceSystem = atFaqProperties.getSourceSystem();
         List<KnowledgeQuestionAnswer> found =
-                qaRepository.findBySourceSystemAndExternalKey(sourceSystem, key);
+                qaRepository.findBySourceSystemAndExternalKey(system, key);
         if (found.isEmpty()) {
             return Resolution.blocked(
-                    "no Q&A found for sourceSystem='" + sourceSystem + "' externalKey='" + key + "'");
+                    "no Q&A found for sourceSystem='" + system + "' externalKey='" + key + "'");
         }
         if (found.size() > 1) {
             return Resolution.blocked(
-                    "ambiguous: " + found.size() + " Q&A match sourceSystem='" + sourceSystem
+                    "ambiguous: " + found.size() + " Q&A match sourceSystem='" + system
                             + "' externalKey='" + key + "' — refusing (N=1 only)");
         }
         return Resolution.ok(found.get(0));
+    }
+
+    /**
+     * Fail-closed validation of an explicit source system: mandatory, trimmed, non-blank, and exactly
+     * one plain token — no wildcards ({@code * % ?}) and no multi-value separators
+     * ({@code , ; |} or internal whitespace). Returns {@code null} when valid, else the refusal
+     * message. Deliberately no closed global taxonomy: any explicit token such as {@code at-faq} or
+     * {@code taxia-curated} is accepted.
+     */
+    private static String validateSourceSystem(String sourceSystem) {
+        if (sourceSystem == null || sourceSystem.isBlank()) {
+            return "sourceSystem is required";
+        }
+        String system = sourceSystem.trim();
+        if (system.indexOf('*') >= 0 || system.indexOf('%') >= 0 || system.indexOf('?') >= 0) {
+            return "sourceSystem must be a single explicit value without wildcards ('" + system + "')";
+        }
+        if (system.indexOf(',') >= 0 || system.indexOf(';') >= 0 || system.indexOf('|') >= 0
+                || system.matches(".*\\s.*")) {
+            return "sourceSystem must be exactly one value without separators ('" + system + "')";
+        }
+        return null;
     }
 
     private long embeddingRows(UUID qaId) {

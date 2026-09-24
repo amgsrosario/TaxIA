@@ -83,10 +83,15 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class TaxiaPilotGovernedRunnerIT {
 
     private static final String SOURCE_SYSTEM = "at-faq-pilot-runner-isolated";
+    private static final String SOURCE_AT_FAQ = "at-faq";
+    private static final String SOURCE_CURATED = "taxia-curated";
     private static final String FIX_001 = "PILOT-RUNNER-FIX-001";
     private static final String FIX_002 = "PILOT-RUNNER-FIX-002";
     private static final String DUP_KEY = "PILOT-RUNNER-DUP-777";
     private static final String MISSING_KEY = "PILOT-RUNNER-DOES-NOT-EXIST";
+    private static final String CURATED_KEY = "PILOT-RUNNER-CURATED-FIX-001";
+    private static final String SHARED_KEY = "PILOT-RUNNER-NS-SHARED-KEY";
+    private static final String CURATED_ONLY_KEY = "PILOT-RUNNER-CURATED-ONLY-013";
     private static final String RAG_QUERY = "Qual o enquadramento em IVA desta operação?";
     private static final int DIM = 768;
     private static final int TOP_K = 50;
@@ -149,11 +154,12 @@ class TaxiaPilotGovernedRunnerIT {
     void statusReadyReadOnlyWithFlagOff() {
         assertThat(embeddingRows(fix001QaId)).isZero();
 
-        PilotRunnerResult r = runnerFlagOff.status(FIX_001);
+        PilotRunnerResult r = runnerFlagOff.status(SOURCE_SYSTEM, FIX_001);
 
         assertThat(r.outcome()).isEqualTo(PilotRunnerOutcome.READY);
         assertThat(r.wroteChange()).isFalse();
         assertThat(r.terminalLine()).isEqualTo("READINESS=READY");
+        assertThat(r.details()).anyMatch(l -> l.equals("sourceSystem=" + SOURCE_SYSTEM));
         assertThat(r.render()).endsWith("READINESS=READY");
         assertThat(r.details()).anyMatch(l -> l.equals("flagEnabled=false"));
         assertThat(r.details()).anyMatch(l -> l.equals("published=false"));
@@ -174,7 +180,7 @@ class TaxiaPilotGovernedRunnerIT {
         UUID id = qa.getId();
         assertThat(embeddingRows(id)).isZero();
 
-        PilotRunnerResult r = runnerFlagOn.status("PILOT-RUNNER-STATUS-ON");
+        PilotRunnerResult r = runnerFlagOn.status(SOURCE_SYSTEM, "PILOT-RUNNER-STATUS-ON");
 
         assertThat(r.outcome()).isEqualTo(PilotRunnerOutcome.READY);
         assertThat(r.wroteChange()).isFalse();
@@ -190,7 +196,7 @@ class TaxiaPilotGovernedRunnerIT {
     @Test @Order(2)
     @DisplayName("status: BLOCKED when the external key resolves to nothing")
     void statusBlockedWhenMissing() {
-        PilotRunnerResult r = runnerFlagOn.status(MISSING_KEY);
+        PilotRunnerResult r = runnerFlagOn.status(SOURCE_SYSTEM, MISSING_KEY);
         assertThat(r.outcome()).isEqualTo(PilotRunnerOutcome.BLOCKED);
         assertThat(r.terminalLine()).isEqualTo("READINESS=BLOCKED");
         assertThat(r.details()).anyMatch(l -> l.contains("no Q&A found"));
@@ -203,7 +209,7 @@ class TaxiaPilotGovernedRunnerIT {
         newEligibleQa(org, DUP_KEY);
         newEligibleQa(otherOrg, DUP_KEY);
 
-        PilotRunnerResult r = runnerFlagOn.status(DUP_KEY);
+        PilotRunnerResult r = runnerFlagOn.status(SOURCE_SYSTEM, DUP_KEY);
         assertThat(r.outcome()).isEqualTo(PilotRunnerOutcome.BLOCKED);
         assertThat(r.details()).anyMatch(l -> l.contains("ambiguous") && l.contains("N=1 only"));
     }
@@ -215,7 +221,7 @@ class TaxiaPilotGovernedRunnerIT {
     @Test @Order(4)
     @DisplayName("publish-one: BLOCKED when the E9C flag is OFF — no write")
     void publishBlockedWhenFlagOff() {
-        PilotRunnerResult r = runnerFlagOff.publishOne(FIX_001);
+        PilotRunnerResult r = runnerFlagOff.publishOne(SOURCE_SYSTEM, FIX_001);
         assertThat(r.outcome()).isEqualTo(PilotRunnerOutcome.BLOCKED);
         assertThat(r.wroteChange()).isFalse();
         assertThat(r.terminalLine()).isEqualTo("RESULT=BLOCKED");
@@ -228,7 +234,7 @@ class TaxiaPilotGovernedRunnerIT {
     @Test @Order(5)
     @DisplayName("publish-one: PUBLISHED exactly one Q&A — one embedding, RAG retrievable, audited")
     void publishOneSucceeds() {
-        PilotRunnerResult r = runnerFlagOn.publishOne(FIX_001);
+        PilotRunnerResult r = runnerFlagOn.publishOne(SOURCE_SYSTEM, FIX_001);
 
         assertThat(r.outcome()).isEqualTo(PilotRunnerOutcome.PUBLISHED);
         assertThat(r.wroteChange()).isTrue();
@@ -254,7 +260,7 @@ class TaxiaPilotGovernedRunnerIT {
     @Test @Order(6)
     @DisplayName("publish-one: NO_CHANGE when already published (idempotent) — still one embedding")
     void publishIdempotent() {
-        PilotRunnerResult r = runnerFlagOn.publishOne(FIX_001);
+        PilotRunnerResult r = runnerFlagOn.publishOne(SOURCE_SYSTEM, FIX_001);
         assertThat(r.outcome()).isEqualTo(PilotRunnerOutcome.NO_CHANGE);
         assertThat(r.wroteChange()).isFalse();
         assertThat(r.render()).endsWith("RESULT=NO_CHANGE");
@@ -268,7 +274,7 @@ class TaxiaPilotGovernedRunnerIT {
     @Test @Order(7)
     @DisplayName("rollback-one: BLOCKED without a motive — target stays published")
     void rollbackBlockedWhenNoMotive() {
-        PilotRunnerResult r = runnerFlagOn.rollbackOne(FIX_001, null);
+        PilotRunnerResult r = runnerFlagOn.rollbackOne(SOURCE_SYSTEM, FIX_001, null);
         assertThat(r.outcome()).isEqualTo(PilotRunnerOutcome.BLOCKED);
         assertThat(r.wroteChange()).isFalse();
         assertThat(r.details()).anyMatch(l -> l.contains("motive"));
@@ -280,7 +286,7 @@ class TaxiaPilotGovernedRunnerIT {
     @DisplayName("rollback-one: BLOCKED when the E9C flag is OFF — target stays published")
     void rollbackBlockedWhenFlagOff() {
         AtFaqRollbackMotive motive = AtFaqRollbackMotive.of(AtFaqRollbackReason.LEGAL_CHANGE, "teste");
-        PilotRunnerResult r = runnerFlagOff.rollbackOne(FIX_001, motive);
+        PilotRunnerResult r = runnerFlagOff.rollbackOne(SOURCE_SYSTEM, FIX_001, motive);
         assertThat(r.outcome()).isEqualTo(PilotRunnerOutcome.BLOCKED);
         assertThat(r.wroteChange()).isFalse();
         assertThat(qaRepository.findById(fix001QaId).orElseThrow().isPublished()).isTrue();
@@ -293,7 +299,7 @@ class TaxiaPilotGovernedRunnerIT {
         AtFaqRollbackMotive motive = AtFaqRollbackMotive.of(
                 AtFaqRollbackReason.LEGAL_CHANGE, "resposta desatualizada; retirar do RAG.");
 
-        PilotRunnerResult r = runnerFlagOn.rollbackOne(FIX_001, motive);
+        PilotRunnerResult r = runnerFlagOn.rollbackOne(SOURCE_SYSTEM, FIX_001, motive);
 
         assertThat(r.outcome()).isEqualTo(PilotRunnerOutcome.ROLLED_BACK);
         assertThat(r.wroteChange()).isTrue();
@@ -320,7 +326,7 @@ class TaxiaPilotGovernedRunnerIT {
     @DisplayName("rollback-one: NO_CHANGE when not published (idempotent)")
     void rollbackIdempotent() {
         AtFaqRollbackMotive motive = AtFaqRollbackMotive.of(AtFaqRollbackReason.LEGAL_CHANGE, "repeat");
-        PilotRunnerResult r = runnerFlagOn.rollbackOne(FIX_001, motive);
+        PilotRunnerResult r = runnerFlagOn.rollbackOne(SOURCE_SYSTEM, FIX_001, motive);
         assertThat(r.outcome()).isEqualTo(PilotRunnerOutcome.NO_CHANGE);
         assertThat(r.wroteChange()).isFalse();
         assertThat(r.render()).endsWith("RESULT=NO_CHANGE");
@@ -343,14 +349,122 @@ class TaxiaPilotGovernedRunnerIT {
         TaxiaPilotGovernedRunner forbiddenRunner = new TaxiaPilotGovernedRunner(
                 qaRepository, null, props(true), forbidden, jdbc);
 
-        PilotRunnerResult status = forbiddenRunner.status(FIX_002);
+        PilotRunnerResult status = forbiddenRunner.status(SOURCE_SYSTEM, FIX_002);
         assertThat(status.outcome()).isEqualTo(PilotRunnerOutcome.BLOCKED);
         assertThat(status.details()).anyMatch(l -> l.startsWith("base=BLOCKED"));
 
         // publishOne also stops at the base gate before touching the (null) publication service.
-        PilotRunnerResult publish = forbiddenRunner.publishOne(FIX_002);
+        PilotRunnerResult publish = forbiddenRunner.publishOne(SOURCE_SYSTEM, FIX_002);
         assertThat(publish.outcome()).isEqualTo(PilotRunnerOutcome.BLOCKED);
         assertThat(publish.details()).anyMatch(l -> l.startsWith("base=BLOCKED"));
+    }
+
+    // =========================================================================
+    // explicit sourceSystem — PROMPT 96 (namespace by source system)
+    // =========================================================================
+
+    @Test @Order(13)
+    @DisplayName("taxia-curated: full N=1 lifecycle — status → publish (1 embedding, RAG, audit) → rollback")
+    void curatedSourceSystemFullLifecycle() {
+        KnowledgeQuestionAnswer qa = newEligibleQa(org, SOURCE_CURATED, CURATED_KEY);
+        UUID id = qa.getId();
+        assertThat(embeddingRows(id)).isZero();
+
+        // status resolves under the explicit taxia-curated namespace.
+        PilotRunnerResult status = runnerFlagOn.status(SOURCE_CURATED, CURATED_KEY);
+        assertThat(status.outcome()).isEqualTo(PilotRunnerOutcome.READY);
+        assertThat(status.targetQaId()).isEqualTo(id);
+        assertThat(status.details()).anyMatch(l -> l.equals("sourceSystem=" + SOURCE_CURATED));
+
+        // publish-one resolves exactly 1, creates exactly one embedding, is RAG retrievable and audited.
+        PilotRunnerResult pub = runnerFlagOn.publishOne(SOURCE_CURATED, CURATED_KEY);
+        assertThat(pub.outcome()).isEqualTo(PilotRunnerOutcome.PUBLISHED);
+        assertThat(pub.wroteChange()).isTrue();
+        assertThat(pub.targetQaId()).isEqualTo(id);
+        assertThat(embeddingRows(id)).isEqualTo(1);
+        assertThat(qaRepository.findById(id).orElseThrow().getPublishedBy())
+                .isEqualTo(GovernedPilotServiceActors.PUBLISHER_IDENTITY);
+        assertThat(ragSearch.findSimilar(org.getId(), RAG_QUERY).stream()
+                .map(RagSearchService.RetrievedCase::sourceQaId).toList()).contains(id);
+        assertThat(auditCount(id, "KNOWLEDGE_QA_PUBLISHED",
+                GovernedPilotServiceActors.publisherActorId())).isEqualTo(1);
+
+        // rollback-one removes it and persists the reason code.
+        AtFaqRollbackMotive motive = AtFaqRollbackMotive.of(AtFaqRollbackReason.LEGAL_CHANGE, "revisão");
+        PilotRunnerResult rb = runnerFlagOn.rollbackOne(SOURCE_CURATED, CURATED_KEY, motive);
+        assertThat(rb.outcome()).isEqualTo(PilotRunnerOutcome.ROLLED_BACK);
+        assertThat(rb.wroteChange()).isTrue();
+        assertThat(embeddingRows(id)).isZero();
+        assertThat(qaRepository.findById(id).orElseThrow().isPublished()).isFalse();
+        assertThat(latestUnpublishMetadata(id)).contains("reasonCode=LEGAL_CHANGE");
+    }
+
+    @Test @Order(14)
+    @DisplayName("namespace: same externalKey under at-faq vs taxia-curated resolves independently; none = BLOCKED")
+    void sameExternalKeyDistinctSourceSystemsResolveIndependently() {
+        UUID atFaqId = newEligibleQa(org, SOURCE_AT_FAQ, SHARED_KEY).getId();
+        UUID curatedId = newEligibleQa(org, SOURCE_CURATED, SHARED_KEY).getId();
+        assertThat(atFaqId).isNotEqualTo(curatedId);
+
+        // at-faq works (PASSO 10) and resolves only the at-faq row.
+        PilotRunnerResult atFaq = runnerFlagOn.status(SOURCE_AT_FAQ, SHARED_KEY);
+        assertThat(atFaq.outcome()).isEqualTo(PilotRunnerOutcome.READY);
+        assertThat(atFaq.targetQaId()).isEqualTo(atFaqId);
+
+        // taxia-curated resolves only the curated row.
+        PilotRunnerResult curated = runnerFlagOn.status(SOURCE_CURATED, SHARED_KEY);
+        assertThat(curated.outcome()).isEqualTo(PilotRunnerOutcome.READY);
+        assertThat(curated.targetQaId()).isEqualTo(curatedId);
+
+        // Without a source system the same key is refused — no cross-namespace fallback.
+        PilotRunnerResult none = runnerFlagOn.status(null, SHARED_KEY);
+        assertThat(none.outcome()).isEqualTo(PilotRunnerOutcome.BLOCKED);
+        assertThat(none.details()).anyMatch(l -> l.contains("sourceSystem is required"));
+    }
+
+    @Test @Order(15)
+    @DisplayName("wrong sourceSystem: a taxia-curated-only key is BLOCKED under at-faq (never a fallback)")
+    void wrongSourceSystemIsBlocked() {
+        UUID id = newEligibleQa(org, SOURCE_CURATED, CURATED_ONLY_KEY).getId();
+
+        PilotRunnerResult wrong = runnerFlagOn.status(SOURCE_AT_FAQ, CURATED_ONLY_KEY);
+        assertThat(wrong.outcome()).isEqualTo(PilotRunnerOutcome.BLOCKED);
+        assertThat(wrong.details()).anyMatch(l -> l.contains("no Q&A found"));
+
+        // The correct source system still resolves it — proving the row exists.
+        PilotRunnerResult right = runnerFlagOn.status(SOURCE_CURATED, CURATED_ONLY_KEY);
+        assertThat(right.outcome()).isEqualTo(PilotRunnerOutcome.READY);
+        assertThat(right.targetQaId()).isEqualTo(id);
+    }
+
+    @Test @Order(16)
+    @DisplayName("sourceSystem absent: BLOCKED for status and for a write (flag ON) — never queries")
+    void absentSourceSystemIsBlocked() {
+        PilotRunnerResult nullStatus = runnerFlagOn.status(null, FIX_001);
+        assertThat(nullStatus.outcome()).isEqualTo(PilotRunnerOutcome.BLOCKED);
+        assertThat(nullStatus.details()).anyMatch(l -> l.contains("sourceSystem is required"));
+
+        PilotRunnerResult blankStatus = runnerFlagOn.status("   ", FIX_001);
+        assertThat(blankStatus.outcome()).isEqualTo(PilotRunnerOutcome.BLOCKED);
+        assertThat(blankStatus.details()).anyMatch(l -> l.contains("sourceSystem is required"));
+
+        // A write with no source system fails closed with no change, even with the flag ON.
+        PilotRunnerResult pub = runnerFlagOn.publishOne(null, FIX_001);
+        assertThat(pub.outcome()).isEqualTo(PilotRunnerOutcome.BLOCKED);
+        assertThat(pub.wroteChange()).isFalse();
+        assertThat(pub.details()).anyMatch(l -> l.contains("sourceSystem is required"));
+    }
+
+    @Test @Order(17)
+    @DisplayName("wildcard/list sourceSystem: BLOCKED — a single explicit token only")
+    void wildcardOrListSourceSystemIsBlocked() {
+        for (String bad : List.of("*", "%", "at-?aq", "at-faq,taxia-curated", "at-faq;x", "a|b", "at faq")) {
+            PilotRunnerResult r = runnerFlagOn.status(bad, FIX_001);
+            assertThat(r.outcome())
+                    .as("sourceSystem '%s' must be BLOCKED", bad)
+                    .isEqualTo(PilotRunnerOutcome.BLOCKED);
+            assertThat(r.details()).anyMatch(l -> l.startsWith("target=BLOCKED: sourceSystem must"));
+        }
     }
 
     // =========================================================================
@@ -378,9 +492,15 @@ class TaxiaPilotGovernedRunnerIT {
 
     /** Creates a VALIDATED, LOW-risk Q&A with one official source — eligible for governed publication. */
     private KnowledgeQuestionAnswer newEligibleQa(Organization organization, String externalKey) {
+        return newEligibleQa(organization, SOURCE_SYSTEM, externalKey);
+    }
+
+    /** As {@link #newEligibleQa(Organization, String)} but under an explicit source system namespace. */
+    private KnowledgeQuestionAnswer newEligibleQa(
+            Organization organization, String sourceSystem, String externalKey) {
         KnowledgeQuestionAnswer qa = new KnowledgeQuestionAnswer(
                 organization, "Pergunta " + externalKey, "Resposta " + externalKey,
-                SOURCE_SYSTEM, externalKey);
+                sourceSystem, externalKey);
         qa.updateCuration(
                 "Pergunta normalizada " + externalKey,
                 "Resposta curta " + externalKey,

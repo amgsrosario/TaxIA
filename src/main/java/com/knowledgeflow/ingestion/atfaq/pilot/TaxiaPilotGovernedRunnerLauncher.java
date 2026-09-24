@@ -19,11 +19,11 @@ import org.springframework.context.ConfigurableApplicationContext;
  * target, prints the result, and exits. Nothing runs at normal application startup: normal boot never
  * loads this class.
  *
- * <p>Usage (one action, one explicit external key):
+ * <p>Usage (one action, one explicit source system + external key):
  * <pre>
- *   TaxiaPilotGovernedRunnerLauncher status       --external-key &lt;KEY&gt;
- *   TaxiaPilotGovernedRunnerLauncher publish-one  --external-key &lt;KEY&gt;
- *   TaxiaPilotGovernedRunnerLauncher rollback-one --external-key &lt;KEY&gt; --reason-code &lt;CODE&gt; [--reason-detail &lt;text&gt;]
+ *   TaxiaPilotGovernedRunnerLauncher status       --source-system &lt;SYS&gt; --external-key &lt;KEY&gt;
+ *   TaxiaPilotGovernedRunnerLauncher publish-one  --source-system &lt;SYS&gt; --external-key &lt;KEY&gt;
+ *   TaxiaPilotGovernedRunnerLauncher rollback-one --source-system &lt;SYS&gt; --external-key &lt;KEY&gt; --reason-code &lt;CODE&gt; [--reason-detail &lt;text&gt;]
  * </pre>
  *
  * <p>Exit codes: {@code 0} for a completed action ({@code READY}/{@code PUBLISHED}/
@@ -56,6 +56,13 @@ public final class TaxiaPilotGovernedRunnerLauncher {
             return;
         }
 
+        String sourceSystem = opts.get("source-system");
+        if (sourceSystem == null || sourceSystem.isBlank()) {
+            System.err.println("Usage error: --source-system is required.\n\n" + usage());
+            System.exit(64);
+            return;
+        }
+
         String externalKey = opts.get("external-key");
         if (externalKey == null || externalKey.isBlank()) {
             System.err.println("Usage error: --external-key is required.\n\n" + usage());
@@ -73,8 +80,8 @@ public final class TaxiaPilotGovernedRunnerLauncher {
             PilotRunnerResult result;
 
             switch (actionArg) {
-                case "status" -> result = runner.status(externalKey);
-                case "publish-one" -> result = runner.publishOne(externalKey);
+                case "status" -> result = runner.status(sourceSystem, externalKey);
+                case "publish-one" -> result = runner.publishOne(sourceSystem, externalKey);
                 case "rollback-one" -> {
                     AtFaqRollbackMotive motive;
                     try {
@@ -84,7 +91,7 @@ public final class TaxiaPilotGovernedRunnerLauncher {
                         System.exit(64);
                         return;
                     }
-                    result = runner.rollbackOne(externalKey, motive);
+                    result = runner.rollbackOne(sourceSystem, externalKey, motive);
                 }
                 default -> {
                     System.err.println("Usage error: unknown action '" + actionArg + "'.\n\n" + usage());
@@ -137,12 +144,14 @@ public final class TaxiaPilotGovernedRunnerLauncher {
         return """
                 TaxiaPilotGovernedRunnerLauncher — guarded one-shot governed pilot runner (E9C)
 
-                Actions (exactly one action, one explicit external key):
-                  status       --external-key <KEY>
-                  publish-one  --external-key <KEY>
-                  rollback-one --external-key <KEY> --reason-code <CODE> [--reason-detail <text>]
+                Actions (exactly one action, one explicit source system + external key):
+                  status       --source-system <SYS> --external-key <KEY>
+                  publish-one  --source-system <SYS> --external-key <KEY>
+                  rollback-one --source-system <SYS> --external-key <KEY> --reason-code <CODE> [--reason-detail <text>]
 
                 Notes:
+                  * --source-system is mandatory and must be a single plain token (e.g. at-faq, taxia-curated);
+                    no wildcards, no lists — it is never inferred or defaulted.
                   * status is read-only and may run with AT_FAQ_E9C_PILOT_ENABLED=false.
                   * publish-one / rollback-one require AT_FAQ_E9C_PILOT_ENABLED=true.
                   * runs under the 'pilot' profile against knowledgeflow_pilot only.""";
