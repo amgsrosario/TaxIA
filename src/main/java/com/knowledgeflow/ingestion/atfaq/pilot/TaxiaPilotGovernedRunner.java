@@ -267,7 +267,7 @@ public class TaxiaPilotGovernedRunner {
      * refused (N=1 only). The source system is never inferred and never defaulted.
      */
     private Resolution resolve(String sourceSystem, String externalKey) {
-        String ssError = validateSourceSystem(sourceSystem);
+        String ssError = PilotSourceSystem.validate(sourceSystem);
         if (ssError != null) {
             return Resolution.blocked(ssError);
         }
@@ -288,28 +288,6 @@ public class TaxiaPilotGovernedRunner {
                             + "' externalKey='" + key + "' — refusing (N=1 only)");
         }
         return Resolution.ok(found.get(0));
-    }
-
-    /**
-     * Fail-closed validation of an explicit source system: mandatory, trimmed, non-blank, and exactly
-     * one plain token — no wildcards ({@code * % ?}) and no multi-value separators
-     * ({@code , ; |} or internal whitespace). Returns {@code null} when valid, else the refusal
-     * message. Deliberately no closed global taxonomy: any explicit token such as {@code at-faq} or
-     * {@code taxia-curated} is accepted.
-     */
-    private static String validateSourceSystem(String sourceSystem) {
-        if (sourceSystem == null || sourceSystem.isBlank()) {
-            return "sourceSystem is required";
-        }
-        String system = sourceSystem.trim();
-        if (system.indexOf('*') >= 0 || system.indexOf('%') >= 0 || system.indexOf('?') >= 0) {
-            return "sourceSystem must be a single explicit value without wildcards ('" + system + "')";
-        }
-        if (system.indexOf(',') >= 0 || system.indexOf(';') >= 0 || system.indexOf('|') >= 0
-                || system.matches(".*\\s.*")) {
-            return "sourceSystem must be exactly one value without separators ('" + system + "')";
-        }
-        return null;
     }
 
     private long embeddingRows(UUID qaId) {
