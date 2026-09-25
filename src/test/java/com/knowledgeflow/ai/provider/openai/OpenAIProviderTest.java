@@ -190,6 +190,31 @@ class OpenAIProviderTest {
     }
 
     @Test
+    void omitsInstructionsWhenSystemPromptAbsent() {
+        // F1.1: provider is domain-neutral. With no system prompt (1-arg AIRequest),
+        // the "instructions" field must be omitted entirely from the request body.
+        server.expect(requestTo(API_URL))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("instructions"))))
+                .andRespond(withSuccess(responseJson("ok"), MediaType.APPLICATION_JSON));
+
+        provider.generate(new AIRequest("User question"));
+
+        server.verify();
+    }
+
+    @Test
+    void neverInjectsFiscalPersonaWhenSystemPromptAbsent() {
+        // F1.1: the removed DEFAULT_SYSTEM_PROMPT fiscal persona must never reappear in the body.
+        server.expect(requestTo(API_URL))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("direito fiscal"))))
+                .andRespond(withSuccess(responseJson("ok"), MediaType.APPLICATION_JSON));
+
+        provider.generate(new AIRequest("User question"));
+
+        server.verify();
+    }
+
+    @Test
     void sendsMaxOutputTokens() {
         server.expect(requestTo(API_URL))
                 .andExpect(content().string(containsString("\"max_output_tokens\":1024")))

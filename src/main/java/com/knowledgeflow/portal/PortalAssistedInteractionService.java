@@ -3,6 +3,7 @@ package com.knowledgeflow.portal;
 import com.knowledgeflow.ai.AIRequest;
 import com.knowledgeflow.ai.AIResponse;
 import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.taxia.TaxiaSystemPrompt;
 import com.knowledgeflow.billing.service.EntitlementService;
 import com.knowledgeflow.clients.entity.Client;
 import com.knowledgeflow.clients.exception.ClientNotFoundException;
@@ -80,7 +81,8 @@ public class PortalAssistedInteractionService {
 
         entitlementService.checkAndRecordInteraction(organizationId, interactionId);
 
-        AIResponse aiResponse = aiService.complete(new AIRequest(request.question()));
+        AIResponse aiResponse = aiService.complete(
+                new AIRequest(TaxiaSystemPrompt.FISCAL_ASSISTANT, request.question()));
 
         AssistedInteractionMessage message = messageRepository.save(new AssistedInteractionMessage(
                 interaction,

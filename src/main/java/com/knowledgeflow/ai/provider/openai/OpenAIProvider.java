@@ -35,11 +35,6 @@ public class OpenAIProvider implements AIProvider {
 
     static final String PROVIDER_ID = "openai";
     private static final String API_URL = "https://api.openai.com/v1/responses";
-    private static final String DEFAULT_SYSTEM_PROMPT = """
-            És um assistente especializado em direito fiscal português e europeu.
-            Responde sempre em português de Portugal, de forma clara, precisa e profissional.
-            Quando não tiveres certeza, indica-o explicitamente.
-            """;
 
     private final RestClient restClient;
     private final String model;
@@ -110,7 +105,9 @@ public class OpenAIProvider implements AIProvider {
     }
 
     private AIResponse doGenerate(AIRequest request) {
-        String instructions = request.systemPrompt() != null ? request.systemPrompt() : DEFAULT_SYSTEM_PROMPT;
+        // Domain-neutral: transmit the caller's system prompt as instructions when present; inject
+        // nothing when absent. The provider carries no domain (fiscal) persona of its own.
+        String instructions = normalizeSystemPrompt(request.systemPrompt());
         var body = new ResponsesRequest(model, instructions, request.userMessage(), maxOutputTokens);
 
         long start = System.currentTimeMillis();
@@ -224,6 +221,12 @@ public class OpenAIProvider implements AIProvider {
                         "No usable text content in OpenAI response"));
     }
 
+    // Blank/absent system prompt → null, so the "instructions" field is omitted from the request
+    // body (JsonInclude.NON_NULL) and no domain persona is injected by the provider.
+    private static String normalizeSystemPrompt(String systemPrompt) {
+        return (systemPrompt != null && !systemPrompt.isBlank()) ? systemPrompt : null;
+    }
+
     // Traverse the cause chain to distinguish real timeouts from other transport failures.
     // SocketTimeoutException: read or connect timeout from HttpURLConnection / RestTemplate default factory.
     // HttpTimeoutException: timeout from Java HTTP Client (JdkClientHttpRequestFactory).
@@ -241,6 +244,7 @@ public class OpenAIProvider implements AIProvider {
 
     record ResponsesRequest(
             String model,
+            @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
             String instructions,
             String input,
             @JsonProperty("max_output_tokens") Integer maxOutputTokens

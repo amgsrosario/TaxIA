@@ -36,11 +36,6 @@ public class AnthropicProvider implements AIProvider {
     static final String PROVIDER_ID = "anthropic";
     private static final String ANTHROPIC_VERSION = "2023-06-01";
     private static final String API_URL = "https://api.anthropic.com/v1/messages";
-    private static final String DEFAULT_SYSTEM_PROMPT = """
-            És um assistente especializado em direito fiscal português e europeu.
-            Responde sempre em português de Portugal, de forma clara, precisa e profissional.
-            Quando não tiveres certeza, indica-o explicitamente.
-            """;
 
     private final RestClient restClient;
     private final String model;
@@ -101,7 +96,9 @@ public class AnthropicProvider implements AIProvider {
     }
 
     private AIResponse doGenerate(AIRequest request) {
-        String system = request.systemPrompt() != null ? request.systemPrompt() : DEFAULT_SYSTEM_PROMPT;
+        // Domain-neutral: transmit the caller's system prompt when present; inject nothing when
+        // absent. The provider carries no domain (fiscal) persona of its own.
+        String system = normalizeSystemPrompt(request.systemPrompt());
         var body = new MessagesRequest(
                 model,
                 maxTokens,
@@ -164,6 +161,12 @@ public class AnthropicProvider implements AIProvider {
         }
     }
 
+    // Blank/absent system prompt → null, so the "system" field is omitted from the request body
+    // (JsonInclude.NON_NULL) and no domain persona is injected by the provider.
+    private static String normalizeSystemPrompt(String systemPrompt) {
+        return (systemPrompt != null && !systemPrompt.isBlank()) ? systemPrompt : null;
+    }
+
     // Traverse the cause chain to distinguish real timeouts from other transport failures.
     private static boolean isTimeoutCause(Throwable t) {
         while (t != null) {
@@ -180,6 +183,7 @@ public class AnthropicProvider implements AIProvider {
     record MessagesRequest(
             String model,
             @JsonProperty("max_tokens") int maxTokens,
+            @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
             String system,
             List<Message> messages
     ) {}

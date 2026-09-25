@@ -3,6 +3,7 @@ package com.knowledgeflow.interactions.service;
 import com.knowledgeflow.ai.AIRequest;
 import com.knowledgeflow.ai.AIResponse;
 import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.taxia.TaxiaSystemPrompt;
 import com.knowledgeflow.billing.service.EntitlementService;
 import com.knowledgeflow.cases.dto.KnowledgeCaseDetailResponse;
 import com.knowledgeflow.cases.service.KnowledgeCaseService;
@@ -94,7 +95,8 @@ public class AssistedInteractionService {
         // Guard: check plan + record consumption atomically
         entitlementService.checkAndRecordInteraction(organizationId, interactionId);
 
-        AIResponse aiResponse = aiService.complete(new AIRequest(request.question()));
+        AIResponse aiResponse = aiService.complete(
+                new AIRequest(TaxiaSystemPrompt.FISCAL_ASSISTANT, request.question()));
 
         AssistedInteractionMessage message = messageRepository.save(new AssistedInteractionMessage(
                 interaction,
