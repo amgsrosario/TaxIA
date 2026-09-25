@@ -1,106 +1,39 @@
-TaxIA / KnowledgeFlow — Contexto do Projecto
+# TaxIA / KnowledgeFlow — CLAUDE.md
 
-O que é este projecto
+Este ficheiro não é um guia operacional. As instruções para agentes estão em
+[`AGENTS.md`](AGENTS.md), que prevalece sobre qualquer versão anterior deste
+ficheiro.
 
-TaxIA é uma plataforma de consultoria fiscal assistida por IA, desenvolvida pela equipa fundadora. O produto permite que clientes coloquem questões fiscais e recebam respostas com base no conhecimento acumulado da equipa (pareceres, Q&A, legislação comentada).
+## Onde procurar
 
-O backend chama-se KnowledgeFlow internamente.
+- [`AGENTS.md`](AGENTS.md) — regras de trabalho, autonomia, verificação,
+  segurança e decisões reservadas a humanos.
+- [`README.md`](README.md) — stack, execução local, testes, endpoints e
+  migrações.
+- [`docs/`](docs/) — documentação do projecto, em particular:
+  - [`docs/adr/`](docs/adr/) — decisões arquitecturais (ADR);
+  - [`docs/taxia-core-principles.md`](docs/taxia-core-principles.md) e
+    [`docs/taxia-product-vision.md`](docs/taxia-product-vision.md) — princípios
+    e visão de produto;
+  - [`docs/ai-providers.md`](docs/ai-providers.md) — fornecedores de IA e
+    configuração;
+  - [`docs/grounding-policy.md`](docs/grounding-policy.md),
+    [`docs/taxia-risk-visibility-policy.md`](docs/taxia-risk-visibility-policy.md)
+    e [`docs/taxia-boundary-answer.md`](docs/taxia-boundary-answer.md) —
+    políticas de grounding, risco e resposta-limite;
+  - [`docs/roadmap.md`](docs/roadmap.md) — prioridades.
 
+## Confirmar nas fontes actuais
 
-Stack técnica
+Decisões de produto e de arquitectura, versões, portas, perfis, modelos,
+endpoints e comandos devem ser confirmados no código, na configuração, no
+Docker Compose, nas migrações, nos ADR e na documentação actual. Não confiar
+em contexto de sessões anteriores nem em versões antigas deste ficheiro.
 
-ComponenteDetalheBackendSpring Boot 3.4.5, Java 21Base de dadosPostgreSQL 15432 (Docker)MigraçõesFlywayORMHibernate / Spring Data JPASegurançaSpring Security + OAuth2 Resource ServerIAAnthropic Claude Haiku (claude-haiku-4-5-20251001) via APIDocs APISpringDoc OpenAPI / Swagger UIPorta8081
+## System prompt
 
-Localização do projecto: C:\Projetos\TaxIA
-
-
-Arrancar o ambiente
-
-bash# 1. Arrancar o Docker (PostgreSQL)
-docker compose up -d
-
-# 2. Arrancar a app no IntelliJ (Run/Debug Configurations)
-# Variável de ambiente obrigatória: ANTHROPIC_API_KEY=<chave da Anthropic>
-
-Se a app falhar com "Connection to localhost:15432 refused" → Docker não está a correr.
-
-
-Serviço de IA
-
-
-Classe: AnthropicAIService
-Modelo: claude-haiku-4-5-20251001
-Log de confirmação ao arrancar: AnthropicAIService initialized — model: claude-haiku-4-5-20251001
-A chave API é injectada via variável de ambiente ANTHROPIC_API_KEY
-
-
-System prompt actual (a afinar):
-
-És um assistente especializado em direito fiscal português e europeu.
-Responde sempre em português de Portugal, de forma clara, precisa e profissional.
-Quando não tiveres certeza, indica-o explicitamente.
-
-Problema conhecido: O system prompt não menciona que volume de negócios > 650.000€ obriga à periodicidade mensal do IVA. Precisa de ser corrigido e expandido.
-
-
-POC existente
-
-Ficheiro: C:\Projetos\TaxIA\qa-builder.html
-
-Interface React (via CDN, sem build) para:
-
-
-Fazer perguntas directamente à API
-Editar o system prompt em tempo real
-Guardar pares Q&A validados
-Exportar em JSON para futura ingestão no RAG
-
-
-Endpoint backend usado: POST /api/ai/ask (criado na sessão anterior)
-
-
-Próximos passos prioritários
-
-1. Afinar o system prompt
-
-Expandir com conhecimento fiscal português específico — limiares, prazos, obrigações declarativas, referências legais concretas.
-
-2. Arquitectura RAG
-
-O grande activo da empresa é uma base de pares pergunta/resposta de pareceres reais validados por especialistas fiscais, mais documentação técnica.
-
-Plano:
-
-
-Adicionar extensão pgvector ao PostgreSQL existente
-Criar pipeline de ingestão dos documentos e Q&A (formato a confirmar — Word, PDF, Excel?)
-Implementar pesquisa semântica: quando um cliente faz uma pergunta, o sistema encontra os Q&A mais similares e inclui-os no contexto enviado ao Claude
-O Claude responde com base no conhecimento da equipa, não no genérico
-
-
-Volume de Q&A: a confirmar com a equipa (quantidade e formato dos ficheiros)
-
-3. Protecção do know-how
-
-
-Dados via API da Anthropic não são usados para treinar modelos (retenção de 7 dias nos logs, depois apagado)
-O know-how fiscal fica na base de dados própria (PostgreSQL + pgvector) — nunca exposto aos modelos externos
-Para desenvolvimento, usar sempre a API ou garantir privacidade no claude.ai (já configurado)
-
-
-
-Decisões tomadas
-
-
-RAG em vez de fine-tuning: o conhecimento fica na BD da empresa, actualizável a qualquer momento, mais económico e controlável
-pgvector no PostgreSQL existente: evita infra adicional
-Claude Haiku: boa relação custo/performance para o caso de uso
-
-
-
-Contacto / contexto de negócio
-
-
-Utilizador principal: António (amgsrosario@gmail.com)
-O projecto foi desenvolvido em sessões no Claude Code e Cowork
-Esta sessão de contexto foi gerada em 2026-06-16
+O system prompt do TaxIA está em
+`src/main/java/com/knowledgeflow/ai/taxia/TaxiaSystemPrompt.java` e contém
+apenas comportamento estável. Não lhe acrescentar factos fiscais voláteis
+(limiares, taxas, prazos, datas, artigos, obrigações, excepções ou regimes):
+esse conhecimento pertence à base de conhecimento governada e ao RAG.
