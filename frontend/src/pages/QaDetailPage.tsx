@@ -22,6 +22,7 @@ import type {
 } from "../api/types";
 import { RiskBadge, StatusBadge } from "../components/Badges";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { QaEvidencePanel } from "../components/QaEvidencePanel";
 import { useAuth } from "../auth/AuthContext";
 
 const RISKS: KnowledgeRiskLevel[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
@@ -314,6 +315,8 @@ export function QaDetailPage() {
           Caso arquivado — alterações exigem confirmação e, em regra, não devem acontecer.
         </div>
       )}
+
+      {detail.published && <QaEvidencePanel detail={detail} />}
 
       <div className="detail-grid">
         <div className="card">
