@@ -22,7 +22,12 @@ import type {
 } from "../api/types";
 import { RiskBadge, StatusBadge } from "../components/Badges";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { QaEvidencePanel } from "../components/QaEvidencePanel";
+import {
+  QaEvidencePanel,
+  SOURCE_TYPE_LABELS,
+  SourceLink,
+  sortSources,
+} from "../components/QaEvidencePanel";
 import { useAuth } from "../auth/AuthContext";
 
 const RISKS: KnowledgeRiskLevel[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
@@ -411,13 +416,20 @@ export function QaDetailPage() {
       </div>
 
       <div className="card">
-        <h2>Fontes ({detail.sources.length})</h2>
+        <h2>Gestão de fontes ({detail.sources.length})</h2>
+        {detail.published && (
+          <p className="muted" style={{ marginTop: 0 }}>
+            Mesmas fontes do «Registo de publicação», pela mesma ordem, com as
+            acções de curadoria.
+          </p>
+        )}
         {detail.sources.length === 0 ? (
           <div className="banner warning">
             Sem fontes associadas — a validação está bloqueada até existir pelo menos
             uma fonte com URL ou referência legal.
           </div>
         ) : (
+          <div className="table-scroll">
           <table>
             <thead>
               <tr>
@@ -426,14 +438,14 @@ export function QaDetailPage() {
               </tr>
             </thead>
             <tbody>
-              {detail.sources.map((s) => (
+              {sortSources(detail.sources).map((s) => (
                 <tr key={s.id}>
-                  <td>{s.sourceType}</td>
+                  <td>{SOURCE_TYPE_LABELS[s.sourceType] ?? s.sourceType}</td>
                   <td>{s.title}</td>
                   <td>{s.legalReference ?? "—"}</td>
                   <td>
-                    {s.url
-                      ? <a href={s.url} target="_blank" rel="noreferrer">{s.url.slice(0, 60)}…</a>
+                    {s.url?.trim()
+                      ? <SourceLink url={s.url} />
                       : <span className="badge risk-HIGH">URL pendente</span>}
                   </td>
                   <td className="muted">{s.notes ?? "—"}</td>
@@ -450,6 +462,7 @@ export function QaDetailPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
 
         <h3 style={{ marginTop: 18 }}>Adicionar fonte</h3>
@@ -588,7 +601,7 @@ export function QaDetailPage() {
         >
           <p>
             Vai remover a fonte <strong>{sourceToRemove.title}</strong> (
-            {sourceToRemove.sourceType}) do caso <strong>{detail.externalKey}</strong>.
+            {SOURCE_TYPE_LABELS[sourceToRemove.sourceType] ?? sourceToRemove.sourceType}) do caso <strong>{detail.externalKey}</strong>.
           </p>
           <p className="muted">
             A remoção é definitiva e fica auditada. O backend recusa deixar um caso

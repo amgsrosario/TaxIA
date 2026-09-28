@@ -154,6 +154,11 @@ button.gold:hover:not(:disabled) { background: #97783f; }
 
 table { width: 100%; border-collapse: collapse; background: var(--surface); }
 
+/* Tabelas largas: scroll horizontal dentro do cartão em ecrãs estreitos. */
+.table-scroll { overflow-x: auto; max-width: 100%; }
+.table-scroll table { min-width: 720px; }
+.table-scroll td { overflow-wrap: anywhere; }
+
 th {
   text-align: left;
   font-size: 0.75rem;
