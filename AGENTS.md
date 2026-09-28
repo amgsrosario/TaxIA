@@ -15,8 +15,8 @@ implementado. As decisões de produto aprovadas e os ADR descrevem o
 comportamento pretendido. Quando divergirem, assinalar a divergência.
 
 Consultar `README.md` e a documentação pertinente em `docs/`. O ficheiro
-`CLAUDE.md` contém contexto histórico: confirmar as suas afirmações antes de
-as usar. Não tratar uma instrução antiga como decisão ainda vigente.
+`CLAUDE.md` aponta para as instruções e fontes actuais. Confirmar
+qualquer informação técnica no código, na configuração e na documentação relevante.
 
 ## Componentes conhecidos
 
