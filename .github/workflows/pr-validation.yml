@@ -1,0 +1,95 @@
+name: Validação de PR
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (compilação e testes seleccionados)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      # CI mínimo v1: compila main e test e executa apenas uma lista explícita
+      # de classes sem estado partilhado entre si.
+      #
+      # PENDÊNCIA (chat executivo TaxIA): a suite completa `mvn test` depende
+      # da ordem das classes. Com a ordem por omissão e a inversa há 15 erros
+      # de chave estrangeira no H2 partilhado (EntitlementServiceIntegrationTest,
+      # KnowledgeCaseServiceIntegrationTest, OperationalHardeningHttpTest);
+      # só a alfabética passa. Até ser corrigida, a suite completa não é gate.
+      #
+      # Critério de selecção:
+      # - no máximo um @SpringBootTest (KnowledgeFlowApplicationTests, perfil
+      #   `test`: H2 e provider `stub`), para nenhuma outra classe escrever na
+      #   mesma base H2 em memória;
+      # - HealthControllerTest é um slice @WebMvcTest sem base de dados;
+      # - as restantes são testes unitários sem contexto Spring, sem rede e
+      #   sem escrita em disco (clientes HTTP apenas com MockRestServiceServer).
+      # Os testes *IT (Testcontainers/PostgreSQL) continuam fora do Surefire.
+      - name: Testes backend seleccionados
+        run: |
+          tests=(
+            KnowledgeFlowApplicationTests
+            HealthControllerTest
+            SecretsHygieneTest
+            PilotDatasourceCredentialsTest
+            PilotAiProviderDefaultsTest
+            AtFaqE9cPilotFlagTest
+            AIProviderResolverTest
+            AnthropicProviderTest
+            OpenAIProviderTest
+            DefaultAIServiceTest
+            AIExceptionMappingTest
+            TaxiaSystemPromptTest
+            ContextSufficiencyEvaluatorTest
+            AnswerGroundingValidatorTest
+            GroundingServiceTest
+            SafeResponseFactoryTest
+            AnswerDecisionServiceTest
+            DocumentedAnswerCriticalScenariosTest
+          )
+          mvn -B test -Dtest="$(IFS=,; echo "${tests[*]}")"
+          # O Surefire ignora em silêncio um nome sem correspondência; falhar
+          # se alguma classe da lista não produziu relatório.
+          missing=0
+          for t in "${tests[@]}"; do
+            if ! compgen -G "target/surefire-reports/TEST-*.${t}.xml" > /dev/null; then
+              echo "::error::Classe de teste listada não executada: ${t}"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+  frontend:
+    name: Frontend (typecheck e build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependências
+        run: npm ci
+      # `build` executa `tsc --noEmit` antes do `vite build`.
+      - name: Typecheck e build
+        run: npm run build
