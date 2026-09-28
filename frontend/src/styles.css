@@ -91,6 +91,7 @@ a { color: var(--navy-soft); }
 
 .main {
   flex: 1;
+  min-width: 0; /* item flex: permite encolher e deixa o scroll às tabelas */
   padding: 24px 32px;
   max-width: 1200px;
 }
@@ -157,7 +158,7 @@ table { width: 100%; border-collapse: collapse; background: var(--surface); }
 /* Tabelas largas: scroll horizontal dentro do cartão em ecrãs estreitos. */
 .table-scroll { overflow-x: auto; max-width: 100%; }
 .table-scroll table { min-width: 720px; }
-.table-scroll td { overflow-wrap: anywhere; }
+.table-scroll td { overflow-wrap: break-word; }
 
 th {
   text-align: left;
