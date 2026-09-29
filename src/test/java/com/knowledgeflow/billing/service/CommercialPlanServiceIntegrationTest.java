@@ -9,30 +9,20 @@ import com.knowledgeflow.billing.dto.CommercialPlanResponse;
 import com.knowledgeflow.billing.dto.ConsumptionSummaryResponse;
 import com.knowledgeflow.billing.dto.OrganizationPlanResponse;
 import com.knowledgeflow.billing.enums.PlanType;
-import com.knowledgeflow.billing.repository.CommercialPlanRepository;
-import com.knowledgeflow.billing.repository.ConsumptionEventRepository;
-import com.knowledgeflow.billing.repository.OrganizationPlanRepository;
 import com.knowledgeflow.cases.dto.KnowledgeCaseCreateRequest;
-import com.knowledgeflow.cases.repository.KnowledgeCaseCommentRepository;
-import com.knowledgeflow.cases.repository.KnowledgeCaseRepository;
-import com.knowledgeflow.cases.repository.KnowledgeCaseVersionRepository;
 import com.knowledgeflow.cases.service.KnowledgeCaseService;
 import com.knowledgeflow.clients.dto.ClientCreateRequest;
 import com.knowledgeflow.clients.dto.ClientDetailResponse;
-import com.knowledgeflow.clients.repository.ClientPortalUserRepository;
-import com.knowledgeflow.clients.repository.ClientRepository;
 import com.knowledgeflow.clients.service.ClientService;
-import com.knowledgeflow.audit.repository.AuditEventRepository;
 import com.knowledgeflow.common.error.BusinessException;
-import com.knowledgeflow.interactions.repository.AssistedInteractionMessageRepository;
-import com.knowledgeflow.interactions.repository.AssistedInteractionRepository;
 import com.knowledgeflow.organizations.entity.Organization;
 import com.knowledgeflow.organizations.repository.OrganizationRepository;
-import com.knowledgeflow.organizations.repository.OrganizationUserRepository;
+import com.knowledgeflow.support.H2TestDatabaseCleaner;
 import com.knowledgeflow.users.entity.User;
 import com.knowledgeflow.users.repository.UserRepository;
 import java.time.Instant;
 import java.util.UUID;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,18 +37,7 @@ class CommercialPlanServiceIntegrationTest {
     @Autowired private KnowledgeCaseService knowledgeCaseService;
     @Autowired private ClientService clientService;
 
-    @Autowired private AssistedInteractionMessageRepository interactionMessageRepository;
-    @Autowired private AssistedInteractionRepository interactionRepository;
-    @Autowired private ConsumptionEventRepository consumptionEventRepository;
-    @Autowired private OrganizationPlanRepository organizationPlanRepository;
-    @Autowired private CommercialPlanRepository commercialPlanRepository;
-    @Autowired private AuditEventRepository auditEventRepository;
-    @Autowired private KnowledgeCaseCommentRepository knowledgeCaseCommentRepository;
-    @Autowired private KnowledgeCaseVersionRepository knowledgeCaseVersionRepository;
-    @Autowired private KnowledgeCaseRepository knowledgeCaseRepository;
-    @Autowired private ClientPortalUserRepository clientPortalUserRepository;
-    @Autowired private ClientRepository clientRepository;
-    @Autowired private OrganizationUserRepository organizationUserRepository;
+    @Autowired private DataSource dataSource;
     @Autowired private UserRepository userRepository;
     @Autowired private OrganizationRepository organizationRepository;
 
@@ -67,20 +46,7 @@ class CommercialPlanServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        interactionMessageRepository.deleteAll();
-        interactionRepository.deleteAll();
-        consumptionEventRepository.deleteAll();
-        organizationPlanRepository.deleteAll();
-        commercialPlanRepository.deleteAll();
-        auditEventRepository.deleteAll();
-        knowledgeCaseCommentRepository.deleteAll();
-        knowledgeCaseVersionRepository.deleteAll();
-        knowledgeCaseRepository.deleteAll();
-        clientPortalUserRepository.deleteAll();
-        clientRepository.deleteAll();
-        organizationUserRepository.deleteAll();
-        userRepository.deleteAll();
-        organizationRepository.deleteAll();
+        H2TestDatabaseCleaner.clean(dataSource);
 
         organization = organizationRepository.save(new Organization("Billing Admin Test Org", null));
         user = userRepository.save(new User(

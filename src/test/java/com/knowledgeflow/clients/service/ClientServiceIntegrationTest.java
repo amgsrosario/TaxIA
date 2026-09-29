@@ -9,17 +9,15 @@ import com.knowledgeflow.clients.dto.ClientDetailResponse;
 import com.knowledgeflow.clients.enums.ClientCategory;
 import com.knowledgeflow.clients.enums.ClientStatus;
 import com.knowledgeflow.clients.exception.ClientNotFoundException;
-import com.knowledgeflow.clients.repository.ClientPortalUserRepository;
 import com.knowledgeflow.clients.repository.ClientRepository;
 import com.knowledgeflow.common.error.BusinessException;
-import com.knowledgeflow.cases.repository.KnowledgeCaseRepository;
-import com.knowledgeflow.cases.repository.KnowledgeCaseVersionRepository;
 import com.knowledgeflow.organizations.entity.Organization;
 import com.knowledgeflow.organizations.repository.OrganizationRepository;
-import com.knowledgeflow.organizations.repository.OrganizationUserRepository;
+import com.knowledgeflow.support.H2TestDatabaseCleaner;
 import com.knowledgeflow.users.entity.User;
 import com.knowledgeflow.users.repository.UserRepository;
 import java.util.UUID;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,12 +31,9 @@ class ClientServiceIntegrationTest {
 
     @Autowired private ClientService clientService;
     @Autowired private ClientRepository clientRepository;
-    @Autowired private ClientPortalUserRepository clientPortalUserRepository;
-    @Autowired private KnowledgeCaseVersionRepository knowledgeCaseVersionRepository;
-    @Autowired private KnowledgeCaseRepository knowledgeCaseRepository;
+    @Autowired private DataSource dataSource;
     @Autowired private AuditEventRepository auditEventRepository;
     @Autowired private OrganizationRepository organizationRepository;
-    @Autowired private OrganizationUserRepository organizationUserRepository;
     @Autowired private UserRepository userRepository;
 
     private Organization organization;
@@ -51,14 +46,7 @@ class ClientServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        auditEventRepository.deleteAll();
-        clientPortalUserRepository.deleteAll();
-        knowledgeCaseVersionRepository.deleteAll();
-        knowledgeCaseRepository.deleteAll();
-        clientRepository.deleteAll();
-        organizationUserRepository.deleteAll();
-        userRepository.deleteAll();
-        organizationRepository.deleteAll();
+        H2TestDatabaseCleaner.clean(dataSource);
 
         organization = organizationRepository.save(new Organization("KnowledgeFlow Clients", null));
         user = userRepository.save(new User(
