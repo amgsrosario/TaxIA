@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.knowledgeflow.audit.enums.AuditAction;
 import com.knowledgeflow.audit.repository.AuditEventRepository;
+import com.knowledgeflow.common.error.ApiErrorCode;
 import com.knowledgeflow.common.error.BusinessException;
 import com.knowledgeflow.knowledge.dto.SourceReferenceRequest;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
@@ -16,6 +17,7 @@ import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
 import com.knowledgeflow.organizations.entity.Organization;
 import com.knowledgeflow.organizations.repository.OrganizationRepository;
+import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +37,7 @@ class KnowledgeQuestionAnswerCurationServiceTest {
     @Autowired private KnowledgeSourceReferenceRepository sourceRepository;
     @Autowired private OrganizationRepository organizationRepository;
     @Autowired private AuditEventRepository auditEventRepository;
+    @Autowired private EntityManager entityManager;
 
     private Organization org;
     private UUID userId;
@@ -310,6 +313,67 @@ class KnowledgeQuestionAnswerCurationServiceTest {
         assertThat(sourceRepository.countByQuestionAnswerId(qa.getId())).isEqualTo(2);
     }
 
+    // 27. URL ausente ou em branco → persistida como null
+    @Test
+    void addSource_withNullOrBlankUrl_persistsNull() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso URL em branco?", "Resposta.");
+
+        for (String url : new String[] {null, "", "   "}) {
+            assertThat(persistedUrl(addSourceWithUrl(qa, url))).as("url=[%s]", url).isNull();
+        }
+    }
+
+    // 28. URLs http/https absolutas com host são aceites e persistidas sem reescrita
+    //     (esquema case-insensitive; host .local aceite porque não há DNS)
+    @Test
+    void addSource_withAbsoluteHttpUrls_persistsValueUnchanged() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso URLs válidas (matriz)?", "Resposta.");
+
+        for (String url : new String[] {
+                "https://info.portaldasfinancas.gov.pt/",
+                "http://exemplo.local/lei",
+                "HTTPS://example.com/path",
+                "HTTP://example.com"}) {
+            assertThat(persistedUrl(addSourceWithUrl(qa, url))).as(url).isEqualTo(url);
+        }
+    }
+
+    // 29. espaços nas extremidades são removidos antes de validar e persistir
+    @Test
+    void addSource_withSurroundingWhitespace_persistsTrimmedUrl() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso URL com espaços?", "Resposta.");
+
+        UUID sourceId = addSourceWithUrl(qa, "  https://example.com/x  ");
+
+        assertThat(persistedUrl(sourceId)).isEqualTo("https://example.com/x");
+    }
+
+    // 30. URLs relativas, sem esquema, sem host, malformadas ou com outro esquema → rejeitadas
+    @Test
+    void addSource_withInvalidUrl_throwsValidationErrorAndPersistsNothing() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso URLs inválidas (matriz)?", "Resposta.");
+
+        for (String url : new String[] {
+                "/faq",
+                "faq",
+                "https://",
+                "http://",
+                "https://exa mple.com",
+                "http://[::1",
+                "ftp://example.com",
+                "file:///tmp/x",
+                "javascript:alert(1)",
+                "mailto:test@example.com",
+                "faq://at/local/x"}) {
+            assertThatThrownBy(() -> addSourceWithUrl(qa, url))
+                    .as(url)
+                    .isInstanceOfSatisfying(BusinessException.class,
+                            e -> assertThat(e.getCode()).isEqualTo(ApiErrorCode.VALIDATION_ERROR));
+        }
+
+        assertThat(sourceRepository.countByQuestionAnswerId(qa.getId())).isZero();
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -339,6 +403,18 @@ class KnowledgeQuestionAnswerCurationServiceTest {
         qa.markPendingReview();
         qa.validate("revisor");
         return qaRepository.save(qa);
+    }
+
+    private UUID addSourceWithUrl(KnowledgeQuestionAnswer qa, String url) {
+        return curationService.addSource(org.getId(), userId, qa.getId(), new SourceReferenceRequest(
+                KnowledgeSourceType.OFFICIAL_FAQ, "Fonte", null, url, null, null, null, null, null)).id();
+    }
+
+    /** Reads the stored value back from the database, not from the persistence context. */
+    private String persistedUrl(UUID sourceId) {
+        entityManager.flush();
+        entityManager.clear();
+        return sourceRepository.findById(sourceId).orElseThrow().getUrl();
     }
 
     private void addSource(KnowledgeQuestionAnswer qa) {
