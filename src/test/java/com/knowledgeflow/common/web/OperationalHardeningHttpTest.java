@@ -9,13 +9,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.knowledgeflow.organizations.repository.OrganizationUserRepository;
+import com.knowledgeflow.support.H2TestDatabaseCleaner;
 import com.knowledgeflow.users.entity.Role;
 import com.knowledgeflow.users.enums.RoleName;
 import com.knowledgeflow.users.repository.RoleRepository;
-import com.knowledgeflow.users.repository.UserRepository;
 import java.util.List;
 import java.util.UUID;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,8 +42,7 @@ class OperationalHardeningHttpTest {
     private static final String TEST_BOOTSTRAP_SECRET = "test-bootstrap-secret";
 
     @Autowired private MockMvc mockMvc;
-    @Autowired private UserRepository userRepository;
-    @Autowired private OrganizationUserRepository organizationUserRepository;
+    @Autowired private DataSource dataSource;
     @Autowired private RoleRepository roleRepository;
 
     @BeforeEach
@@ -147,8 +146,7 @@ class OperationalHardeningHttpTest {
     @Test
     @DisplayName("Bootstrap válido em BD vazia → 201; segunda tentativa → 409")
     void bootstrapIsSingleUse() throws Exception {
-        organizationUserRepository.deleteAll();
-        userRepository.deleteAll();
+        H2TestDatabaseCleaner.clean(dataSource);
 
         mockMvc.perform(post("/api/v1/auth/bootstrap-admin")
                         .contentType(MediaType.APPLICATION_JSON)

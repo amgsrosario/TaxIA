@@ -6,17 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.knowledgeflow.auth.dto.AuthResponse;
 import com.knowledgeflow.auth.dto.BootstrapAdminRequest;
 import com.knowledgeflow.auth.dto.LoginRequest;
-import com.knowledgeflow.cases.repository.KnowledgeCaseRepository;
-import com.knowledgeflow.cases.repository.KnowledgeCaseVersionRepository;
-import com.knowledgeflow.clients.repository.ClientRepository;
 import com.knowledgeflow.common.error.BusinessException;
-import com.knowledgeflow.organizations.repository.OrganizationRepository;
 import com.knowledgeflow.organizations.repository.OrganizationUserRepository;
-import com.knowledgeflow.users.repository.UserRepository;
+import com.knowledgeflow.support.H2TestDatabaseCleaner;
 import com.knowledgeflow.users.entity.Role;
 import com.knowledgeflow.users.enums.RoleName;
 import com.knowledgeflow.users.repository.RoleRepository;
 import java.util.UUID;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,28 +36,11 @@ class AuthServiceIntegrationTest {
     private OrganizationUserRepository organizationUserRepository;
 
     @Autowired
-    private KnowledgeCaseVersionRepository knowledgeCaseVersionRepository;
-
-    @Autowired
-    private KnowledgeCaseRepository knowledgeCaseRepository;
-
-    @Autowired
-    private ClientRepository clientRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private OrganizationRepository organizationRepository;
+    private DataSource dataSource;
 
     @BeforeEach
     void setUp() {
-        knowledgeCaseVersionRepository.deleteAll();
-        knowledgeCaseRepository.deleteAll();
-        clientRepository.deleteAll();
-        organizationUserRepository.deleteAll();
-        userRepository.deleteAll();
-        organizationRepository.deleteAll();
+        H2TestDatabaseCleaner.clean(dataSource);
         roleRepository.findByName(RoleName.ADMIN)
                 .orElseGet(() -> roleRepository.save(new Role(RoleName.ADMIN, "Administra a organizacao e utilizadores")));
     }

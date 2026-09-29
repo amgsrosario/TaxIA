@@ -26,11 +26,10 @@ jobs:
       # CI mínimo v1: compila main e test e executa apenas uma lista explícita
       # de classes sem estado partilhado entre si.
       #
-      # PENDÊNCIA (chat executivo TaxIA): a suite completa `mvn test` depende
-      # da ordem das classes. Com a ordem por omissão e a inversa há 15 erros
-      # de chave estrangeira no H2 partilhado (EntitlementServiceIntegrationTest,
-      # KnowledgeCaseServiceIntegrationTest, OperationalHardeningHttpTest);
-      # só a alfabética passa. Até ser corrigida, a suite completa não é gate.
+      # A dependência de ordem da suite completa `mvn test` no H2 partilhado
+      # foi corrigida com H2TestDatabaseCleaner (src/test). Promover a suite
+      # completa a gate continua a ser decisão do chat executivo TaxIA; até lá,
+      # a suite completa não é gate.
       #
       # Critério de selecção:
       # - no máximo um @SpringBootTest (KnowledgeFlowApplicationTests, perfil
