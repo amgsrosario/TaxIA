@@ -16,6 +16,8 @@ import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -209,10 +211,10 @@ public class KnowledgeQuestionAnswerCurationService {
             UUID organizationId, UUID actingUserId, UUID qaId, SourceReferenceRequest req) {
 
         KnowledgeQuestionAnswer qa = requireOwned(organizationId, qaId);
-        requireValidUrl(req.url());
+        String url = normalizeAndValidateUrl(req.url());
 
         KnowledgeSourceReference src = new KnowledgeSourceReference(qa, req.sourceType(), req.title());
-        src.update(req.sourceType(), req.title(), req.legalReference(), req.url(),
+        src.update(req.sourceType(), req.title(), req.legalReference(), url,
                 req.documentId(), req.fragmentId(), req.validFrom(), req.validTo(), req.notes());
         sourceRepository.save(src);
 
@@ -263,14 +265,40 @@ public class KnowledgeQuestionAnswerCurationService {
                         qa.getExternalKey(), sourceId, src.getSourceType(), src.getTitle()));
     }
 
-    /** Source URLs must carry an explicit http/https scheme — no free text, no other schemes. */
-    private void requireValidUrl(String url) {
-        if (url == null || url.isBlank()) return; // URL is optional
+    private static final int MAX_URL_IN_ERROR = 200;
+
+    /**
+     * Source URLs are optional. Null or blank becomes null; anything else is trimmed at the edges
+     * (and otherwise left untouched) and must be an absolute http/https URI with a host, scheme
+     * compared case-insensitively. Parsing is purely syntactic ({@link URI}): no DNS, no network.
+     *
+     * @return the value to persist
+     */
+    private String normalizeAndValidateUrl(String url) {
+        if (url == null || url.isBlank()) return null; // URL is optional
         String trimmed = url.trim();
-        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+        if (!isAbsoluteHttpUrlWithHost(trimmed)) {
+            String shown = trimmed.length() > MAX_URL_IN_ERROR
+                    ? trimmed.substring(0, MAX_URL_IN_ERROR) + "…"
+                    : trimmed;
             throw new BusinessException(ApiErrorCode.VALIDATION_ERROR,
-                    "Source url must start with http:// or https:// — received: " + trimmed);
+                    "Source url must be an absolute http:// or https:// URL with a host — received: " + shown);
         }
+        return trimmed;
+    }
+
+    private static boolean isAbsoluteHttpUrlWithHost(String value) {
+        URI uri;
+        try {
+            uri = new URI(value);
+        } catch (URISyntaxException e) {
+            return false;
+        }
+        String scheme = uri.getScheme();
+        String host = uri.getHost();
+        return uri.isAbsolute()
+                && ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+                && host != null && !host.isBlank();
     }
 
     // -------------------------------------------------------------------------
