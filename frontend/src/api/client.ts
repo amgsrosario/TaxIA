@@ -2,6 +2,7 @@ import type {
   ApiErrorBody,
   AuthUser,
   CurationUpdateRequest,
+  DemoAskResponse,
   KnowledgeCurationStatus,
   KnowledgeQaDetail,
   KnowledgeQaSummary,
@@ -201,9 +202,19 @@ export function removeSource(id: string, sourceId: string): Promise<void> {
 }
 
 // NOTA DELIBERADA: os endpoints de publicação (/publish, /unpublish, /reindex)
-// e de IA (/admin/ai/ask) EXISTEM no backend mas NÃO têm função neste cliente.
-// Nesta etapa o backoffice não publica, não cria embeddings e não chama
-// providers — a omissão é um guard rail, não um esquecimento.
+// e a pergunta de administração (/admin/ai/ask, vista INTERNAL com diagnóstico e
+// systemPrompt) EXISTEM no backend mas NÃO têm função neste cliente — o
+// backoffice não publica nem cria embeddings. A omissão é um guard rail, não
+// um esquecimento.
+//
+// Única excepção deliberada: /admin/ai/demo/ask, a pergunta de demonstração
+// (vista DEMO). Envia apenas a pergunta e recebe apenas a projecção limpa.
+
+// ── Perguntar à TaxIA (demonstração) ────────────────────────────────────────
+
+export function askTaxia(question: string): Promise<DemoAskResponse> {
+  return request<DemoAskResponse>("POST", "/api/v1/admin/ai/demo/ask", { question });
+}
 
 // ── Saúde do sistema ────────────────────────────────────────────────────────
 
