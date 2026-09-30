@@ -30,13 +30,13 @@ public class KnowledgeSourceReference {
     @Column(nullable = false, length = 40)
     private KnowledgeSourceType sourceType;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false, length = 500)
     private String title;
 
-    @Column(length = 255)
+    @Column(length = 500)
     private String legalReference;
 
-    @Column(length = 500)
+    @Column(length = 2000)
     private String url;
 
     /** FK to an existing KnowledgeCase used as document source (optional). */

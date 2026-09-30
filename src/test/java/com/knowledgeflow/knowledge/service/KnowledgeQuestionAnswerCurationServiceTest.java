@@ -9,6 +9,7 @@ import com.knowledgeflow.common.error.ApiErrorCode;
 import com.knowledgeflow.common.error.BusinessException;
 import com.knowledgeflow.knowledge.dto.SourceReferenceRequest;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
+import com.knowledgeflow.knowledge.entity.KnowledgeSourceReference;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.enums.KnowledgeSourceType;
@@ -374,6 +375,33 @@ class KnowledgeQuestionAnswerCurationServiceTest {
         assertThat(sourceRepository.countByQuestionAnswerId(qa.getId())).isZero();
     }
 
+    // 31. title e legalReference até 500 (V14/DTO) persistem — acima do antigo limite JPA de 255
+    @Test
+    void addSource_withTitleAndLegalReferenceUpTo500_persists() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso título longo?", "Resposta.");
+
+        for (int length : new int[] {256, 500}) {
+            UUID sourceId = addSourceWith(qa, "t".repeat(length), "l".repeat(length), null);
+
+            KnowledgeSourceReference stored = reloadedSource(sourceId);
+            assertThat(stored.getTitle()).as("title").hasSize(length);
+            assertThat(stored.getLegalReference()).as("legalReference").hasSize(length);
+        }
+    }
+
+    // 32. url até 2000 (V14/DTO) persiste — acima do antigo limite JPA de 500
+    @Test
+    void addSource_withUrlAbove500UpTo2000_persists() {
+        KnowledgeQuestionAnswer qa = savedQa("Caso URL longa?", "Resposta.");
+        String base = "https://example.com/";
+
+        for (int length : new int[] {501, 2000}) {
+            String url = base + "a".repeat(length - base.length());
+
+            assertThat(persistedUrl(addSourceWithUrl(qa, url))).as("url length %d", length).isEqualTo(url);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -410,11 +438,20 @@ class KnowledgeQuestionAnswerCurationServiceTest {
                 KnowledgeSourceType.OFFICIAL_FAQ, "Fonte", null, url, null, null, null, null, null)).id();
     }
 
-    /** Reads the stored value back from the database, not from the persistence context. */
+    private UUID addSourceWith(KnowledgeQuestionAnswer qa, String title, String legalReference, String url) {
+        return curationService.addSource(org.getId(), userId, qa.getId(), new SourceReferenceRequest(
+                KnowledgeSourceType.OFFICIAL_FAQ, title, legalReference, url, null, null, null, null, null)).id();
+    }
+
     private String persistedUrl(UUID sourceId) {
+        return reloadedSource(sourceId).getUrl();
+    }
+
+    /** Reads the stored row back from the database, not from the persistence context. */
+    private KnowledgeSourceReference reloadedSource(UUID sourceId) {
         entityManager.flush();
         entityManager.clear();
-        return sourceRepository.findById(sourceId).orElseThrow().getUrl();
+        return sourceRepository.findById(sourceId).orElseThrow();
     }
 
     private void addSource(KnowledgeQuestionAnswer qa) {
