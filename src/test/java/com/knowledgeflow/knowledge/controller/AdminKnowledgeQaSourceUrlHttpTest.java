@@ -27,9 +27,9 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * HTTP contract of source URL validation on POST /api/v1/admin/knowledge/qa/{id}/sources, through
- * the real controller, service and GlobalExceptionHandler. The full URL matrix lives in
- * KnowledgeQuestionAnswerCurationServiceTest; this only proves how the service rule reaches the client.
+ * HTTP contract of source validation on POST /api/v1/admin/knowledge/qa/{id}/sources (URL rule and
+ * field lengths), through the real controller, service and GlobalExceptionHandler. The full matrices
+ * live in KnowledgeQuestionAnswerCurationServiceTest; this only proves how the rules reach the client.
  */
 @ActiveProfiles("test")
 @SpringBootTest
@@ -75,6 +75,37 @@ class AdminKnowledgeQaSourceUrlHttpTest {
                         .with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.url").value("https://example.com/x"));
+    }
+
+    @Test
+    @DisplayName("title com 300 caracteres (dentro do DTO e da V14) → 200 e persistido")
+    void titleWithinContract_returns200AndPersists() throws Exception {
+        String title = "t".repeat(300);
+
+        mockMvc.perform(post("/api/v1/admin/knowledge/qa/{id}/sources", qa.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"sourceType\":\"OTHER\",\"title\":\"" + title + "\"}")
+                        .with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value(title));
+
+        // The test transaction defers the INSERT: flush so the column length is really exercised.
+        sourceRepository.flush();
+        assertThat(sourceRepository.countByQuestionAnswerId(qa.getId())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("title com 501 caracteres (acima do DTO) → 400 VALIDATION_ERROR")
+    void titleAboveContract_returns400ValidationError() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/knowledge/qa/{id}/sources", qa.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"sourceType\":\"OTHER\",\"title\":\"" + "t".repeat(501) + "\"}")
+                        .with(admin()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.details.title").exists());
+
+        assertThat(sourceRepository.countByQuestionAnswerId(qa.getId())).isZero();
     }
 
     private RequestPostProcessor admin() {
