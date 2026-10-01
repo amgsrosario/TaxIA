@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import { Layout } from "./components/Layout";
+import { AskPage } from "./pages/AskPage";
 import { LoginPage } from "./pages/LoginPage";
 import { QaDetailPage } from "./pages/QaDetailPage";
 import { QaListPage } from "./pages/QaListPage";
@@ -23,6 +24,7 @@ export function App() {
           </RequireAuth>
         }
       >
+        <Route path="/ask" element={<AskPage />} />
         <Route path="/qa" element={<QaListPage />} />
         <Route path="/qa/:id" element={<QaDetailPage />} />
         <Route path="*" element={<Navigate to="/qa" replace />} />

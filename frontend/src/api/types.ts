@@ -221,3 +221,11 @@ export interface AnswerProjection {
   visibleLimitations: string[];
   visibleParecerRequirement: ParecerRequirement;
 }
+
+/**
+ * Resposta de POST /api/v1/admin/ai/demo/ask: apenas a projecção DEMO, sem resposta
+ * documentada completa, diagnóstico, provider, modelo ou tokens.
+ */
+export interface DemoAskResponse {
+  projectedAnswer: AnswerProjection;
+}

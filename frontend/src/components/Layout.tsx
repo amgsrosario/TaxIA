@@ -7,6 +7,7 @@ export function Layout() {
   const { session, signOut } = useAuth();
   const navigate = useNavigate();
   const [health, setHealth] = useState<string>("…");
+  const isAdmin = session?.roles.includes("ADMIN") ?? false;
 
   useEffect(() => {
     fetchHealth()
@@ -27,6 +28,7 @@ export function Layout() {
         </div>
         <div className="org">Org: {session?.organizationId ?? "—"}</div>
         <nav>
+          {isAdmin && <NavLink to="/ask">Perguntar à TaxIA</NavLink>}
           <NavLink to="/qa">Conhecimento Q&amp;A</NavLink>
         </nav>
         <div className="spacer" />

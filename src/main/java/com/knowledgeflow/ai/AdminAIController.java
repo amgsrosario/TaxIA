@@ -51,28 +51,59 @@ public class AdminAIController {
     @PostMapping("/ask")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AskResponse> ask(@Valid @RequestBody AskRequest request) {
+        // Lente de projecção resolvida centralmente (D8); admin → INTERNAL (diagnóstico
+        // moderado). A autorização mantém-se no @PreAuthorize; aqui só se escolhe a vista.
+        PipelineResult result = runPipeline(
+                request.question(), request.systemPrompt(), visibilityLevelResolver.resolveForAdminAsk());
+
+        return ResponseEntity.ok(
+                AskResponse.from(result.grounded(), result.documentedAnswer(), result.projectedAnswer()));
+    }
+
+    /**
+     * Pergunta para demonstração: o mesmo pipeline real do {@code /ask} (RAG, grounding, decisão,
+     * projecção), com a lente {@code DEMO} e um contrato mínimo. Aceita apenas a pergunta — sem
+     * {@code systemPrompt} nem parâmetros técnicos — e devolve apenas a projecção, sem resposta
+     * documentada completa, diagnóstico, provider, modelo ou tokens.
+     */
+    @PostMapping("/demo/ask")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DemoAskResponse> demoAsk(@Valid @RequestBody DemoAskRequest request) {
+        PipelineResult result = runPipeline(
+                request.question(), null, visibilityLevelResolver.resolveForDemo());
+
+        return ResponseEntity.ok(new DemoAskResponse(result.projectedAnswer()));
+    }
+
+    private PipelineResult runPipeline(String question, String systemPrompt, VisibilityLevel targetVisibility) {
         var organizationId = authenticatedUserContext.getRequiredUser().organizationId();
         List<RagSearchService.RetrievedCase> retrievedCases =
-                ragSearchService.findSimilar(organizationId, request.question());
+                ragSearchService.findSimilar(organizationId, question);
 
-        GroundedAIResponse grounded =
-                groundingService.process(request.question(), request.systemPrompt(), retrievedCases);
+        GroundedAIResponse grounded = groundingService.process(question, systemPrompt, retrievedCases);
 
         metrics.recordGroundingOutcome(
                 grounded.supportStatus() != null ? grounded.supportStatus().name() : null,
                 grounded.responseRejected());
 
         DocumentedTaxiaAnswer documentedAnswer =
-                documentedTaxiaAnswerMapper.fromGroundedResponse(request.question(), grounded);
+                documentedTaxiaAnswerMapper.fromGroundedResponse(question, grounded);
+        AnswerProjection projectedAnswer = answerProjectionService.project(documentedAnswer, targetVisibility);
 
-        // Lente de projecção resolvida centralmente (D8); admin → INTERNAL (diagnóstico
-        // moderado). A autorização mantém-se no @PreAuthorize; aqui só se escolhe a vista.
-        VisibilityLevel targetVisibility = visibilityLevelResolver.resolveForAdminAsk();
-        AnswerProjection projectedAnswer =
-                answerProjectionService.project(documentedAnswer, targetVisibility);
-
-        return ResponseEntity.ok(AskResponse.from(grounded, documentedAnswer, projectedAnswer));
+        return new PipelineResult(grounded, documentedAnswer, projectedAnswer);
     }
+
+    private record PipelineResult(
+            GroundedAIResponse grounded,
+            DocumentedTaxiaAnswer documentedAnswer,
+            AnswerProjection projectedAnswer
+    ) {}
+
+    public record DemoAskRequest(
+            @NotBlank @jakarta.validation.constraints.Size(max = 4000) String question
+    ) {}
+
+    public record DemoAskResponse(AnswerProjection projectedAnswer) {}
 
     public record AskRequest(
             @NotBlank @jakarta.validation.constraints.Size(max = 4000) String question,
