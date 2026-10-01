@@ -6,6 +6,7 @@ import com.knowledgeflow.ai.grounding.AnswerSource;
 import com.knowledgeflow.ai.grounding.AnswerSupportStatus;
 import com.knowledgeflow.ai.grounding.GroundedAIResponse;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -150,5 +151,85 @@ class DocumentedTaxiaAnswerMapperTest {
 
         assertThat(answer.answerType()).isEqualTo(AnswerType.RESPOSTA_LIMITE);
         assertThat(answer.parecerRequirement()).isEqualTo(ParecerRequirement.SUGGESTED);
+    }
+
+    // --- M3: fontes documentais curadas ---
+
+    private static final UUID QA_ID = UUID.fromString("00000000-0000-0000-0000-00000000a930");
+
+    private static AnswerSource qaSource() {
+        return new AnswerSource("Que despesas podem ser deduzidas aos rendimentos prediais?",
+                "Que despesas podem ser deduzidas aos rendimentos prediais?", 0.9, QA_ID);
+    }
+
+    private static List<ResolvedAnswerSource> officialSources(AnswerSource origin) {
+        return List.of(
+                ResolvedAnswerSource.curated(origin, new ResolvedAnswerSource.CuratedSource(
+                        UUID.fromString("00000000-0000-0000-0000-000000000041"), "LEGISLATION",
+                        "Código do IRS — Artigo 41.º — Deduções aos rendimentos prediais", "CIRS, art. 41.º",
+                        "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/cirs_rep/Pages/irs41.aspx")),
+                ResolvedAnswerSource.curated(origin, new ResolvedAnswerSource.CuratedSource(
+                        UUID.fromString("00000000-0000-0000-0000-000000005930"), "OFFICIAL_FAQ",
+                        "Portal das Finanças — FAQ 5930 — Rendimentos prediais: despesas dedutíveis", "CIRS, art. 41.º",
+                        "https://info.portaldasfinancas.gov.pt/pt/apoio_contribuinte/questoes_frequentes/pages/faqs-00358.aspx")));
+    }
+
+    @Test
+    void curatedSources_mapToRealDocumentaryEvidence() {
+        DocumentedTaxiaAnswer answer = mapper.fromGroundedResponse("Despesas dedutíveis?",
+                grounded(AnswerSupportStatus.SUPPORTED, List.of(qaSource()), false), officialSources(qaSource()));
+
+        assertThat(answer.sources()).hasSize(2);
+        SourceEvidence law = answer.sources().get(0);
+        assertThat(law.title()).isEqualTo("Código do IRS — Artigo 41.º — Deduções aos rendimentos prediais");
+        assertThat(law.sourceType()).isEqualTo("LEGISLATION");
+        assertThat(law.legalReference()).isEqualTo("CIRS, art. 41.º");
+        assertThat(law.url()).endsWith("/irs41.aspx");
+        assertThat(law.sourceId()).isEqualTo("00000000-0000-0000-0000-000000000041");
+        assertThat(law.authorityLevel()).isEqualTo(AuthorityLevel.LEGAL);
+        assertThat(law.sourceQuality()).isEqualTo(SourceQuality.STRONG);
+        // Política de actualidade inalterada: sem marcadores de revogação → não confirmada.
+        assertThat(law.freshnessStatus()).isEqualTo(FreshnessStatus.UNCERTAIN);
+        // Q&A de origem só como rastreabilidade interna.
+        assertThat(law.relatedSources()).containsExactly("knowledge-qa:" + QA_ID);
+
+        SourceEvidence faq = answer.sources().get(1);
+        assertThat(faq.sourceType()).isEqualTo("OFFICIAL_FAQ");
+        assertThat(faq.authorityLevel()).isEqualTo(AuthorityLevel.OFFICIAL_FAQ);
+        assertThat(faq.url()).endsWith("/faqs-00358.aspx");
+
+        // O título da Q&A deixa de ser apresentado como fonte.
+        assertThat(answer.sources()).extracting(SourceEvidence::title)
+                .doesNotContain("Que despesas podem ser deduzidas aos rendimentos prediais?");
+    }
+
+    @Test
+    void fallbackEntries_mapExactlyLikeTheLegacyMapping() {
+        AnswerSource legacy = new AnswerSource("IVA — Regime Geral", "CIVA art. 18.º", 0.9);
+        GroundedAIResponse g = grounded(AnswerSupportStatus.SUPPORTED, List.of(legacy), false);
+
+        DocumentedTaxiaAnswer viaLegacy = mapper.fromGroundedResponse("P?", g);
+        DocumentedTaxiaAnswer viaFallback =
+                mapper.fromGroundedResponse("P?", g, List.of(ResolvedAnswerSource.fallback(legacy)));
+
+        assertThat(viaFallback.sources()).isEqualTo(viaLegacy.sources());
+        assertThat(viaFallback.answerType()).isEqualTo(viaLegacy.answerType());
+        assertThat(viaFallback.parecerRequirement()).isEqualTo(viaLegacy.parecerRequirement());
+    }
+
+    @Test
+    void officialCuratedSources_doNotDegradeAnswerTypeOrParecer_comparedWithQaTitleSource() {
+        // Regressão M3: a mesma resposta SUPPORTED, antes com a Q&A como fonte e agora com a
+        // legislação + FAQ oficial curadas, mantém a forma e o encaminhamento.
+        GroundedAIResponse g = grounded(AnswerSupportStatus.SUPPORTED, List.of(qaSource()), false);
+
+        DocumentedTaxiaAnswer before = mapper.fromGroundedResponse("Despesas dedutíveis?", g);
+        DocumentedTaxiaAnswer after = mapper.fromGroundedResponse("Despesas dedutíveis?", g, officialSources(qaSource()));
+
+        assertThat(before.answerType()).isEqualTo(AnswerType.CONSULTA_DOCUMENTADA);
+        assertThat(before.parecerRequirement()).isEqualTo(ParecerRequirement.NONE);
+        assertThat(after.answerType()).isEqualTo(AnswerType.CONSULTA_DOCUMENTADA);
+        assertThat(after.parecerRequirement()).isEqualTo(ParecerRequirement.NONE);
+        assertThat(after.warnings()).isEqualTo(before.warnings());
     }
 }

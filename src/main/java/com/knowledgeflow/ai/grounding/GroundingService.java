@@ -86,7 +86,7 @@ public class GroundingService {
                 .filter(c -> c.content() != null && !c.content().isBlank())
                 .collect(Collectors.toMap(
                         RetrievedCase::title,
-                        c -> new AnswerSource(c.title(), c.title(), c.similarity()),
+                        c -> new AnswerSource(c.title(), c.title(), c.similarity(), c.sourceQaId()),
                         (a, b) -> a.relevanceScore() >= b.relevanceScore() ? a : b,
                         LinkedHashMap::new))
                 .values().stream()

@@ -2,6 +2,7 @@ package com.knowledgeflow.ai;
 
 import com.knowledgeflow.ai.documented.AnswerProjection;
 import com.knowledgeflow.ai.documented.AnswerProjectionService;
+import com.knowledgeflow.ai.documented.CuratedSourceResolver;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswer;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
 import com.knowledgeflow.ai.documented.VisibilityLevel;
@@ -32,13 +33,15 @@ public class AdminAIController {
     private final DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper;
     private final AnswerProjectionService answerProjectionService;
     private final VisibilityLevelResolver visibilityLevelResolver;
+    private final CuratedSourceResolver curatedSourceResolver;
 
     public AdminAIController(GroundingService groundingService, RagSearchService ragSearchService,
             AuthenticatedUserContext authenticatedUserContext,
             com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics,
             DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper,
             AnswerProjectionService answerProjectionService,
-            VisibilityLevelResolver visibilityLevelResolver) {
+            VisibilityLevelResolver visibilityLevelResolver,
+            CuratedSourceResolver curatedSourceResolver) {
         this.groundingService = groundingService;
         this.ragSearchService = ragSearchService;
         this.authenticatedUserContext = authenticatedUserContext;
@@ -46,6 +49,7 @@ public class AdminAIController {
         this.documentedTaxiaAnswerMapper = documentedTaxiaAnswerMapper;
         this.answerProjectionService = answerProjectionService;
         this.visibilityLevelResolver = visibilityLevelResolver;
+        this.curatedSourceResolver = curatedSourceResolver;
     }
 
     @PostMapping("/ask")
@@ -86,8 +90,9 @@ public class AdminAIController {
                 grounded.supportStatus() != null ? grounded.supportStatus().name() : null,
                 grounded.responseRejected());
 
-        DocumentedTaxiaAnswer documentedAnswer =
-                documentedTaxiaAnswerMapper.fromGroundedResponse(question, grounded);
+        // M3: as fontes do grounding passam às fontes documentais curadas das Q&A (por sourceQaId).
+        DocumentedTaxiaAnswer documentedAnswer = documentedTaxiaAnswerMapper.fromGroundedResponse(
+                question, grounded, curatedSourceResolver.resolve(grounded.sources()));
         AnswerProjection projectedAnswer = answerProjectionService.project(documentedAnswer, targetVisibility);
 
         return new PipelineResult(grounded, documentedAnswer, projectedAnswer);

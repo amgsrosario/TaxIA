@@ -102,6 +102,20 @@ class GroundingServiceTest {
     }
 
     @Test
+    void sufficientContext_sourceCarriesSourceQaIdOfRetrievedQa() {
+        java.util.UUID qaId = java.util.UUID.randomUUID();
+        var cases = List.of(new RetrievedCase("IVA — Regime Geral", "Pergunta?",
+                "O IVA tem taxa normal de 23% conforme o CIVA.", 0.9,
+                com.knowledgeflow.rag.RagSearchService.SourceKind.KNOWLEDGE_QA, qaId));
+        when(aiService.complete(any())).thenReturn(stubResponse("Resposta."));
+
+        var result = service.process("Pergunta?", null, cases);
+
+        assertThat(result.sources()).singleElement()
+                .satisfies(s -> assertThat(s.sourceQaId()).isEqualTo(qaId));
+    }
+
+    @Test
     void sufficientContext_sourcesPopulatedFromRetrievedCases() {
         var cases = validCases();
         when(aiService.complete(any())).thenReturn(stubResponse("Resposta."));

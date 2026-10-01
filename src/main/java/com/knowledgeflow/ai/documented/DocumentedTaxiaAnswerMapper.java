@@ -49,9 +49,21 @@ public class DocumentedTaxiaAnswerMapper {
      * @return resposta documentada equivalente
      */
     public DocumentedTaxiaAnswer fromGroundedResponse(String question, GroundedAIResponse grounded) {
-        AnswerSupportStatus supportStatus = grounded.supportStatus();
+        return build(question, grounded, mapSources(grounded.sources(), grounded.supportStatus()));
+    }
 
-        List<SourceEvidence> sources = mapSources(grounded.sources(), supportStatus);
+    /**
+     * Variante com as fontes já resolvidas pelo {@link CuratedSourceResolver} (M3): cada fonte
+     * curada passa a {@link SourceEvidence} com os seus dados reais (título, tipo, referência
+     * legal, URL); as entradas sem curadoria mantêm o mapeamento anterior. O mapper continua puro.
+     */
+    public DocumentedTaxiaAnswer fromGroundedResponse(
+            String question, GroundedAIResponse grounded, List<ResolvedAnswerSource> resolvedSources) {
+        return build(question, grounded, mapResolvedSources(resolvedSources, grounded.supportStatus()));
+    }
+
+    private DocumentedTaxiaAnswer build(String question, GroundedAIResponse grounded, List<SourceEvidence> sources) {
+        AnswerSupportStatus supportStatus = grounded.supportStatus();
 
         AnswerDecision decision = answerDecisionService.decide(
                 supportStatus,
@@ -98,30 +110,66 @@ public class DocumentedTaxiaAnswerMapper {
         boolean supportsConclusion = supportStatus == AnswerSupportStatus.SUPPORTED;
         List<SourceEvidence> mapped = new ArrayList<>(sources.size());
         for (AnswerSource source : sources) {
-            SourceRole sourceRole = sourceAssessmentService.assessSourceRole(source);
-            mapped.add(new SourceEvidence(
-                    null,
-                    source.title(),
-                    null,
-                    sourceAssessmentService.assessAuthorityLevel(source),
-                    sourceRole,
-                    sourceAssessmentService.assessSourceQuality(source),
-                    sourceAssessmentService.buildSourceCore(source),
-                    sourceAssessmentService.buildSourceDiversityGroup(source),
-                    sourceAssessmentService.assessSourceDiversity(source),
-                    sourceAssessmentService.assessFreshnessStatus(source),
-                    source.reference(),
-                    null,
-                    true,
-                    supportsConclusion,
-                    false,
-                    false,
-                    sourceRole == SourceRole.DERIVATIVE_REPLICATED,
-                    List.of(),
-                    null,
-                    List.of()));
+            mapped.add(evidence(source, null, source.title(), null, source.reference(), null,
+                    supportsConclusion, List.of()));
         }
         return List.copyOf(mapped);
+    }
+
+    private List<SourceEvidence> mapResolvedSources(
+            List<ResolvedAnswerSource> resolvedSources, AnswerSupportStatus supportStatus) {
+        if (resolvedSources == null || resolvedSources.isEmpty()) {
+            return List.of();
+        }
+        boolean supportsConclusion = supportStatus == AnswerSupportStatus.SUPPORTED;
+        List<SourceEvidence> mapped = new ArrayList<>(resolvedSources.size());
+        for (ResolvedAnswerSource resolved : resolvedSources) {
+            AnswerSource origin = resolved.origin();
+            if (!resolved.isCurated()) {
+                mapped.add(evidence(origin, null, origin.title(), null, origin.reference(), null,
+                        supportsConclusion, List.of()));
+                continue;
+            }
+            ResolvedAnswerSource.CuratedSource curated = resolved.curated();
+            // A avaliação (D5) corre sobre os dados reais da fonte curada, com a política actual.
+            AnswerSource assessed = new AnswerSource(
+                    curated.title(), curated.legalReference(), origin.relevanceScore());
+            // Q&A de origem: rastreabilidade interna (relatedSources é ocultado em DEMO/EXTERNAL).
+            List<String> relatedSources = origin.sourceQaId() != null
+                    ? List.of("knowledge-qa:" + origin.sourceQaId())
+                    : List.of();
+            mapped.add(evidence(assessed,
+                    curated.id() != null ? curated.id().toString() : null,
+                    curated.title(), curated.sourceType(), curated.legalReference(), curated.url(),
+                    supportsConclusion, relatedSources));
+        }
+        return List.copyOf(mapped);
+    }
+
+    private SourceEvidence evidence(AnswerSource assessed, String sourceId, String title, String sourceType,
+            String legalReference, String url, boolean supportsConclusion, List<String> relatedSources) {
+        SourceRole sourceRole = sourceAssessmentService.assessSourceRole(assessed);
+        return new SourceEvidence(
+                sourceId,
+                title,
+                sourceType,
+                sourceAssessmentService.assessAuthorityLevel(assessed),
+                sourceRole,
+                sourceAssessmentService.assessSourceQuality(assessed),
+                sourceAssessmentService.buildSourceCore(assessed),
+                sourceAssessmentService.buildSourceDiversityGroup(assessed),
+                sourceAssessmentService.assessSourceDiversity(assessed),
+                sourceAssessmentService.assessFreshnessStatus(assessed),
+                legalReference,
+                url,
+                true,
+                supportsConclusion,
+                false,
+                false,
+                sourceRole == SourceRole.DERIVATIVE_REPLICATED,
+                relatedSources,
+                null,
+                List.of());
     }
 
     private List<String> safeList(List<String> list) {
