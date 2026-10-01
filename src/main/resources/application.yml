@@ -116,6 +116,6 @@ knowledgeflow:
     enabled: ${GROUNDING_ENABLED:true}
     minimum-fragments: ${GROUNDING_MIN_FRAGMENTS:1}
     minimum-distinct-sources: ${GROUNDING_MIN_SOURCES:1}
-    minimum-relevance-score: ${GROUNDING_MIN_SCORE:0.0}
+    minimum-relevance-score: ${GROUNDING_MIN_SCORE:0.88}
     reject-unsupported-sensitive-claims: ${GROUNDING_REJECT_UNSUPPORTED:true}
     skip-provider-when-context-insufficient: ${GROUNDING_SKIP_PROVIDER:true}
