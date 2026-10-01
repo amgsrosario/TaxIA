@@ -3,6 +3,7 @@ package com.knowledgeflow.ai.grounding;
 import com.knowledgeflow.ai.AIRequest;
 import com.knowledgeflow.ai.AIResponse;
 import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.grounding.scope.FiscalScopeFilter;
 import com.knowledgeflow.rag.RagSearchService.RetrievedCase;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,18 +35,21 @@ public class GroundingService {
     private final SafeResponseFactory safeResponseFactory;
     private final AIService aiService;
     private final GroundingProperties props;
+    private final FiscalScopeFilter scopeFilter;
 
     public GroundingService(
             ContextSufficiencyEvaluator evaluator,
             AnswerGroundingValidator validator,
             SafeResponseFactory safeResponseFactory,
             AIService aiService,
-            GroundingProperties props) {
+            GroundingProperties props,
+            FiscalScopeFilter scopeFilter) {
         this.evaluator = evaluator;
         this.validator = validator;
         this.safeResponseFactory = safeResponseFactory;
         this.aiService = aiService;
         this.props = props;
+        this.scopeFilter = scopeFilter;
     }
 
     public GroundedAIResponse process(
@@ -53,8 +57,9 @@ public class GroundingService {
             String userSystemPrompt,
             List<RetrievedCase> retrievedCases) {
 
-        // Só os candidatos relevantes seguem para a avaliação, o prompt, o validador e as fontes.
-        List<RetrievedCase> relevantCases = filterByRelevance(retrievedCases);
+        // Só os candidatos relevantes e sem contradição de âmbito (M4-SCOPE) seguem para a
+        // avaliação, o prompt, o validador e as fontes.
+        List<RetrievedCase> relevantCases = scopeFilter.filter(question, filterByRelevance(retrievedCases));
 
         ContextSufficiencyAssessment assessment = evaluator.evaluate(relevantCases, question);
         log.debug("Context assessment: status={}, fragments={}, sources={}",

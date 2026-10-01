@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.knowledgeflow.ai.AIRequest;
 import com.knowledgeflow.ai.AIResponse;
 import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.grounding.scope.FiscalScopeFilter;
 import com.knowledgeflow.rag.RagSearchService.RetrievedCase;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,7 +37,7 @@ class GroundingOutcomeRulesTest {
         var evaluator = new ContextSufficiencyEvaluator(PROPS);
         var validator = new AnswerGroundingValidator(PROPS);
         var factory   = new SafeResponseFactory();
-        service = new GroundingService(evaluator, validator, factory, aiService, PROPS);
+        service = new GroundingService(evaluator, validator, factory, aiService, PROPS, FiscalScopeFilter.disabled());
     }
 
     // ── Item 1: providerCalled=false + INSUFFICIENT_CONTEXT → sem mismatch ────

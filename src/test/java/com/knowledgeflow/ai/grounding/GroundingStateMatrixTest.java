@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.knowledgeflow.ai.AIResponse;
 import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.grounding.scope.FiscalScopeFilter;
 import com.knowledgeflow.rag.RagSearchService.RetrievedCase;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,11 +37,11 @@ class GroundingStateMatrixTest {
         var evaluator   = new ContextSufficiencyEvaluator(PROPS_REJECT);
         var validator   = new AnswerGroundingValidator(PROPS_REJECT);
         var factory     = new SafeResponseFactory();
-        serviceReject   = new GroundingService(evaluator, validator, factory, aiService, PROPS_REJECT);
+        serviceReject   = new GroundingService(evaluator, validator, factory, aiService, PROPS_REJECT, FiscalScopeFilter.disabled());
 
         var evaluatorP  = new ContextSufficiencyEvaluator(PROPS_PERMISSIVE);
         var validatorP  = new AnswerGroundingValidator(PROPS_PERMISSIVE);
-        servicePermissive = new GroundingService(evaluatorP, validatorP, factory, aiService, PROPS_PERMISSIVE);
+        servicePermissive = new GroundingService(evaluatorP, validatorP, factory, aiService, PROPS_PERMISSIVE, FiscalScopeFilter.disabled());
     }
 
     // ── SUPPORTED ──────────────────────────────────────────────────────────────

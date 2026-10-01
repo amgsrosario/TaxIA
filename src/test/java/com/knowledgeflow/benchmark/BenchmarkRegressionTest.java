@@ -15,6 +15,7 @@ import com.knowledgeflow.ai.grounding.GroundingProperties;
 import com.knowledgeflow.ai.grounding.GroundingService;
 import com.knowledgeflow.ai.grounding.AnswerGroundingValidator;
 import com.knowledgeflow.ai.grounding.SafeResponseFactory;
+import com.knowledgeflow.ai.grounding.scope.FiscalScopeFilter;
 import com.knowledgeflow.rag.RagSearchService.RetrievedCase;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +44,7 @@ class BenchmarkRegressionTest {
         var evaluator = new ContextSufficiencyEvaluator(PROPS);
         var validator = new AnswerGroundingValidator(PROPS);
         var factory = new SafeResponseFactory();
-        service = new GroundingService(evaluator, validator, factory, aiService, PROPS);
+        service = new GroundingService(evaluator, validator, factory, aiService, PROPS, FiscalScopeFilter.disabled());
     }
 
     /**
