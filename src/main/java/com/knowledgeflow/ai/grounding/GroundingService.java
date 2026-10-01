@@ -53,7 +53,10 @@ public class GroundingService {
             String userSystemPrompt,
             List<RetrievedCase> retrievedCases) {
 
-        ContextSufficiencyAssessment assessment = evaluator.evaluate(retrievedCases, question);
+        // Só os candidatos relevantes seguem para a avaliação, o prompt, o validador e as fontes.
+        List<RetrievedCase> relevantCases = filterByRelevance(retrievedCases);
+
+        ContextSufficiencyAssessment assessment = evaluator.evaluate(relevantCases, question);
         log.debug("Context assessment: status={}, fragments={}, sources={}",
                 assessment.status(), assessment.fragmentCount(), assessment.distinctSourceCount());
 
@@ -62,11 +65,11 @@ public class GroundingService {
             return safeResponseFactory.buildRefusal(assessment);
         }
 
-        String controlledPrompt = buildControlledPrompt(userSystemPrompt, retrievedCases);
+        String controlledPrompt = buildControlledPrompt(userSystemPrompt, relevantCases);
         AIResponse aiResponse = aiService.complete(new AIRequest(controlledPrompt, question));
 
         GroundingValidationResult validation = props.enabled()
-                ? validator.validate(aiResponse.content(), retrievedCases)
+                ? validator.validate(aiResponse.content(), relevantCases)
                 : GroundingValidationResult.noClaimsDetected();
 
         log.debug("Grounding validation: claims={}, unsupported={}, rejected={}",
@@ -82,7 +85,7 @@ public class GroundingService {
             finalStatus = AnswerSupportStatus.PARTIALLY_SUPPORTED;
         }
 
-        List<AnswerSource> sources = retrievedCases.stream()
+        List<AnswerSource> sources = relevantCases.stream()
                 .filter(c -> c.content() != null && !c.content().isBlank())
                 .collect(Collectors.toMap(
                         RetrievedCase::title,
@@ -119,6 +122,25 @@ public class GroundingService {
                 aiResponse.inputTokens(),
                 aiResponse.outputTokens(),
                 aiResponse.durationMillis());
+    }
+
+    /**
+     * Filtro de relevância candidato a candidato (M4): cada caso recuperado só segue se a sua
+     * similaridade for finita e {@code >= minimum-relevance-score}. NaN e infinitos são sempre
+     * rejeitados. A ordem do RAG é preservada; o topK e o cálculo da similaridade não mudam.
+     */
+    private List<RetrievedCase> filterByRelevance(List<RetrievedCase> retrievedCases) {
+        if (retrievedCases == null || retrievedCases.isEmpty()) {
+            return List.of();
+        }
+        double threshold = props.minimumRelevanceScore();
+        List<RetrievedCase> kept = retrievedCases.stream()
+                .filter(c -> Double.isFinite(c.similarity()) && c.similarity() >= threshold)
+                .toList();
+        log.info("Relevance filter: retrieved={}, kept={}, discarded={}, threshold={}, topScore={}",
+                retrievedCases.size(), kept.size(), retrievedCases.size() - kept.size(), threshold,
+                retrievedCases.get(0).similarity());
+        return kept;
     }
 
     private String buildControlledPrompt(String userSystemPrompt, List<RetrievedCase> cases) {

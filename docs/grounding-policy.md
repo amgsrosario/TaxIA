@@ -39,6 +39,15 @@ pergunta
 
 Avaliação **determinística** (sem IA) da suficiência do contexto RAG.
 
+**Filtro de relevância (antes da avaliação).** O `GroundingService` filtra os casos
+recuperados **candidato a candidato**: só seguem os que têm similaridade finita e
+`>= minimumRelevanceScore` (NaN e infinitos são sempre rejeitados), pela ordem do RAG.
+Os descartados não chegam à avaliação, ao prompt, ao validador, às fontes nem à
+resolução de fontes curadas. Se nenhum passar, a lista fica vazia e o resultado é
+Resposta-limite sem chamar o provider. O valor por omissão **0.88** é interino,
+calibrado (M4-CAL) com `intfloat/multilingual-e5-base` sobre o corpus actual, e tem de
+ser recalibrado depois do M5 ou de qualquer mudança de modelo de embeddings.
+
 **Critérios de insuficiência:**
 - Lista de casos vazia
 - Casos sem conteúdo validado
@@ -203,7 +212,7 @@ knowledgeflow:
     enabled: true                          # false desactiva validação pós-geração
     minimum-fragments: 1                   # mínimo de fragmentos com conteúdo
     minimum-distinct-sources: 1            # mínimo de títulos distintos
-    minimum-relevance-score: 0.0           # score mínimo do melhor fragmento
+    minimum-relevance-score: 0.88          # score mínimo de cada candidato (interino; recalibrar após M5)
     reject-unsupported-sensitive-claims: true   # bloquear respostas com afirmações inventadas
     skip-provider-when-context-insufficient: true  # não chamar provider sem contexto
 ```
