@@ -20,6 +20,8 @@ Sem controlo de fundamentação, um modelo de linguagem pode:
 ```
 pergunta
   → recuperação RAG (RagSearchService.findSimilar)
+  → filtro de relevância (minimum-relevance-score, candidato a candidato)
+  → gate de contradição de âmbito (FiscalScopeFilter, candidato a candidato)
   → ContextSufficiencyEvaluator.evaluate()
       → INSUFFICIENT_CONTEXT + skipProvider=true
             → SafeResponseFactory.buildRefusal()   [sem chamada ao provider]
@@ -47,6 +49,30 @@ resolução de fontes curadas. Se nenhum passar, a lista fica vazia e o resultad
 Resposta-limite sem chamar o provider. O valor por omissão **0.88** é interino,
 calibrado (M4-CAL) com `intfloat/multilingual-e5-base` sobre o corpus actual, e tem de
 ser recalibrado depois do M5 ou de qualquer mudança de modelo de embeddings.
+
+**Gate de contradição de âmbito (M4-SCOPE, depois da relevância).** Cada candidato que
+passou o filtro de relevância e tem Q&A de origem (`sourceQaId`) é comparado com a
+pergunta em três dimensões, por um classificador determinístico (dicionário versionado em
+`FiscalScopeClassifier`, sem modelos nem serviços externos):
+
+- **imposto** (IRS, IVA, IRC, IMI, AIMI, IMT) — rejeitado se ambos indicam imposto e não há
+  nenhum em comum;
+- **categoria de rendimentos do IRS** (A, B, F, G, H) — rejeitado se ambos indicam categoria e
+  a Q&A não cobre todas as categorias da pergunta;
+- **operação** (retenção, dedução, conservação, tributação conjunta, cálculo, declaração,
+  emissão) — rejeitado se ambos indicam operação e não há nenhuma em comum.
+
+O âmbito da Q&A vem do tema, do subtema e da pergunta (normalizada ou, na falta, original),
+carregados numa única query; a resposta não é usada. **Silêncio numa dimensão nunca é
+contradição**: o gate não prova que a Q&A responde, só impede fontes de âmbito
+explicitamente contrário (p. ex. a Q&A de conservação de documentos de IVA para uma
+pergunta sobre documentos de IRS). Candidatos sem Q&A (DOCUMENT) passam inalterados. Falha
+técnica ou Q&A sem linha → o candidato é rejeitado (fail-closed); sem candidatos, o
+resultado é Resposta-limite sem chamar o provider. O log INFO regista contagens e motivos,
+nunca o texto da pergunta. Limites conhecidos (não resolvidos por termos à medida):
+perguntas sem marcadores explícitos (pensão estrangeira, despesas da habitação própria,
+perspectiva do inquilino versus senhorio, operações fora do dicionário como pagamento ou
+reclamação).
 
 **Critérios de insuficiência:**
 - Lista de casos vazia
@@ -215,11 +241,13 @@ knowledgeflow:
     minimum-relevance-score: 0.88          # score mínimo de cada candidato (interino; recalibrar após M5)
     reject-unsupported-sensitive-claims: true   # bloquear respostas com afirmações inventadas
     skip-provider-when-context-insufficient: true  # não chamar provider sem contexto
+    scope-gate:
+      enabled: true                        # gate de contradição de âmbito (M4-SCOPE)
 ```
 
 **Variáveis de ambiente:** `GROUNDING_ENABLED`, `GROUNDING_MIN_FRAGMENTS`,
 `GROUNDING_MIN_SOURCES`, `GROUNDING_MIN_SCORE`, `GROUNDING_REJECT_UNSUPPORTED`,
-`GROUNDING_SKIP_PROVIDER`.
+`GROUNDING_SKIP_PROVIDER`, `GROUNDING_SCOPE_GATE_ENABLED`.
 
 ## Comportamentos por cenário
 
