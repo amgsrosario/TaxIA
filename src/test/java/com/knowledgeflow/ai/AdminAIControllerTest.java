@@ -2,6 +2,7 @@ package com.knowledgeflow.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -15,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.knowledgeflow.ai.documented.AnswerDecisionService;
 import com.knowledgeflow.ai.documented.AnswerProjectionService;
+import com.knowledgeflow.ai.documented.CuratedSourceResolver;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
 import com.knowledgeflow.ai.documented.InternalDiagnosticsBuilder;
 import com.knowledgeflow.ai.documented.SourceAssessmentService;
@@ -24,15 +26,18 @@ import com.knowledgeflow.ai.grounding.AnswerSupportStatus;
 import com.knowledgeflow.ai.grounding.GroundedAIResponse;
 import com.knowledgeflow.ai.grounding.GroundingService;
 import com.knowledgeflow.common.error.GlobalExceptionHandler;
+import com.knowledgeflow.knowledge.enums.KnowledgeSourceType;
+import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRow;
 import com.knowledgeflow.rag.RagSearchService;
 import com.knowledgeflow.security.AuthenticatedUser;
 import com.knowledgeflow.security.AuthenticatedUserContext;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -51,6 +56,7 @@ class AdminAIControllerTest {
     @Mock private RagSearchService ragSearchService;
     @Mock private AuthenticatedUserContext authenticatedUserContext;
     @Mock private com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics;
+    @Mock private KnowledgeSourceReferenceRepository sourceRepository;
 
     // Mapper real (stateless, aditivo) — usado pelo @InjectMocks para não partir o fluxo.
     @Spy private DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper =
@@ -63,12 +69,15 @@ class AdminAIControllerTest {
     // Resolver real (stateless) — devolve a lente INTERNAL para o endpoint admin (D8).
     @Spy private VisibilityLevelResolver visibilityLevelResolver = new VisibilityLevelResolver();
 
-    @InjectMocks private AdminAIController controller;
-
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
+        // Resolver real (M3) sobre o repositório mockado: fontes sem sourceQaId caem no fallback
+        // e não consultam a base, pelo que os testes anteriores mantêm o comportamento.
+        var controller = new AdminAIController(groundingService, ragSearchService, authenticatedUserContext,
+                metrics, documentedTaxiaAnswerMapper, answerProjectionService, visibilityLevelResolver,
+                new CuratedSourceResolver(sourceRepository));
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -418,6 +427,87 @@ class AdminAIControllerTest {
                 .andExpect(jsonPath("$.projectedAnswer.targetVisibilityLevel").value("DEMO"))
                 .andExpect(jsonPath("$.projectedAnswer.visibleAnswerType").value("RESPOSTA_LIMITE"))
                 .andExpect(jsonPath("$.projectedAnswer.visibleLimitations").isNotEmpty());
+    }
+
+    // --- M3: fontes documentais curadas na resposta ---
+
+    private static final UUID QA_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    private static final UUID LAW_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
+    private static final UUID FAQ_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
+    private static final String QA_TITLE = "Que despesas podem ser deduzidas aos rendimentos prediais?";
+
+    private void groundingWithQaSource() {
+        var qaSource = new AnswerSource(QA_TITLE, QA_TITLE, 0.9, QA_ID);
+        when(groundingService.process(anyString(), any(), anyList())).thenReturn(new GroundedAIResponse(
+                "Resposta documentada.", AnswerSupportStatus.SUPPORTED, "OK",
+                List.of(qaSource), List.of(), List.of(), false, null,
+                true, false, null, 0, "anthropic", "haiku", 10, 5, 0L));
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-07-24T10:00:00Z");
+        when(sourceRepository.findRowsByQuestionAnswerIdIn(anyCollection())).thenReturn(List.of(
+                new KnowledgeSourceReferenceRow(QA_ID, FAQ_ID, KnowledgeSourceType.OFFICIAL_FAQ,
+                        "Portal das Finanças — FAQ 5930", "CIRS, art. 41.º",
+                        "https://info.portaldasfinancas.gov.pt/faqs-00358.aspx", createdAt.plusMinutes(1)),
+                new KnowledgeSourceReferenceRow(QA_ID, LAW_ID, KnowledgeSourceType.LEGISLATION,
+                        "Código do IRS — Artigo 41.º", "CIRS, art. 41.º",
+                        "https://info.portaldasfinancas.gov.pt/irs41.aspx", createdAt)));
+    }
+
+    @Test
+    void demoAsk_showsCuratedOfficialSources_withoutQaTitleIdsOrTraceability() throws Exception {
+        groundingWithQaSource();
+
+        var result = performDemoAsk("{\"question\":\"Despesas dedutíveis?\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.projectedAnswer.targetVisibilityLevel").value("DEMO"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources.length()").value(2))
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources[0].title").value("Código do IRS — Artigo 41.º"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources[0].sourceType").value("LEGISLATION"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources[0].legalReference").value("CIRS, art. 41.º"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources[0].url")
+                        .value("https://info.portaldasfinancas.gov.pt/irs41.aspx"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources[1].title").value("Portal das Finanças — FAQ 5930"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources[1].sourceType").value("OFFICIAL_FAQ"))
+                // Sem identificadores internos nem rastreabilidade da Q&A em DEMO.
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources[0].sourceId").doesNotExist())
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources[0].relatedSources").isEmpty())
+                // Forma e encaminhamento preservados.
+                .andExpect(jsonPath("$.projectedAnswer.visibleAnswerType").value("CONSULTA_DOCUMENTADA"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleParecerRequirement").value("NONE"))
+                .andExpect(jsonPath("$.documentedAnswer").doesNotExist())
+                .andReturn();
+
+        String body = result.getResponse().getContentAsString();
+        assertThat(body).doesNotContain(QA_TITLE, QA_ID.toString(), LAW_ID.toString(), FAQ_ID.toString());
+        verify(sourceRepository).findRowsByQuestionAnswerIdIn(List.of(QA_ID).stream()
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new)));
+    }
+
+    @Test
+    void ask_internal_showsSameCuratedSources_andKeepsQaTraceability() throws Exception {
+        groundingWithQaSource();
+
+        performAsk("Despesas dedutíveis?")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.projectedAnswer.targetVisibilityLevel").value("INTERNAL"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources[0].title").value("Código do IRS — Artigo 41.º"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources[0].sourceId").value(LAW_ID.toString()))
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources[0].relatedSources[0]")
+                        .value("knowledge-qa:" + QA_ID))
+                .andExpect(jsonPath("$.documentedAnswer.sources[1].relatedSources[0]").value("knowledge-qa:" + QA_ID))
+                // Campo legado de títulos do grounding mantém-se (contrato do /ask inalterado).
+                .andExpect(jsonPath("$.sources[0]").value(QA_TITLE));
+    }
+
+    @Test
+    void demoAsk_respostaLimite_hasNoSources_andDoesNotQueryCuration() throws Exception {
+        when(groundingService.process(anyString(), any(), anyList())).thenReturn(refusalResponse());
+
+        performDemoAsk("{\"question\":\"Pergunta fora do corpus\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.projectedAnswer.visibleAnswerType").value("RESPOSTA_LIMITE"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleSources").isEmpty());
+
+        verify(sourceRepository, never()).findRowsByQuestionAnswerIdIn(anyCollection());
     }
 
     // --- helpers ---
