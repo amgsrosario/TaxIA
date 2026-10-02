@@ -3,7 +3,7 @@
 Documento de passagem: permite retomar o projecto sem depender de conversas anteriores.
 Confirmar sempre no código, nas migrações e nos ADR (ver [AGENTS.md](../AGENTS.md)).
 
-Última actualização: 2026-10-02 (GOV-PUBLISHED-CONTENT-INTEGRITY).
+Última actualização: 2026-10-02 (fecho de GOV-PUBLISHED-CONTENT-INTEGRITY e verificação legacy).
 
 ## Base e entregas recentes
 
@@ -13,7 +13,7 @@ Confirmar sempre no código, nas migrações e nos ADR (ver [AGENTS.md](../AGENT
 | M4 | #9 | Filtro de relevância candidato a candidato (`GROUNDING_MIN_SCORE`, 0.88) |
 | M4-SCOPE | #10 | Gate determinístico de contradição de âmbito (imposto, categoria, operação) |
 | M4-SCOPE-V2 | #11 | Exclusões de aplicabilidade governadas (V16, [ADR-004](adr/ADR-004-applicability-metadata-governed-exclusions.md)) |
-| GOV-PUBLISHED-CONTENT-INTEGRITY | branch `feat/published-content-integrity` (PR contra `main`) | Integridade pós-validação e versões ([ADR-005](adr/ADR-005-published-content-integrity.md)) |
+| GOV-PUBLISHED-CONTENT-INTEGRITY | #12 (merged, `324c1f9`) | Integridade pós-validação e versões ([ADR-005](adr/ADR-005-published-content-integrity.md)) |
 
 Migrações: V1–V16. GOV-PUBLISHED-CONTENT-INTEGRITY não acrescenta migração.
 
@@ -43,10 +43,25 @@ justificaram descida).
 - A V16 ainda não foi aplicada ao piloto (decisão e acção humanas). Exclusões propostas para as
   4 Q&A estão por validar editorialmente.
 
+## Verificação legacy do piloto (2026-10-02, só de leitura)
+
+Auditoria, `updated_at`, texto servido e embeddings cruzados para as 4 Q&A publicadas:
+
+- AT-FAQ-2721, AT-FAQ-5795, AT-FAQ-5930: sem alteração material posterior à validação nem à
+  publicação.
+- CIVA-CONSERVACAO-10A-001 — **LEGACY GOVERNANCE EXCEPTION, baixa severidade** (decisão do
+  António, 2026-10-02):
+  - conteúdo inalterado desde a validação e coerente com o embedding;
+  - evidência alterada após a publicação (troca da fonte genérica "Código do IVA" pela fonte
+    "Código do IVA — Artigo 52.º", 2026-10-01, reforço editorial M5), de forma humana,
+    autorizada e auditada; anterior ao ADR-005;
+  - acção imediata: nenhuma;
+  - regularização: depois de a V16 estar aplicada no piloto, criar nova versão com o conteúdo e
+    as fontes actuais, validar humanamente e publicar substituindo a versão anterior (ADR-005).
+
 ## Follow-ups abertos
 
-- Verificação só de leitura da auditoria do piloto: as 4 Q&A publicadas foram editadas depois de
-  validadas? (autorizada após o merge de GOV-PUBLISHED-CONTENT-INTEGRITY).
+- Regularizar CIVA-CONSERVACAO-10A-001 (ver acima), depois da V16 no piloto.
 - Aplicar V16 ao piloto e definir as exclusões reais (editorial).
 - Cobertura parcial (perguntas multi-matéria) e fluxo de clarificação (perguntas ambíguas).
 - Dicionário v1: "para o adicional" lido como IMI; "categoria B." seguido de nova frase.
