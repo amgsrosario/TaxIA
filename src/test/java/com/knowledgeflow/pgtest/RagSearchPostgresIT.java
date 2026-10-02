@@ -440,7 +440,7 @@ class RagSearchPostgresIT {
     }
 
     @Test @Order(2)
-    @DisplayName("TC-RS-02: Flyway V15 aplicado — 15 migrações com sucesso, zero falhas")
+    @DisplayName("TC-RS-02: Flyway V16 aplicado — 16 migrações com sucesso, zero falhas")
     void tc02_flywayV14Applied() {
         Integer maxRank = jdbc.queryForObject(
                 "SELECT MAX(installed_rank) FROM flyway_schema_history WHERE success = true",
@@ -448,7 +448,7 @@ class RagSearchPostgresIT {
         Integer failCount = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = false",
                 Integer.class);
-        assertThat(maxRank).isEqualTo(15);
+        assertThat(maxRank).isEqualTo(16);
         assertThat(failCount).isZero();
     }
 

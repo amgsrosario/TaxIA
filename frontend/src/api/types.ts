@@ -119,6 +119,41 @@ export interface KnowledgeQaDetail {
   createdAt: string;
   updatedAt: string;
   sources: SourceReference[];
+  applicabilityReviewedAt: string | null;
+  applicabilityReviewedBy: string | null;
+  applicabilityExclusions: ApplicabilityExclusion[];
+}
+
+// ── Âmbito de aplicação (M4-SCOPE-V2, ADR-004) ─────────────────────────────
+
+/** Exclusão: situação que a Q&A declara não cobrir. removalPending = remoção a aguardar validação. */
+export interface ApplicabilityExclusion {
+  marker: string;
+  label: string | null;
+  note: string | null;
+  createdAt: string;
+  createdBy: string | null;
+  removalPending: boolean;
+  removalRequestedAt: string | null;
+  removalRequestedBy: string | null;
+}
+
+export interface ApplicabilityMarkerOption {
+  code: string;
+  label: string;
+}
+
+/** GET /{id}/applicability — só admin. */
+export interface KnowledgeQaApplicability {
+  questionAnswerId: string;
+  published: boolean;
+  /** true: retirar uma exclusão fica pendente de validação humana (publicada ou VALIDATED). */
+  removalRequiresValidation: boolean;
+  applicabilityReviewedAt: string | null;
+  applicabilityReviewedBy: string | null;
+  derivedScope: { taxDomains: string[]; incomeCategories: string[]; operations: string[] };
+  exclusions: ApplicabilityExclusion[];
+  vocabulary: ApplicabilityMarkerOption[];
 }
 
 /** PATCH /{id}/curation — todos os campos são enviados (o backend substitui). */

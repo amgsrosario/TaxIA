@@ -3,6 +3,7 @@ package com.knowledgeflow.knowledge.repository;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
+import jakarta.persistence.LockModeType;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -100,4 +102,12 @@ public interface KnowledgeQuestionAnswerRepository extends JpaRepository<Knowled
             where q.id in :ids
             """)
     List<KnowledgeQaScopeRow> findScopeRowsByIdIn(@Param("ids") Collection<UUID> ids);
+
+    /**
+     * Q&amp;A com lock de escrita, para serializar as alterações de exclusões de aplicabilidade com
+     * a publicação (que actualiza a mesma linha).
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select q from KnowledgeQuestionAnswer q where q.id = :id")
+    Optional<KnowledgeQuestionAnswer> findByIdForUpdate(@Param("id") UUID id);
 }

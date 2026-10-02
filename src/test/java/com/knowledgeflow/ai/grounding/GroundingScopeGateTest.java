@@ -10,12 +10,15 @@ import com.knowledgeflow.ai.AIRequest;
 import com.knowledgeflow.ai.AIResponse;
 import com.knowledgeflow.ai.AIService;
 import com.knowledgeflow.ai.documented.CuratedSourceResolver;
+import com.knowledgeflow.ai.grounding.scope.ApplicabilityMarkerDetector;
 import com.knowledgeflow.ai.grounding.scope.CandidateScopeLoader;
 import com.knowledgeflow.ai.grounding.scope.FiscalScopeClassifier;
 import com.knowledgeflow.ai.grounding.scope.FiscalScopeFilter;
 import com.knowledgeflow.ai.grounding.scope.ScopeCompatibilityGate;
 import com.knowledgeflow.ai.grounding.scope.ScopeGateProperties;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaExclusionMarkerRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQaScopeRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
@@ -48,6 +51,7 @@ class GroundingScopeGateTest {
 
     @Mock private AIService aiService;
     @Mock private KnowledgeQuestionAnswerRepository qaRepository;
+    @Mock private KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
     @Mock private KnowledgeSourceReferenceRepository sourceRepository;
 
     private GroundingService service;
@@ -55,8 +59,8 @@ class GroundingScopeGateTest {
     @BeforeEach
     void setUp() {
         FiscalScopeClassifier classifier = new FiscalScopeClassifier();
-        FiscalScopeFilter filter = new FiscalScopeFilter(new CandidateScopeLoader(qaRepository, classifier),
-                classifier, new ScopeCompatibilityGate(), new ScopeGateProperties(true));
+        FiscalScopeFilter filter = new FiscalScopeFilter(
+                new CandidateScopeLoader(qaRepository, exclusionRepository, classifier), classifier, new ApplicabilityMarkerDetector(), new ScopeCompatibilityGate(), new ScopeGateProperties(true));
         service = new GroundingService(new ContextSufficiencyEvaluator(PROPS), new AnswerGroundingValidator(PROPS),
                 new SafeResponseFactory(), aiService, PROPS, filter);
     }
@@ -130,12 +134,45 @@ class GroundingScopeGateTest {
     }
 
     @Test
+    void excludedCandidate_neverReachesPromptProviderOrSources() {
+        when(qaRepository.findScopeRowsByIdIn(any())).thenReturn(corpus());
+        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
+                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_5930, "INQUILINO")));
+
+        GroundedAIResponse result = service.process("Como inquilino, posso deduzir no IRS as obras que paguei?",
+                null, List.of(qa("5930", 0.8872, QA_5930)));
+
+        assertThat(result.supportStatus()).isEqualTo(AnswerSupportStatus.INSUFFICIENT_CONTEXT);
+        assertThat(result.providerCalled()).isFalse();
+        assertThat(result.sources()).isEmpty();
+        verifyNoInteractions(aiService);
+    }
+
+    @Test
+    void exclusionOfOneCandidate_keepsTheOthers_andThePromptOnlyHasThem() {
+        when(qaRepository.findScopeRowsByIdIn(any())).thenReturn(corpus());
+        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
+                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_2721, "CALCULO")));
+        when(aiService.complete(any())).thenReturn(answer("Resposta."));
+
+        GroundedAIResponse result = service.process(
+                "Queremos que o adicional do IMI seja calculado em conjunto; até quando optamos?",
+                null, List.of(qa("2721", 0.90, QA_2721)));
+
+        // "calculado em conjunto" não é cálculo do imposto: a exclusão CALCULO não dispara
+        assertThat(result.sources()).extracting(AnswerSource::sourceQaId).containsExactly(QA_2721);
+        ArgumentCaptor<AIRequest> request = ArgumentCaptor.forClass(AIRequest.class);
+        verify(aiService).complete(request.capture());
+        assertThat(request.getValue().systemPrompt()).contains("[FONTE: 2721]");
+    }
+
+    @Test
     void everythingBelowThreshold_neverQueriesScopes() {
         GroundedAIResponse result = service.process("Recebo duas pensões com retenção a 0%. Posso pedir retenção mensal?",
                 null, List.of(qa("5795", 0.8695, QA_5795)));
 
         assertThat(result.supportStatus()).isEqualTo(AnswerSupportStatus.INSUFFICIENT_CONTEXT);
-        verifyNoInteractions(qaRepository, aiService);
+        verifyNoInteractions(qaRepository, exclusionRepository, aiService);
     }
 
     private static List<KnowledgeQaScopeRow> corpus() {

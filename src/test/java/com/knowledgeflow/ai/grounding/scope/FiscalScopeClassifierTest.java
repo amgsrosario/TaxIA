@@ -148,6 +148,19 @@ class FiscalScopeClassifierTest {
     }
 
     @Test
+    void calculation_ignoresTheParticipleThatDescribesJointAggregation() {
+        assertThat(classifier.classify("Queremos o AIMI calculado em conjunto").operations()).isEmpty();
+        assertThat(classifier.classify("o imposto é calculado conjuntamente").operations()).isEmpty();
+        // "calculado com base em…" é cálculo
+        assertThat(classifier.classify("O IMT é calculado com base em que valor?").operations())
+                .containsExactly(FiscalOperation.CALCULO);
+        assertThat(classifier.classify("O IMI é calculado com que taxa?").operations())
+                .containsExactly(FiscalOperation.CALCULO);
+        assertThat(classifier.classify("Como é calculado o AIMI?").operations()).containsExactly(FiscalOperation.CALCULO);
+        assertThat(classifier.classify("Calculei mal o imposto").operations()).containsExactly(FiscalOperation.CALCULO);
+    }
+
+    @Test
     void silence_isEmptyInEveryDimension() {
         FiscalScope scope = classifier.classify("E os prazos?");
         assertThat(scope.domains()).isEmpty();

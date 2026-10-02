@@ -103,7 +103,8 @@ class AdminKnowledgeQaControllerTest {
                 KnowledgeCurationStatus.IMPORTED, false,
                 null, null, null, null, null,
                 false, null, null, null, 0,
-                OffsetDateTime.now(), OffsetDateTime.now(), List.of());
+                OffsetDateTime.now(), OffsetDateTime.now(), List.of(),
+                null, null, List.of());
         when(curationService.getDetail(ORG_ID, QA_ID)).thenReturn(detail);
 
         mockMvc.perform(get("/api/v1/admin/knowledge/qa/{id}", QA_ID))

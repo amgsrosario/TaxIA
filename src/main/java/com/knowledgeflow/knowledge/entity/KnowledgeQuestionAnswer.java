@@ -119,6 +119,13 @@ public class KnowledgeQuestionAnswer {
     @Column(length = 255)
     private String publishedBy;
 
+    // --- Applicability review (M4-SCOPE-V2, optional) -------------------------
+
+    private OffsetDateTime applicabilityReviewedAt;
+
+    @Column(length = 255)
+    private String applicabilityReviewedBy;
+
     /** UUID of the previous KnowledgeQuestionAnswer version (no FK to allow deletion). */
     private UUID previousVersionId;
 
@@ -217,6 +224,22 @@ public class KnowledgeQuestionAnswer {
     public void markPublished(String publishedBy) {
         this.publishedAt = OffsetDateTime.now();
         this.publishedBy = publishedBy;
+    }
+
+    /**
+     * Regista que o âmbito de aplicação (exclusões) foi revisto por um humano, com ou sem exclusões.
+     * Opcional: uma Q&amp;A nunca revista continua elegível e publicável.
+     */
+    public void markApplicabilityReviewed(String reviewedBy) {
+        requireNonBlank(reviewedBy, "reviewerName is required to mark the applicability as reviewed");
+        this.applicabilityReviewedBy = reviewedBy;
+        this.applicabilityReviewedAt = OffsetDateTime.now();
+    }
+
+    /** As exclusões mudaram depois da revisão: o âmbito volta a "não revisto". */
+    public void clearApplicabilityReview() {
+        this.applicabilityReviewedAt = null;
+        this.applicabilityReviewedBy = null;
     }
 
     public void markUnpublished() {
@@ -345,6 +368,8 @@ public class KnowledgeQuestionAnswer {
     public String getNotes() { return notes; }
     public OffsetDateTime getPublishedAt() { return publishedAt; }
     public String getPublishedBy() { return publishedBy; }
+    public OffsetDateTime getApplicabilityReviewedAt() { return applicabilityReviewedAt; }
+    public String getApplicabilityReviewedBy() { return applicabilityReviewedBy; }
     public UUID getPreviousVersionId() { return previousVersionId; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }

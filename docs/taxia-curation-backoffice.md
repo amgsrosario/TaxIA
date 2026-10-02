@@ -97,6 +97,35 @@ Utilizador ADMIN criado na Etapa 9B.1: `piloto.admin@taxia.local`
 `POST …/{id}/outdated` · `POST …/{id}/archive` ·
 `GET/POST …/{id}/sources`
 
+## Âmbito de aplicação (M4-SCOPE-V2, ADR-004)
+
+Bloco "Âmbito de aplicação" no detalhe da Q&A (só admin):
+
+- **Âmbito derivado** (só leitura): imposto, categoria e operação como o gate os vê.
+- **Estado de revisão**: "Âmbito revisto" (quem/quando) ou aviso "Âmbito não revisto". A
+  revisão é opcional; uma Q&A nunca revista continua válida e publicável.
+- **Não se aplica a**: exclusões escolhidas do vocabulário fechado, com justificação opcional
+  (≤ 500 caracteres).
+- **Acrescentar** uma exclusão é efectivo de imediato, mesmo numa Q&A publicada (estreita o
+  âmbito; auditado; sem nova validação nem reindex).
+- **Remover** numa Q&A que não está publicada nem VALIDATED é imediato. Numa Q&A publicada ou
+  VALIDATED (que pode ser republicada sem nova validação) o botão é "Pedir remoção": a exclusão
+  fica "remoção pendente de validação" e continua efectiva até "Validar remoção" (validação
+  humana, com confirmação e o nome do revisor). O pedido pode ser cancelado; uma remoção
+  pendente não pode ser contornada por outro "Remover".
+- Qualquer alteração efectiva das exclusões repõe o estado "Âmbito não revisto".
+- **Marcar âmbito como revisto** regista o revisor e a data, com ou sem exclusões.
+
+Endpoints (`/api/v1/admin/knowledge/qa/{id}/applicability`, ADMIN):
+`GET`; `POST /exclusions` (`{marker, note}`); `DELETE /exclusions/{marker}` (remove ou pede
+remoção); `POST /exclusions/{marker}/approve-removal?reviewerName=`;
+`POST /exclusions/{marker}/cancel-removal`; `POST /reviewed?reviewerName=`. Todas as
+alterações geram `KNOWLEDGE_QA_APPLICABILITY_UPDATED`. Nada disto aparece em DEMO/EXTERNAL.
+
+Lacuna conhecida, fora deste bloco (follow-up **GOV-PUBLISHED-CONTENT-INTEGRITY**): os campos
+curados de uma Q&A validada ou publicada — incluindo a resposta técnica — podem ser editados
+pelo formulário de curadoria sem nova validação.
+
 ## Limitações conhecidas / o que ainda não faz
 
 - **Não publica, não cria embeddings, não chama IA** — por desenho desta etapa;

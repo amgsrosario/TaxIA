@@ -14,6 +14,7 @@ import com.knowledgeflow.knowledge.entity.KnowledgeSourceReference;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
 import java.net.URI;
@@ -30,14 +31,17 @@ public class KnowledgeQuestionAnswerCurationService {
 
     private final KnowledgeQuestionAnswerRepository qaRepository;
     private final KnowledgeSourceReferenceRepository sourceRepository;
+    private final KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
     private final AuditService auditService;
 
     public KnowledgeQuestionAnswerCurationService(
             KnowledgeQuestionAnswerRepository qaRepository,
             KnowledgeSourceReferenceRepository sourceRepository,
+            KnowledgeQaApplicabilityExclusionRepository exclusionRepository,
             AuditService auditService) {
         this.qaRepository = qaRepository;
         this.sourceRepository = sourceRepository;
+        this.exclusionRepository = exclusionRepository;
         this.auditService = auditService;
     }
 
@@ -70,7 +74,7 @@ public class KnowledgeQuestionAnswerCurationService {
     public KnowledgeQaDetailResponse getDetail(UUID organizationId, UUID id) {
         KnowledgeQuestionAnswer qa = requireOwned(organizationId, id);
         List<KnowledgeSourceReference> sources = sourceRepository.findByQuestionAnswerId(id);
-        return KnowledgeQaDetailResponse.from(qa, sources);
+        return KnowledgeQaDetailResponse.from(qa, sources, exclusionRepository.findByKnowledgeQaId(qa.getId()));
     }
 
     // -------------------------------------------------------------------------
@@ -101,7 +105,7 @@ public class KnowledgeQuestionAnswerCurationService {
                 AuditAction.KNOWLEDGE_QA_UPDATED, "KnowledgeQuestionAnswer", id);
 
         List<KnowledgeSourceReference> sources = sourceRepository.findByQuestionAnswerId(id);
-        return KnowledgeQaDetailResponse.from(qa, sources);
+        return KnowledgeQaDetailResponse.from(qa, sources, exclusionRepository.findByKnowledgeQaId(qa.getId()));
     }
 
     @Transactional

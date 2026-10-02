@@ -22,6 +22,7 @@ import type {
 } from "../api/types";
 import { RiskBadge, StatusBadge } from "../components/Badges";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { QaApplicabilityPanel } from "../components/QaApplicabilityPanel";
 import {
   QaEvidencePanel,
   SOURCE_TYPE_LABELS,
@@ -414,6 +415,13 @@ export function QaDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* remonta (e recarrega) quando o estado de curadoria/publicação muda nesta página */}
+      <QaApplicabilityPanel
+        key={`${detail.curationStatus}-${detail.published}`}
+        qaId={id}
+        reviewer={session?.email ?? "curador"}
+      />
 
       <div className="card">
         <h2>Gestão de fontes ({detail.sources.length})</h2>

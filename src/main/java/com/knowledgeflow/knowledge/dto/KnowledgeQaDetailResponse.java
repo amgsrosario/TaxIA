@@ -1,5 +1,6 @@
 package com.knowledgeflow.knowledge.dto;
 
+import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityExclusion;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.entity.KnowledgeSourceReference;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
@@ -10,7 +11,10 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/** Full detail response including original content, curated fields, and sources. */
+/**
+ * Full detail response including original content, curated fields, sources and applicability
+ * exclusions (admin/INTERNAL only).
+ */
 public record KnowledgeQaDetailResponse(
         UUID id,
         String externalKey,
@@ -39,10 +43,15 @@ public record KnowledgeQaDetailResponse(
         int version,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
-        List<SourceReferenceResponse> sources
+        List<SourceReferenceResponse> sources,
+        OffsetDateTime applicabilityReviewedAt,
+        String applicabilityReviewedBy,
+        List<ApplicabilityExclusionResponse> applicabilityExclusions
 ) {
     public static KnowledgeQaDetailResponse from(
-            KnowledgeQuestionAnswer qa, List<KnowledgeSourceReference> sources) {
+            KnowledgeQuestionAnswer qa,
+            List<KnowledgeSourceReference> sources,
+            List<KnowledgeQaApplicabilityExclusion> exclusions) {
         return new KnowledgeQaDetailResponse(
                 qa.getId(),
                 qa.getExternalKey(),
@@ -71,6 +80,9 @@ public record KnowledgeQaDetailResponse(
                 qa.getVersion(),
                 qa.getCreatedAt(),
                 qa.getUpdatedAt(),
-                sources.stream().map(SourceReferenceResponse::from).toList());
+                sources.stream().map(SourceReferenceResponse::from).toList(),
+                qa.getApplicabilityReviewedAt(),
+                qa.getApplicabilityReviewedBy(),
+                exclusions.stream().map(ApplicabilityExclusionResponse::from).toList());
     }
 }

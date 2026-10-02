@@ -21,7 +21,8 @@ Sem controlo de fundamentação, um modelo de linguagem pode:
 pergunta
   → recuperação RAG (RagSearchService.findSimilar)
   → filtro de relevância (minimum-relevance-score, candidato a candidato)
-  → gate de contradição de âmbito (FiscalScopeFilter, candidato a candidato)
+  → gate de âmbito (FiscalScopeFilter, candidato a candidato):
+      contradições derivadas (imposto, categoria, operação) + exclusões de aplicabilidade
   → ContextSufficiencyEvaluator.evaluate()
       → INSUFFICIENT_CONTEXT + skipProvider=true
             → SafeResponseFactory.buildRefusal()   [sem chamada ao provider]
@@ -63,16 +64,26 @@ pergunta em três dimensões, por um classificador determinístico (dicionário 
   emissão) — rejeitado se ambos indicam operação e não há nenhuma em comum.
 
 O âmbito da Q&A vem do tema, do subtema e da pergunta (normalizada ou, na falta, original),
-carregados numa única query; a resposta não é usada. **Silêncio numa dimensão nunca é
+carregados numa única query (as exclusões do M4-SCOPE-V2 vêm numa segunda query IN); a resposta não é usada. **Silêncio numa dimensão nunca é
 contradição**: o gate não prova que a Q&A responde, só impede fontes de âmbito
 explicitamente contrário (p. ex. a Q&A de conservação de documentos de IVA para uma
 pergunta sobre documentos de IRS). Candidatos sem Q&A (DOCUMENT) passam inalterados. Falha
 técnica ou Q&A sem linha → o candidato é rejeitado (fail-closed); sem candidatos, o
 resultado é Resposta-limite sem chamar o provider. O log INFO regista contagens e motivos,
-nunca o texto da pergunta. Limites conhecidos (não resolvidos por termos à medida):
-perguntas sem marcadores explícitos (pensão estrangeira, despesas da habitação própria,
-perspectiva do inquilino versus senhorio, operações fora do dicionário como pagamento ou
-reclamação).
+nunca o texto da pergunta. Limites conhecidos do âmbito derivado (não resolvidos por termos
+à medida): perguntas sem marcadores explícitos e situações que dependem do que a Q&A não
+cobre — estas passam a ser tratadas por exclusões declaradas (abaixo, M4-SCOPE-V2).
+
+**Exclusões de aplicabilidade (M4-SCOPE-V2, ADR-004, no mesmo gate).** Depois das
+contradições derivadas, o gate verifica as exclusões que a Q&A declara (vocabulário fechado:
+inquilino, habitação própria, herança indivisa, pensão estrangeira, cálculo do imposto,
+reclamação, pagamento, retenção obrigatória). Se a pergunta tiver um marcador que a Q&A
+exclui, o candidato é rejeitado (`APPLICABILITY_EXCLUDED`). Sem marcador na pergunta ou sem
+exclusões na Q&A, nada muda face ao v1. As exclusões não entram no embedding (sem reindex),
+são carregadas numa segunda query IN só para candidatos que passaram o threshold, e um código
+desconhecido na BD rejeita o candidato (fail-closed). Uma exclusão cuja remoção foi pedida
+numa Q&A publicada ou VALIDATED continua efectiva até aprovação humana. Perguntas multi-matéria e
+ambíguas continuam fora de âmbito (follow-ups separados).
 
 **Critérios de insuficiência:**
 - Lista de casos vazia
@@ -242,7 +253,7 @@ knowledgeflow:
     reject-unsupported-sensitive-claims: true   # bloquear respostas com afirmações inventadas
     skip-provider-when-context-insufficient: true  # não chamar provider sem contexto
     scope-gate:
-      enabled: true                        # gate de contradição de âmbito (M4-SCOPE)
+      enabled: true                        # gate de âmbito: contradições (M4-SCOPE) + exclusões (M4-SCOPE-V2)
 ```
 
 **Variáveis de ambiente:** `GROUNDING_ENABLED`, `GROUNDING_MIN_FRAGMENTS`,

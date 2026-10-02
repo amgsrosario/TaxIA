@@ -1,7 +1,9 @@
 package com.knowledgeflow.knowledge.controller;
 
+import com.knowledgeflow.knowledge.dto.ApplicabilityExclusionRequest;
 import com.knowledgeflow.knowledge.dto.BenchmarkDraftCase;
 import com.knowledgeflow.knowledge.dto.ImportReport;
+import com.knowledgeflow.knowledge.dto.KnowledgeQaApplicabilityResponse;
 import com.knowledgeflow.knowledge.dto.KnowledgeQaCurationRequest;
 import com.knowledgeflow.knowledge.dto.KnowledgeQaDetailResponse;
 import com.knowledgeflow.knowledge.dto.KnowledgeQaImportRequest;
@@ -12,6 +14,7 @@ import com.knowledgeflow.knowledge.dto.SourceReferenceResponse;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
 import com.knowledgeflow.knowledge.service.KnowledgeBenchmarkDraftService;
+import com.knowledgeflow.knowledge.service.KnowledgeQaApplicabilityService;
 import com.knowledgeflow.knowledge.service.KnowledgeQaSimilarityService;
 import com.knowledgeflow.knowledge.service.KnowledgeQuestionAnswerCurationService;
 import com.knowledgeflow.knowledge.service.KnowledgeQuestionAnswerImportService;
@@ -50,6 +53,7 @@ public class AdminKnowledgeQaController {
     private final KnowledgeQuestionAnswerPublicationService publicationService;
     private final KnowledgeQaSimilarityService similarityService;
     private final KnowledgeBenchmarkDraftService benchmarkDraftService;
+    private final KnowledgeQaApplicabilityService applicabilityService;
     private final AuthenticatedUserContext authContext;
 
     public AdminKnowledgeQaController(
@@ -58,12 +62,14 @@ public class AdminKnowledgeQaController {
             KnowledgeQuestionAnswerPublicationService publicationService,
             KnowledgeQaSimilarityService similarityService,
             KnowledgeBenchmarkDraftService benchmarkDraftService,
+            KnowledgeQaApplicabilityService applicabilityService,
             AuthenticatedUserContext authContext) {
         this.importService = importService;
         this.curationService = curationService;
         this.publicationService = publicationService;
         this.similarityService = similarityService;
         this.benchmarkDraftService = benchmarkDraftService;
+        this.applicabilityService = applicabilityService;
         this.authContext = authContext;
     }
 
@@ -196,6 +202,63 @@ public class AdminKnowledgeQaController {
         AuthenticatedUser user = authContext.getRequiredUser();
         curationService.removeSource(user.organizationId(), user.userId(), id, sourceId);
         return ResponseEntity.noContent().build();
+    }
+
+    // -------------------------------------------------------------------------
+    // Applicability exclusions (M4-SCOPE-V2, ADR-004)
+    // -------------------------------------------------------------------------
+
+    @GetMapping("/{id}/applicability")
+    public KnowledgeQaApplicabilityResponse applicability(@PathVariable UUID id) {
+        AuthenticatedUser user = authContext.getRequiredUser();
+        return applicabilityService.get(user.organizationId(), id);
+    }
+
+    /** Adds an exclusion: narrows the scope, effective immediately (also on published entries). */
+    @PostMapping("/{id}/applicability/exclusions")
+    public KnowledgeQaApplicabilityResponse addApplicabilityExclusion(
+            @PathVariable UUID id,
+            @RequestBody ApplicabilityExclusionRequest request) {
+        AuthenticatedUser user = authContext.getRequiredUser();
+        return applicabilityService.addExclusion(user.organizationId(), user.userId(), user.email(), id, request);
+    }
+
+    /**
+     * Removes an exclusion from an unpublished entry, or only requests the removal on a published
+     * entry (the exclusion stays effective until approve-removal).
+     */
+    @DeleteMapping("/{id}/applicability/exclusions/{marker}")
+    public KnowledgeQaApplicabilityResponse removeApplicabilityExclusion(
+            @PathVariable UUID id,
+            @PathVariable String marker) {
+        AuthenticatedUser user = authContext.getRequiredUser();
+        return applicabilityService.removeExclusion(user.organizationId(), user.userId(), user.email(), id, marker);
+    }
+
+    /** Human validation of a pending removal: only now does the exclusion stop being effective. */
+    @PostMapping("/{id}/applicability/exclusions/{marker}/approve-removal")
+    public KnowledgeQaApplicabilityResponse approveApplicabilityRemoval(
+            @PathVariable UUID id,
+            @PathVariable String marker,
+            @RequestParam String reviewerName) {
+        AuthenticatedUser user = authContext.getRequiredUser();
+        return applicabilityService.approveRemoval(user.organizationId(), user.userId(), reviewerName, id, marker);
+    }
+
+    @PostMapping("/{id}/applicability/exclusions/{marker}/cancel-removal")
+    public KnowledgeQaApplicabilityResponse cancelApplicabilityRemoval(
+            @PathVariable UUID id,
+            @PathVariable String marker) {
+        AuthenticatedUser user = authContext.getRequiredUser();
+        return applicabilityService.cancelRemoval(user.organizationId(), user.userId(), user.email(), id, marker);
+    }
+
+    @PostMapping("/{id}/applicability/reviewed")
+    public KnowledgeQaApplicabilityResponse markApplicabilityReviewed(
+            @PathVariable UUID id,
+            @RequestParam String reviewerName) {
+        AuthenticatedUser user = authContext.getRequiredUser();
+        return applicabilityService.markReviewed(user.organizationId(), user.userId(), reviewerName, id);
     }
 
     // -------------------------------------------------------------------------

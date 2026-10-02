@@ -83,13 +83,13 @@ class PgTestApplicationContextIT {
     // =========================================================================
 
     @Test
-    @DisplayName("TC-PG-03: Flyway aplicou V15 como versão máxima com sucesso")
+    @DisplayName("TC-PG-03: Flyway aplicou V16 como versão máxima com sucesso")
     void flywayV14AppliedSuccessfully() {
         Integer maxVersion = jdbc.queryForObject(
                 "SELECT MAX(installed_rank) FROM flyway_schema_history WHERE success = true",
                 Integer.class);
-        // All 15 migrations applied (V1 through V15)
-        assertThat(maxVersion).isEqualTo(15);
+        // All 16 migrations applied (V1 through V16)
+        assertThat(maxVersion).isEqualTo(16);
     }
 
     @Test
