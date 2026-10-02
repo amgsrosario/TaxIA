@@ -151,8 +151,17 @@ export function markPendingReview(id: string): Promise<void> {
   return request<void>("POST", `/api/v1/admin/knowledge/qa/${id}/pending-review`);
 }
 
-export function validateQa(id: string, reviewerName: string): Promise<void> {
-  const query = new URLSearchParams({ reviewerName });
+/**
+ * Cria uma nova versão (não publicada) de um caso publicado, com cópia do conteúdo, fontes e
+ * exclusões. A versão publicada continua a responder (ADR-005).
+ */
+export function createVersion(id: string): Promise<KnowledgeQaDetail> {
+  return request<KnowledgeQaDetail>("POST", `/api/v1/admin/knowledge/qa/${id}/versions`);
+}
+
+/** Valida a versão que o revisor leu (expectedVersion): se mudou entretanto, 409 (ADR-005). */
+export function validateQa(id: string, reviewerName: string, expectedVersion: number): Promise<void> {
+  const query = new URLSearchParams({ reviewerName, expectedVersion: String(expectedVersion) });
   return request<void>(
     "POST",
     `/api/v1/admin/knowledge/qa/${id}/validate?${query.toString()}`,
@@ -250,7 +259,7 @@ export function removeSource(id: string, sourceId: string): Promise<void> {
   );
 }
 
-// NOTA DELIBERADA: os endpoints de publicação (/publish, /unpublish, /reindex)
+// NOTA DELIBERADA: os endpoints de publicação (/publish, /publish-replacing, /unpublish, /reindex)
 // e a pergunta de administração (/admin/ai/ask, vista INTERNAL com diagnóstico e
 // systemPrompt) EXISTEM no backend mas NÃO têm função neste cliente — o
 // backoffice não publica nem cria embeddings. A omissão é um guard rail, não

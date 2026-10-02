@@ -4,6 +4,7 @@ import {
   addSource,
   ApiError,
   archiveQa,
+  createVersion,
   getQaDetail,
   markOutdated,
   markPendingReview,
@@ -42,6 +43,9 @@ const SOURCE_TYPES: KnowledgeSourceType[] = [
 ];
 
 type PendingAction =
+  | { kind: "new-version" }
+  | { kind: "save-revalidate" }
+  | { kind: "source-revalidate" }
   | { kind: "pending-review" }
   | { kind: "validate" }
   | { kind: "reject" }
@@ -128,6 +132,7 @@ export function QaDetailPage() {
     load();
   }, [load]);
 
+
   if (loading) return <div className="empty-state">A carregar…</div>;
   if (error && !detail) {
     return (
@@ -151,6 +156,21 @@ export function QaDetailPage() {
   const dirty = (Object.keys(baseline) as (keyof CurationForm)[]).some(
     (k) => form[k] !== baseline[k],
   );
+
+  // Refresh silencioso (ADR-005): alterações de aplicabilidade mudam a versão da Q&A. Actualiza o
+  // detalhe (nova versão para as gravações seguintes) sem desmontar a página; o formulário só é
+  // reposto se não houver edições por guardar — nada do que o curador escreveu se perde.
+  const refreshDetail = () => {
+    const keepForm = dirty;
+    getQaDetail(id)
+      .then((d) => {
+        setDetail(d);
+        if (!keepForm) setForm(formFrom(d));
+      })
+      .catch(() => {
+        /* o próximo carregamento completo mostra o erro */
+      });
+  };
 
   // ── Guard rails avaliados sobre os valores PERSISTIDOS (nunca o formulário) ─
   const persistedShortAnswer = (detail.shortAnswer ?? "").trim();
@@ -181,14 +201,36 @@ export function QaDetailPage() {
       technicalAnswer: f.technicalAnswer.trim() || null,
       topic: f.topic || null,
       subtopic: f.subtopic.trim() || null,
-      jurisdiction: d.jurisdiction ?? "PT",
+      // valor actual, sem defaults escondidos: guardar nunca muda em silêncio um campo material
+      jurisdiction: d.jurisdiction,
       riskLevel: f.riskLevel,
       requiresHumanValidation: d.requiresHumanValidation,
       validFrom: f.validFrom || null,
       validTo: f.validTo || null,
       notes: f.notes.trim() || null,
+      expectedVersion: d.version,
     };
   }
+
+  // ADR-005: alterações materiais ou expansivas (espelha a política do backend; o servidor decide)
+  const isPublished = detail.published;
+  const inPreparation = ["IMPORTED", "PENDING_REVIEW", "VALIDATED", "NEEDS_UPDATE"].includes(detail.curationStatus);
+  const isDraftVersion =
+    !detail.published && detail.previousVersionId !== null && detail.previousVersionPublished && inPreparation;
+  const isHistoricVersion = !detail.published && detail.previousVersionId !== null && !isDraftVersion;
+  const riskRank = (r: KnowledgeRiskLevel) => RISKS.indexOf(r);
+  const startWidened = (from: string, current: string | null) =>
+    current !== null && (from === "" || from < current);
+  const endWidened = (to: string, current: string | null) =>
+    current !== null && (to === "" || to > current);
+  const revalidationChange =
+    form.shortAnswer.trim() !== (detail.shortAnswer ?? "").trim() ||
+    form.technicalAnswer.trim() !== (detail.technicalAnswer ?? "").trim() ||
+    (form.topic || null) !== (detail.topic ?? null) ||
+    form.subtopic.trim() !== (detail.subtopic ?? "").trim() ||
+    riskRank(form.riskLevel) < riskRank(detail.riskLevel) ||
+    startWidened(form.validFrom, detail.validFrom) ||
+    endWidened(form.validTo, detail.validTo);
 
   async function run(action: () => Promise<unknown>, successMessage: string) {
     setBusy(true);
@@ -209,19 +251,55 @@ export function QaDetailPage() {
 
   // Guardar usa a resposta do PATCH como fonte de verdade — o que fica no ecrã
   // é exactamente o que o backend confirmou ter persistido.
+  // Numa VALIDATED não publicada, uma alteração material devolve-a a revisão: pede confirmação.
+  const requestSave = () => {
+    if (detail.curationStatus === "VALIDATED" && !isPublished && revalidationChange) {
+      setPendingAction({ kind: "save-revalidate" });
+      return;
+    }
+    void saveCuration();
+  };
+
+  const startNewVersion = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const created = await createVersion(id);
+      setPendingAction(null);
+      navigate(`/qa/${created.id}`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Erro ao criar a nova versão.");
+      setPendingAction(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const saveCuration = async () => {
+    setPendingAction(null);
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
       const saved = await updateCuration(id, buildCurationPayload(form, detail));
+      const returnedToReview = detail.curationStatus === "VALIDATED" && saved.curationStatus === "PENDING_REVIEW";
       applyDetail(saved);
-      setNotice("Alterações de curadoria guardadas na base de dados.");
+      setNotice(returnedToReview
+        ? "Alterações guardadas. A validação anterior foi anulada e o caso voltou a revisão."
+        : "Alterações de curadoria guardadas na base de dados.");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erro inesperado ao guardar.");
     } finally {
       setBusy(false);
     }
+  };
+
+  const requestSource = () => {
+    if (detail.curationStatus === "VALIDATED" && !isPublished) {
+      setPendingAction({ kind: "source-revalidate" });
+      return;
+    }
+    return submitSource();
   };
 
   const submitSource = () => {
@@ -279,7 +357,7 @@ export function QaDetailPage() {
       case "pending-review":
         return run(() => markPendingReview(id!), "Caso passado para revisão.");
       case "validate":
-        return run(() => validateQa(id!, reviewer), "Caso validado.");
+        return run(() => validateQa(id!, reviewer, detail!.version), "Caso validado.");
       case "reject":
         return run(() => rejectQa(id!, reviewer, rejectReason), "Caso rejeitado.");
       case "outdated":
@@ -322,6 +400,50 @@ export function QaDetailPage() {
         </div>
       )}
 
+      {isPublished && detail.curationStatus !== "VALIDATED" && (
+        <div className="banner warning">
+          Esta versão está marcada como publicada mas o estado é {detail.curationStatus}: não é servida pelo RAG.
+        </div>
+      )}
+      {isHistoricVersion && (
+        <div className="banner info">
+          Versão histórica ou fora de preparação ({detail.curationStatus}), não publicada.{" "}
+          <button className="secondary" onClick={() => navigate(`/qa/${detail.previousVersionId}`)}>
+            Ver versão anterior
+          </button>
+        </div>
+      )}
+      {isPublished && detail.curationStatus === "VALIDATED" && (
+        <div className="banner info">
+          <strong>Esta versão está publicada e validada.</strong> Alterações materiais (respostas, tema,
+          subtema, fontes, ou relaxar risco/validade) exigem uma nova versão. A versão publicada continuará
+          activa até a nova versão ser validada e substituí-la.{" "}
+          {detail.draftVersionId ? (
+            <button className="secondary" onClick={() => navigate(`/qa/${detail.draftVersionId}`)}>
+              Abrir versão em preparação
+            </button>
+          ) : (
+            <button onClick={() => setPendingAction({ kind: "new-version" })} disabled={busy}>
+              Criar nova versão
+            </button>
+          )}
+        </div>
+      )}
+      {isDraftVersion && (
+        <div className="banner warning">
+          <strong>Nova versão — não publicada.</strong> A versão anterior continua activa e a responder.{" "}
+          <button className="secondary" onClick={() => navigate(`/qa/${detail.previousVersionId}`)}>
+            Ver versão anterior
+          </button>
+          {detail.curationStatus === "VALIDATED" && (
+            <p style={{ marginBottom: 0 }}>
+              Validada e pronta a substituir a anterior. A operação «publicar e substituir» é feita no canal
+              de publicação governado — este backoffice não publica.
+            </p>
+          )}
+        </div>
+      )}
+
       {detail.published && <QaEvidencePanel detail={detail} />}
 
       <div className="detail-grid">
@@ -345,7 +467,7 @@ export function QaDetailPage() {
               value={form.shortAnswer}
               onChange={(e) => setForm({ ...form, shortAnswer: e.target.value })}
               placeholder="Síntese própria da TaxIA (obrigatória antes de validar)"
-              disabled={busy}
+              disabled={busy || isPublished}
             />
           </div>
           <div className="field-block">
@@ -354,7 +476,7 @@ export function QaDetailPage() {
               value={form.technicalAnswer}
               onChange={(e) => setForm({ ...form, technicalAnswer: e.target.value })}
               placeholder="Fundamentação técnica (obrigatória para publicação futura)"
-              disabled={busy}
+              disabled={busy || isPublished}
             />
             {!(detail.technicalAnswer ?? "").trim() && (
               <div className="banner info" style={{ marginTop: 6 }}>
@@ -388,7 +510,7 @@ export function QaDetailPage() {
               <select
                 value={form.topic}
                 onChange={(e) => setForm({ ...form, topic: e.target.value as KnowledgeTopic | "" })}
-                disabled={busy}
+                disabled={busy || isPublished}
               >
                 <option value="">—</option>
                 {TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -407,11 +529,17 @@ export function QaDetailPage() {
             <div className="full">
               <label>Subtema</label>
               <input value={form.subtopic}
-                onChange={(e) => setForm({ ...form, subtopic: e.target.value })} disabled={busy} />
+                onChange={(e) => setForm({ ...form, subtopic: e.target.value })} disabled={busy || isPublished} />
             </div>
           </div>
+          {isPublished && (
+            <p className="muted">
+              Versão publicada: só são aceites alterações restritivas (risco mais alto, validade mais curta) e
+              notas. Para mudar conteúdo, crie uma nova versão.
+            </p>
+          )}
           <div className="actions-row">
-            <button onClick={saveCuration} disabled={busy}>Guardar alterações</button>
+            <button onClick={requestSave} disabled={busy}>Guardar alterações</button>
           </div>
         </div>
       </div>
@@ -421,6 +549,7 @@ export function QaDetailPage() {
         key={`${detail.curationStatus}-${detail.published}`}
         qaId={id}
         reviewer={session?.email ?? "curador"}
+        onChanged={refreshDetail}
       />
 
       <div className="card">
@@ -473,6 +602,13 @@ export function QaDetailPage() {
           </div>
         )}
 
+        {isPublished ? (
+          <p className="muted" style={{ marginTop: 18 }}>
+            Versão publicada: acrescentar ou alterar fontes exige uma nova versão. Retirar uma fonte errada
+            (que não seja a última) continua possível.
+          </p>
+        ) : (
+        <>
         <h3 style={{ marginTop: 18 }}>Adicionar fonte</h3>
         <p className="muted">
           O backend não expõe edição de fontes existentes — corrigir uma fonte
@@ -513,8 +649,10 @@ export function QaDetailPage() {
           </div>
         </div>
         <div className="actions-row">
-          <button className="secondary" onClick={submitSource} disabled={busy}>Associar fonte</button>
+          <button className="secondary" onClick={requestSource} disabled={busy}>Associar fonte</button>
         </div>
+        </>
+        )}
       </div>
 
       <div className="card">
@@ -636,6 +774,50 @@ export function QaDetailPage() {
             </div>
           )}
           <p className="muted">A validação não publica nem cria embeddings.</p>
+        </ConfirmDialog>
+      )}
+
+      {pendingAction?.kind === "new-version" && (
+        <ConfirmDialog
+          title="Criar nova versão?"
+          confirmLabel="Criar nova versão"
+          onConfirm={() => void startNewVersion()}
+          onCancel={() => setPendingAction(null)}
+        >
+          <p>
+            É criada uma cópia editável (conteúdo, fontes e exclusões) em revisão. A versão publicada
+            continua activa até a nova ser validada e a substituir.
+          </p>
+        </ConfirmDialog>
+      )}
+
+      {pendingAction?.kind === "save-revalidate" && (
+        <ConfirmDialog
+          title="Alteração material num caso validado"
+          confirmLabel="Guardar e devolver a revisão"
+          danger
+          onConfirm={() => void saveCuration()}
+          onCancel={() => setPendingAction(null)}
+        >
+          <p>
+            Esta alteração invalida a validação actual e devolverá a Q&amp;A a revisão. Será necessária
+            nova validação humana antes de publicar.
+          </p>
+        </ConfirmDialog>
+      )}
+
+      {pendingAction?.kind === "source-revalidate" && (
+        <ConfirmDialog
+          title="Acrescentar fonte a um caso validado"
+          confirmLabel="Associar e devolver a revisão"
+          danger
+          onConfirm={() => { setPendingAction(null); void submitSource(); }}
+          onCancel={() => setPendingAction(null)}
+        >
+          <p>
+            Uma fonte nova alarga o suporte declarado: a validação actual é anulada e a Q&amp;A volta a
+            revisão.
+          </p>
         </ConfirmDialog>
       )}
 
