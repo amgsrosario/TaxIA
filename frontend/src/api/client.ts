@@ -4,6 +4,7 @@ import type {
   CurationUpdateRequest,
   DemoAskResponse,
   KnowledgeCurationStatus,
+  KnowledgeQaApplicability,
   KnowledgeQaDetail,
   KnowledgeQaSummary,
   KnowledgeTopic,
@@ -191,6 +192,54 @@ export function addSource(
     `/api/v1/admin/knowledge/qa/${id}/sources`,
     payload,
   );
+}
+
+// ── Âmbito de aplicação (M4-SCOPE-V2) ───────────────────────────────────────
+
+const applicabilityPath = (id: string) => `/api/v1/admin/knowledge/qa/${id}/applicability`;
+
+export function getApplicability(id: string): Promise<KnowledgeQaApplicability> {
+  return request<KnowledgeQaApplicability>("GET", applicabilityPath(id));
+}
+
+export function addApplicabilityExclusion(
+  id: string,
+  marker: string,
+  note: string | null,
+): Promise<KnowledgeQaApplicability> {
+  return request<KnowledgeQaApplicability>("POST", `${applicabilityPath(id)}/exclusions`, { marker, note });
+}
+
+/** Não publicada: remove. Publicada: só pede a remoção (continua efectiva até aprovação). */
+export function removeApplicabilityExclusion(id: string, marker: string): Promise<KnowledgeQaApplicability> {
+  return request<KnowledgeQaApplicability>(
+    "DELETE",
+    `${applicabilityPath(id)}/exclusions/${encodeURIComponent(marker)}`,
+  );
+}
+
+export function approveApplicabilityRemoval(
+  id: string,
+  marker: string,
+  reviewerName: string,
+): Promise<KnowledgeQaApplicability> {
+  const query = new URLSearchParams({ reviewerName });
+  return request<KnowledgeQaApplicability>(
+    "POST",
+    `${applicabilityPath(id)}/exclusions/${encodeURIComponent(marker)}/approve-removal?${query.toString()}`,
+  );
+}
+
+export function cancelApplicabilityRemoval(id: string, marker: string): Promise<KnowledgeQaApplicability> {
+  return request<KnowledgeQaApplicability>(
+    "POST",
+    `${applicabilityPath(id)}/exclusions/${encodeURIComponent(marker)}/cancel-removal`,
+  );
+}
+
+export function markApplicabilityReviewed(id: string, reviewerName: string): Promise<KnowledgeQaApplicability> {
+  const query = new URLSearchParams({ reviewerName });
+  return request<KnowledgeQaApplicability>("POST", `${applicabilityPath(id)}/reviewed?${query.toString()}`);
 }
 
 /** Remove uma fonte errada. O backend recusa deixar um caso validado/publicado sem fontes. */
