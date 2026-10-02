@@ -1,5 +1,7 @@
 package com.knowledgeflow.ai.grounding.scope;
 
+import com.knowledgeflow.knowledge.enums.ApplicabilityMarker;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
@@ -16,6 +18,8 @@ import org.springframework.stereotype.Component;
  *       só reconhece categorias pelo rendimento, nunca pela pessoa ("reformado", "pensionista").</li>
  *   <li>Operação: ambos indicam operação(ões) e não há nenhuma em comum →
  *       {@code OPERATION_MISMATCH}.</li>
+ *   <li>Aplicabilidade (M4-SCOPE-V2): a pergunta tem um marcador que a Q&amp;A declara como exclusão
+ *       efectiva → {@code APPLICABILITY_EXCLUDED}. Sem marcador ou sem exclusões, nada muda.</li>
  * </ul>
  */
 @Component
@@ -35,5 +39,17 @@ public class ScopeCompatibilityGate {
             return ScopeDecision.reject(ScopeReason.OPERATION_MISMATCH);
         }
         return ScopeDecision.allow(ScopeReason.NO_CONTRADICTION);
+    }
+
+    /** Contradições v1 primeiro (imposto, categoria, operação); depois as exclusões de aplicabilidade. */
+    public ScopeDecision decide(FiscalScope query, Set<ApplicabilityMarker> queryMarkers, CandidateScope candidate) {
+        ScopeDecision v1 = decide(query, candidate.scope());
+        if (!v1.allowed()) {
+            return v1;
+        }
+        if (queryMarkers.stream().anyMatch(candidate.exclusions()::contains)) {
+            return ScopeDecision.reject(ScopeReason.APPLICABILITY_EXCLUDED);
+        }
+        return v1;
     }
 }

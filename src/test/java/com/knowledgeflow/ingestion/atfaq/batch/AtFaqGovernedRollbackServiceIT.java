@@ -13,6 +13,7 @@ import com.knowledgeflow.knowledge.enums.KnowledgeSourceType;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
 import com.knowledgeflow.knowledge.rag.KnowledgeQaEmbeddingIndexerImpl;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
 import com.knowledgeflow.knowledge.service.KnowledgeQuestionAnswerPublicationService;
 import com.knowledgeflow.organizations.entity.Organization;
@@ -94,6 +95,7 @@ class AtFaqGovernedRollbackServiceIT {
 
     @Autowired KnowledgeQuestionAnswerRepository qaRepository;
     @Autowired KnowledgeSourceReferenceRepository sourceRepository;
+    @Autowired KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
     @Autowired OrganizationRepository organizationRepository;
     @Autowired KnowledgeQuestionAnswerPublicationService publicationService; // pgtest stub — used for publish
     @Autowired AuditService auditService;
@@ -185,7 +187,7 @@ class AtFaqGovernedRollbackServiceIT {
         // so unpublish(...) truly deletes the embedding (the pgtest-autowired one would no-op).
         KnowledgeQuestionAnswerPublicationService realPublicationService =
                 new KnowledgeQuestionAnswerPublicationService(
-                        qaRepository, sourceRepository, realIndexer, auditService,
+                        qaRepository, sourceRepository, exclusionRepository, realIndexer, auditService,
                         new KnowledgeFlowMetrics(new SimpleMeterRegistry()));
         rollbackService = new AtFaqGovernedRollbackService(
                 realPublicationService, qaRepository, jdbc, probe, clock);

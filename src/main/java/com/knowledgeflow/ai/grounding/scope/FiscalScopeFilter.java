@@ -1,5 +1,6 @@
 package com.knowledgeflow.ai.grounding.scope;
 
+import com.knowledgeflow.knowledge.enums.ApplicabilityMarker;
 import com.knowledgeflow.rag.RagSearchService.RetrievedCase;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -15,12 +16,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Gate de contradição de âmbito (M4-SCOPE), aplicado candidato a candidato depois do filtro de
- * relevância e antes da avaliação de suficiência, do prompt e das fontes.
+ * Gate de contradição de âmbito (M4-SCOPE) e de aplicabilidade (M4-SCOPE-V2, ADR-004), aplicado
+ * candidato a candidato depois do filtro de relevância e antes da avaliação de suficiência, do
+ * prompt e das fontes. Um só gate: primeiro as contradições derivadas (imposto, categoria,
+ * operação), depois as exclusões declaradas pela Q&amp;A.
  *
  * <p>Candidatos sem Q&amp;A de origem ({@code sourceQaId == null}, caso DOCUMENT) passam sem
- * alteração. Para os restantes, uma falha técnica (classificação ou carregamento) ou a ausência da
- * linha da Q&amp;A rejeita o candidato (fail-closed): nesse caso o pedido acaba em resposta-limite,
+ * alteração. Para os restantes, uma falha técnica (classificação ou carregamento), a ausência da
+ * linha da Q&amp;A ou um marcador de exclusão inválido rejeita o candidato (fail-closed): nesse caso o pedido acaba em resposta-limite,
  * nunca com fontes de âmbito por verificar. A ordem do RAG é preservada.
  */
 @Component
@@ -30,6 +33,7 @@ public class FiscalScopeFilter {
 
     private final CandidateScopeLoader loader;
     private final FiscalScopeClassifier classifier;
+    private final ApplicabilityMarkerDetector detector;
     private final ScopeCompatibilityGate gate;
     private final boolean enabled;
 
@@ -37,25 +41,28 @@ public class FiscalScopeFilter {
     public FiscalScopeFilter(
             CandidateScopeLoader loader,
             FiscalScopeClassifier classifier,
+            ApplicabilityMarkerDetector detector,
             ScopeCompatibilityGate gate,
             ScopeGateProperties properties) {
-        this(loader, classifier, gate, properties.enabled());
+        this(loader, classifier, detector, gate, properties.enabled());
     }
 
     private FiscalScopeFilter(
             CandidateScopeLoader loader,
             FiscalScopeClassifier classifier,
+            ApplicabilityMarkerDetector detector,
             ScopeCompatibilityGate gate,
             boolean enabled) {
         this.loader = loader;
         this.classifier = classifier;
+        this.detector = detector;
         this.gate = gate;
         this.enabled = enabled;
     }
 
     /** Filtro inactivo (devolve os candidatos tal como recebidos), para construções manuais em testes. */
     public static FiscalScopeFilter disabled() {
-        return new FiscalScopeFilter(null, null, null, false);
+        return new FiscalScopeFilter(null, null, null, null, false);
     }
 
     public List<RetrievedCase> filter(String question, List<RetrievedCase> candidates) {
@@ -67,11 +74,13 @@ public class FiscalScopeFilter {
         candidates.stream().map(RetrievedCase::sourceQaId).filter(Objects::nonNull).forEach(qaIds::add);
 
         FiscalScope queryScope = null;
-        Map<UUID, FiscalScope> candidateScopes = Map.of();
+        Set<ApplicabilityMarker> queryMarkers = Set.of();
+        Map<UUID, CandidateScope> candidateScopes = Map.of();
         boolean technicalFailure = false;
         if (!qaIds.isEmpty()) {
             try {
                 queryScope = classifier.classify(question);
+                queryMarkers = detector.detect(question, queryScope);
                 candidateScopes = loader.load(qaIds);
             } catch (RuntimeException e) {
                 technicalFailure = true;
@@ -83,7 +92,7 @@ public class FiscalScopeFilter {
         List<RetrievedCase> kept = new ArrayList<>(candidates.size());
         Map<ScopeReason, Integer> counts = new EnumMap<>(ScopeReason.class);
         for (RetrievedCase candidate : candidates) {
-            FiscalScope candidateScope = candidate.sourceQaId() == null
+            CandidateScope candidateScope = candidate.sourceQaId() == null
                     ? null : candidateScopes.get(candidate.sourceQaId());
             ScopeDecision decision;
             if (candidate.sourceQaId() == null) {
@@ -91,22 +100,23 @@ public class FiscalScopeFilter {
             } else if (technicalFailure || candidateScope == null) {
                 decision = ScopeDecision.reject(ScopeReason.TECHNICAL_FAILURE);
             } else {
-                decision = gate.decide(queryScope, candidateScope);
+                decision = gate.decide(queryScope, queryMarkers, candidateScope);
             }
             counts.merge(decision.reason(), 1, Integer::sum);
             if (log.isDebugEnabled()) {
-                log.debug("Scope gate candidate: sourceQaId={}, score={}, allowed={}, reason={}, query={}, candidate={}",
+                log.debug("Scope gate candidate: sourceQaId={}, score={}, allowed={}, reason={}, query={}, "
+                                + "queryMarkers={}, candidate={}",
                         candidate.sourceQaId(), candidate.similarity(), decision.allowed(), decision.reason(),
-                        queryScope, candidateScope);
+                        queryScope, queryMarkers, candidateScope);
             }
             if (decision.allowed()) {
                 kept.add(candidate);
             }
         }
 
-        log.info("Scope gate: received={}, kept={}, rejected={}, reasons={}, dictionary={}",
+        log.info("Scope gate: received={}, kept={}, rejected={}, reasons={}, dictionary={}, applicabilityVocabulary={}",
                 candidates.size(), kept.size(), candidates.size() - kept.size(), counts,
-                FiscalScopeClassifier.DICTIONARY_VERSION);
+                FiscalScopeClassifier.DICTIONARY_VERSION, ApplicabilityMarkerDetector.VOCABULARY_VERSION);
         return List.copyOf(kept);
     }
 }

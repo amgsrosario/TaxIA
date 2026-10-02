@@ -12,6 +12,8 @@ public enum ScopeReason {
     CATEGORY_NOT_COVERED,
     /** Operações sem intersecção. */
     OPERATION_MISMATCH,
-    /** Falha técnica (classificação, carregamento ou metadata em falta): rejeitado por segurança. */
+    /** A pergunta tem um marcador que a Q&amp;A declara expressamente não cobrir (ADR-004). */
+    APPLICABILITY_EXCLUDED,
+    /** Falha técnica (classificação, carregamento, metadata em falta ou marcador de exclusão inválido): rejeitado por segurança. */
     TECHNICAL_FAILURE
 }

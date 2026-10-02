@@ -4,10 +4,14 @@ import com.knowledgeflow.audit.enums.AuditAction;
 import com.knowledgeflow.audit.service.AuditService;
 import com.knowledgeflow.common.error.ApiErrorCode;
 import com.knowledgeflow.common.error.BusinessException;
+import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityExclusion;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.rag.KnowledgeQaEmbeddingIndexer;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +38,7 @@ public class KnowledgeQuestionAnswerPublicationService {
 
     private final KnowledgeQuestionAnswerRepository qaRepository;
     private final KnowledgeSourceReferenceRepository sourceRepository;
+    private final KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
     private final KnowledgeQaEmbeddingIndexer indexer;
     private final AuditService auditService;
     private final com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics;
@@ -41,11 +46,13 @@ public class KnowledgeQuestionAnswerPublicationService {
     public KnowledgeQuestionAnswerPublicationService(
             KnowledgeQuestionAnswerRepository qaRepository,
             KnowledgeSourceReferenceRepository sourceRepository,
+            KnowledgeQaApplicabilityExclusionRepository exclusionRepository,
             KnowledgeQaEmbeddingIndexer indexer,
             AuditService auditService,
             com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics) {
         this.qaRepository = qaRepository;
         this.sourceRepository = sourceRepository;
+        this.exclusionRepository = exclusionRepository;
         this.indexer = indexer;
         this.auditService = auditService;
         this.metrics = metrics;
@@ -220,6 +227,21 @@ public class KnowledgeQuestionAnswerPublicationService {
         newVersion.markPendingReview();
 
         qaRepository.save(newVersion);
+
+        // As exclusões de aplicabilidade (ADR-004) passam para a nova versão — nunca se alarga o
+        // âmbito em silêncio. Pedidos de remoção pendentes não passam: a exclusão fica efectiva.
+        // A marca "âmbito revisto" não passa: o conteúdo novo pede nova revisão.
+        List<String> inherited = new ArrayList<>();
+        for (KnowledgeQaApplicabilityExclusion exclusion : exclusionRepository.findByKnowledgeQaId(previousId)) {
+            exclusionRepository.save(new KnowledgeQaApplicabilityExclusion(
+                    newVersion, exclusion.getMarker(), exclusion.getNote(), exclusion.getCreatedBy()));
+            inherited.add(exclusion.getMarker());
+        }
+        if (!inherited.isEmpty()) {
+            auditService.record(organizationId, actingUserId,
+                    AuditAction.KNOWLEDGE_QA_APPLICABILITY_UPDATED, "KnowledgeQuestionAnswer", newVersion.getId(),
+                    "event=INHERITED fromVersion=%s exclusions=%s".formatted(previousId, inherited));
+        }
 
         auditService.record(organizationId, actingUserId,
                 AuditAction.KNOWLEDGE_QA_VERSION_CREATED, "KnowledgeQuestionAnswer",

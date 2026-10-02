@@ -8,6 +8,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaExclusionMarkerRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQaScopeRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.rag.RagSearchService.RetrievedCase;
@@ -33,14 +35,15 @@ class FiscalScopeFilterTest {
     private static final UUID QA_RENT = UUID.fromString("00000000-0000-0000-0000-000000005930");
 
     @Mock private KnowledgeQuestionAnswerRepository repository;
+    @Mock private KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
 
     private FiscalScopeFilter filter;
 
     @BeforeEach
     void setUp() {
         FiscalScopeClassifier classifier = new FiscalScopeClassifier();
-        filter = new FiscalScopeFilter(new CandidateScopeLoader(repository, classifier), classifier,
-                new ScopeCompatibilityGate(), new ScopeGateProperties(true));
+        filter = new FiscalScopeFilter(new CandidateScopeLoader(repository, exclusionRepository, classifier),
+                classifier, new ApplicabilityMarkerDetector(), new ScopeCompatibilityGate(), new ScopeGateProperties(true));
     }
 
     @Test
@@ -108,8 +111,8 @@ class FiscalScopeFilterTest {
                 throw new IllegalStateException("boom");
             }
         };
-        FiscalScopeFilter failing = new FiscalScopeFilter(new CandidateScopeLoader(repository, broken), broken,
-                new ScopeCompatibilityGate(), new ScopeGateProperties(true));
+        FiscalScopeFilter failing = new FiscalScopeFilter(new CandidateScopeLoader(repository, exclusionRepository, broken),
+                broken, new ApplicabilityMarkerDetector(), new ScopeCompatibilityGate(), new ScopeGateProperties(true));
 
         assertThat(failing.filter("Pergunta?", List.of(qa("5795", QA_PENSION)))).isEmpty();
     }
@@ -136,8 +139,9 @@ class FiscalScopeFilterTest {
         List<RetrievedCase> candidates = List.of(qa("5795", QA_PENSION));
 
         assertThat(FiscalScopeFilter.disabled().filter("Qual a taxa de IRC?", candidates)).isSameAs(candidates);
-        assertThat(new FiscalScopeFilter(new CandidateScopeLoader(repository, new FiscalScopeClassifier()),
-                new FiscalScopeClassifier(), new ScopeCompatibilityGate(), new ScopeGateProperties(false))
+        assertThat(new FiscalScopeFilter(new CandidateScopeLoader(repository, exclusionRepository, new FiscalScopeClassifier()),
+                new FiscalScopeClassifier(), new ApplicabilityMarkerDetector(), new ScopeCompatibilityGate(),
+                new ScopeGateProperties(false))
                 .filter("Qual a taxa de IRC?", candidates)).isSameAs(candidates);
         verifyNoInteractions(repository);
     }
@@ -159,6 +163,62 @@ class FiscalScopeFilterTest {
                 new KnowledgeQaScopeRow(QA_PENSION, KnowledgeTopic.PROCEDIMENTO_TRIBUTARIO, null, " ", " ")));
 
         assertThat(filter.filter("E os prazos?", List.of(qa("Vazia", QA_PENSION)))).isEmpty();
+    }
+
+    // ---- M4-SCOPE-V2: exclusões de aplicabilidade ---------------------------------------------
+
+    @Test
+    void effectiveExclusion_rejectsOnlyWhenTheQuestionCarriesTheMarker() {
+        when(repository.findScopeRowsByIdIn(any())).thenReturn(List.of(rentRow()));
+        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
+                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_RENT, "INQUILINO")));
+
+        assertThat(filter.filter("Como inquilino, posso deduzir as obras?", List.of(qa("5930", QA_RENT)))).isEmpty();
+        assertThat(filter.filter("Sou senhorio; que despesas deduzo às rendas?", List.of(qa("5930", QA_RENT))))
+                .hasSize(1);
+    }
+
+    @Test
+    void unknownMarkerInDatabase_isFailClosedForThatCandidateOnly() {
+        when(repository.findScopeRowsByIdIn(any())).thenReturn(List.of(rentRow(), pensionRow()));
+        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
+                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_RENT, "MARCADOR_REMOVIDO")));
+
+        assertThat(filter.filter("E os prazos?", List.of(qa("5930", QA_RENT), qa("5795", QA_PENSION))))
+                .extracting(RetrievedCase::title).containsExactly("5795");
+    }
+
+    @Test
+    void exclusionLoadingFailure_isFailClosed() {
+        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
+                .thenThrow(new DataAccessResourceFailureException("down"));
+
+        assertThat(filter.filter("E os prazos?", List.of(qa("5930", QA_RENT)))).isEmpty();
+    }
+
+    @Test
+    void exclusionsAreLoadedInOneBatch_andNotAtAllWithoutQaCandidates() {
+        when(repository.findScopeRowsByIdIn(any())).thenReturn(List.of(pensionRow(), vatRow(), rentRow()));
+
+        filter.filter("Pergunta?", List.of(qa("A", QA_VAT), qa("B", QA_PENSION), qa("C", QA_RENT)));
+        verify(exclusionRepository, times(1)).findMarkerRowsByKnowledgeQaIdIn(Set.of(QA_VAT, QA_PENSION, QA_RENT));
+
+        RetrievedCase document = new RetrievedCase("Documento", "?", "Texto.", 0.95, SourceKind.DOCUMENT, null);
+        filter.filter("Sou inquilino?", List.of(document));
+        filter.filter("Sou inquilino?", List.of());
+        verify(exclusionRepository, times(1)).findMarkerRowsByKnowledgeQaIdIn(any());
+    }
+
+    @Test
+    void logs_neverContainTheQuestion_evenWithMarkers(CapturedOutput output) {
+        when(repository.findScopeRowsByIdIn(any())).thenReturn(List.of(rentRow()));
+        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
+                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_RENT, "INQUILINO")));
+
+        filter.filter("Sou inquilino da Dona Confidencial; posso deduzir obras?", List.of(qa("5930", QA_RENT)));
+
+        assertThat(output.getAll()).contains("APPLICABILITY_EXCLUDED=1", "applicabilityVocabulary=")
+                .doesNotContain("Confidencial");
     }
 
     @Test

@@ -76,15 +76,16 @@ class CandidateScopeLoaderIntegrationTest {
     void load_derivesScopes_andOmitsUnknownIds() {
         UUID unknown = UUID.randomUUID();
 
-        Map<UUID, FiscalScope> scopes = loader.load(Set.of(pension.getId(), vat.getId(), uncurated.getId(), unknown));
+        Map<UUID, CandidateScope> scopes = loader.load(Set.of(pension.getId(), vat.getId(), uncurated.getId(), unknown));
 
         assertThat(scopes).containsOnlyKeys(pension.getId(), vat.getId(), uncurated.getId());
-        assertThat(scopes.get(pension.getId()).incomeCategories()).containsExactly(IncomeCategory.H);
-        assertThat(scopes.get(pension.getId()).operations()).containsExactly(FiscalOperation.RETENCAO);
-        assertThat(scopes.get(vat.getId()).domains()).containsExactly(TaxDomain.IVA);
+        assertThat(scopes.get(pension.getId()).scope().incomeCategories()).containsExactly(IncomeCategory.H);
+        assertThat(scopes.get(pension.getId()).scope().operations()).containsExactly(FiscalOperation.RETENCAO);
+        assertThat(scopes.get(vat.getId()).scope().domains()).containsExactly(TaxDomain.IVA);
         // sem curadoria: só a pergunta original conta
-        assertThat(scopes.get(uncurated.getId()).incomeCategories()).containsExactly(IncomeCategory.F);
-        assertThat(scopes.get(uncurated.getId()).operations()).containsExactly(FiscalOperation.DEDUCAO);
+        assertThat(scopes.get(uncurated.getId()).scope().incomeCategories()).containsExactly(IncomeCategory.F);
+        assertThat(scopes.get(uncurated.getId()).scope().operations()).containsExactly(FiscalOperation.DEDUCAO);
+        assertThat(scopes.values()).allSatisfy(c -> assertThat(c.exclusions()).isEmpty());
     }
 
     @Test

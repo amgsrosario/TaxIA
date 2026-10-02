@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 public class FiscalScopeClassifier {
 
     /** Versão do dicionário — sobe sempre que as expressões mudam (rastreabilidade nos logs/testes). */
-    public static final String DICTIONARY_VERSION = "2026-10-01.4";
+    public static final String DICTIONARY_VERSION = "2026-10-02.2";
 
     private static final Pattern AIMI =
             word("aimi|adicional (?:ao|do|de) (?:imi|imposto municipal sobre (?:os )?imoveis)");
@@ -79,7 +79,10 @@ public class FiscalScopeClassifier {
                 KEEP_WORD + "(?: \\w+){0,3} " + DOCUMENTS + "|" + DOCUMENTS + "(?: \\w+){0,4} " + KEEP_VERB));
         operations.put(FiscalOperation.TRIBUTACAO_CONJUNTA,
                 word("tributacao conjunta|tributad[oa]s? conjuntamente"));
-        operations.put(FiscalOperation.CALCULO, word("calcul\\w*"));
+        // "calculado em conjunto / conjuntamente" descreve a agregação da opção conjunta, não uma
+        // pergunta sobre o cálculo do imposto. "calculado com base em…" continua a ser cálculo.
+        operations.put(FiscalOperation.CALCULO, word(
+                "calcul(?!ad[oa]s? (?:em conjunto|conjuntamente|juntos?|juntas?)\\b)\\w*"));
         operations.put(FiscalOperation.DECLARACAO, word(
                 "declaracao periodica|declaracao anual|declaracao de rendimentos|modelo 3"
                         + "|entrega da declaracao|entregar a declaracao"));
