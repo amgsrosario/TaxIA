@@ -70,7 +70,7 @@ Baixar o threshold multiplicava estes erros. Esse conhecimento é editorial.
 - As exclusões das Q&A reais são uma operação editorial humana posterior (não migradas).
 - Fora de âmbito, como follow-ups separados: cobertura parcial (perguntas multi-matéria),
   fluxo de clarificação (perguntas ambíguas), reranker/LLM verifier.
-- Lacuna pré-existente registada e não corrigida aqui: GOV-PUBLISHED-CONTENT-INTEGRITY
-  (campos curados de uma Q&A validada/publicada, incluindo a resposta técnica, podem ser
-  editados sem nova validação). A política de remoção de exclusões não depende dela.
+- Lacuna pré-existente registada aqui e resolvida no ADR-005 (GOV-PUBLISHED-CONTENT-INTEGRITY):
+  a política de exclusões passa a ser um caso da regra geral "conservador imediato, expansivo só
+  após validação".
 - Acrescentar um marcador exige: entrada no enum, padrão de detecção, testes e held-out.

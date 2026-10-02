@@ -85,6 +85,12 @@ desconhecido na BD rejeita o candidato (fail-closed). Uma exclusão cuja remoç�
 numa Q&A publicada ou VALIDATED continua efectiva até aprovação humana. Perguntas multi-matéria e
 ambíguas continuam fora de âmbito (follow-ups separados).
 
+**Integridade do conteúdo servido (ADR-005).** O RAG lê o texto da Q&A em tempo de pergunta;
+por isso a versão publicada está congelada para alterações materiais, que passam por uma nova
+versão não publicada e não indexada. Só depois de validada é que a nova versão substitui a
+anterior, numa operação atómica (publica e indexa a nova, desindexa e despublica a anterior). O
+RAG nunca serve conteúdo diferente do validado da versão publicada.
+
 **Critérios de insuficiência:**
 - Lista de casos vazia
 - Casos sem conteúdo validado

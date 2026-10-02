@@ -96,6 +96,11 @@ Em alterações relacionadas com matéria fiscal, identificar fontes, vigência,
 existentes de grounding, risco, parecer humano e resposta-limite. Não
 transformar conteúdo pendente em conteúdo publicado por iniciativa própria.
 
+Uma Q&A VALIDATED significa que o conteúdo em vigor foi validado por um humano
+(ADR-005). Não alterar conteúdo material de uma Q&A validada ou publicada por
+caminhos alternativos (SQL directo, scripts, ferramentas do piloto): numa versão
+publicada, mudanças materiais fazem-se por nova versão e substituição governada.
+
 ## Segurança
 
 Não incluir segredos, tokens, chaves API ou dados pessoais de clientes em
