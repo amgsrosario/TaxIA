@@ -119,3 +119,5 @@ knowledgeflow:
     minimum-relevance-score: ${GROUNDING_MIN_SCORE:0.88}
     reject-unsupported-sensitive-claims: ${GROUNDING_REJECT_UNSUPPORTED:true}
     skip-provider-when-context-insufficient: ${GROUNDING_SKIP_PROVIDER:true}
+    scope-gate:
+      enabled: ${GROUNDING_SCOPE_GATE_ENABLED:true}

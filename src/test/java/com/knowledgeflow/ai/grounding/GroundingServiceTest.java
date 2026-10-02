@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.knowledgeflow.ai.AIRequest;
 import com.knowledgeflow.ai.AIResponse;
 import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.grounding.scope.FiscalScopeFilter;
 import com.knowledgeflow.rag.RagSearchService.RetrievedCase;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,15 +43,15 @@ class GroundingServiceTest {
         var validator = new AnswerGroundingValidator(PROPS);
         var safeFactory = new SafeResponseFactory();
 
-        service = new GroundingService(evaluator, validator, safeFactory, aiService, PROPS);
+        service = new GroundingService(evaluator, validator, safeFactory, aiService, PROPS, FiscalScopeFilter.disabled());
 
         var evaluatorSkip = new ContextSufficiencyEvaluator(PROPS_SKIP_DISABLED);
         var validatorSkip = new AnswerGroundingValidator(PROPS_SKIP_DISABLED);
-        serviceSkipDisabled = new GroundingService(evaluatorSkip, validatorSkip, safeFactory, aiService, PROPS_SKIP_DISABLED);
+        serviceSkipDisabled = new GroundingService(evaluatorSkip, validatorSkip, safeFactory, aiService, PROPS_SKIP_DISABLED, FiscalScopeFilter.disabled());
 
         var evaluatorOff = new ContextSufficiencyEvaluator(PROPS_GROUNDING_DISABLED);
         var validatorOff = new AnswerGroundingValidator(PROPS_GROUNDING_DISABLED);
-        serviceGroundingDisabled = new GroundingService(evaluatorOff, validatorOff, safeFactory, aiService, PROPS_GROUNDING_DISABLED);
+        serviceGroundingDisabled = new GroundingService(evaluatorOff, validatorOff, safeFactory, aiService, PROPS_GROUNDING_DISABLED, FiscalScopeFilter.disabled());
     }
 
     // --- Context insufficient: provider not called ---

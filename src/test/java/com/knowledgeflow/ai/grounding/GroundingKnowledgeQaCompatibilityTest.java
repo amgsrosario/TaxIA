@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.knowledgeflow.ai.AIRequest;
 import com.knowledgeflow.ai.AIResponse;
 import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.grounding.scope.FiscalScopeFilter;
 import com.knowledgeflow.rag.RagSearchService.RetrievedCase;
 import com.knowledgeflow.rag.RagSearchService.SourceKind;
 import java.util.List;
@@ -42,7 +43,7 @@ class GroundingKnowledgeQaCompatibilityTest {
         var evaluator = new ContextSufficiencyEvaluator(PROPS);
         var validator = new AnswerGroundingValidator(PROPS);
         var safeFactory = new SafeResponseFactory();
-        service = new GroundingService(evaluator, validator, safeFactory, aiService, PROPS);
+        service = new GroundingService(evaluator, validator, safeFactory, aiService, PROPS, FiscalScopeFilter.disabled());
     }
 
     // -----------------------------------------------------------------------

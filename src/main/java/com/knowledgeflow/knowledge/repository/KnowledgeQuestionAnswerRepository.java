@@ -4,6 +4,7 @@ import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -83,4 +84,20 @@ public interface KnowledgeQuestionAnswerRepository extends JpaRepository<Knowled
             @Param("excludeId") UUID excludeId);
 
     long countByOrganizationIdAndCurationStatus(UUID organizationId, KnowledgeCurationStatus status);
+
+    /**
+     * Campos de âmbito (tema, subtema, pergunta) de várias Q&amp;A numa única query, como linhas só de
+     * leitura — sem carregar entidades. Usado pelo gate de âmbito fiscal (M4-SCOPE).
+     */
+    /**
+     * Campos de âmbito (M4-SCOPE) das Q&amp;A pedidas, numa só query. Sem filtro de organização: os
+     * ids vêm do RAG, que já está restrito à organização do pedido.
+     */
+    @Query("""
+            select new com.knowledgeflow.knowledge.repository.KnowledgeQaScopeRow(
+                q.id, q.topic, q.subtopic, q.originalQuestion, q.normalizedQuestion)
+            from KnowledgeQuestionAnswer q
+            where q.id in :ids
+            """)
+    List<KnowledgeQaScopeRow> findScopeRowsByIdIn(@Param("ids") Collection<UUID> ids);
 }

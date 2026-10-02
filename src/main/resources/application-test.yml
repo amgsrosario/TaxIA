@@ -37,3 +37,5 @@ knowledgeflow:
     minimum-relevance-score: 0.0
     reject-unsupported-sensitive-claims: true
     skip-provider-when-context-insufficient: true
+    scope-gate:
+      enabled: true

@@ -12,6 +12,7 @@ import com.knowledgeflow.ai.AIResponse;
 import com.knowledgeflow.ai.AIService;
 import com.knowledgeflow.ai.documented.CuratedSourceResolver;
 import com.knowledgeflow.ai.documented.ResolvedAnswerSource;
+import com.knowledgeflow.ai.grounding.scope.FiscalScopeFilter;
 import com.knowledgeflow.knowledge.enums.KnowledgeSourceType;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRow;
@@ -51,7 +52,7 @@ class GroundingRelevanceFilterTest {
     @BeforeEach
     void setUp() {
         service = new GroundingService(new ContextSufficiencyEvaluator(PROPS), new AnswerGroundingValidator(PROPS),
-                new SafeResponseFactory(), aiService, PROPS);
+                new SafeResponseFactory(), aiService, PROPS, FiscalScopeFilter.disabled());
     }
 
     // A
