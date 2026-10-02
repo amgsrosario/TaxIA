@@ -15,6 +15,7 @@ import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeSourceType;
 import com.knowledgeflow.organizations.entity.Organization;
 import com.knowledgeflow.organizations.repository.OrganizationRepository;
+import jakarta.persistence.EntityManager;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,7 @@ class KnowledgeQuestionAnswerPublicationServiceTest {
     @Autowired private KnowledgeQuestionAnswerPublicationService publicationService;
     @Autowired private KnowledgeQuestionAnswerCurationService curationService;
     @Autowired private KnowledgeQuestionAnswerRepository qaRepository;
+    @Autowired private EntityManager entityManager;
     @Autowired private KnowledgeSourceReferenceRepository sourceRepository;
     @Autowired private OrganizationRepository organizationRepository;
     @Autowired private AuditEventRepository auditEventRepository;
@@ -102,8 +104,8 @@ class KnowledgeQuestionAnswerPublicationServiceTest {
 
         assertThat(newVersion.getPreviousVersionId()).isEqualTo(qa.getId());
         assertThat(newVersion.getCurationStatus()).isEqualTo(KnowledgeCurationStatus.PENDING_REVIEW);
-        // Old version unpublished
-        assertThat(qaRepository.findById(qa.getId()).get().isPublished()).isFalse();
+        // ADR-005: old version stays published until publish-replacing
+        assertThat(qaRepository.findById(qa.getId()).get().isPublished()).isTrue();
     }
 
     // -------------------------------------------------------------------------
@@ -143,13 +145,12 @@ class KnowledgeQuestionAnswerPublicationServiceTest {
         KnowledgeQuestionAnswer qa = savedValidatedQaWithSource("Legado?", "Resposta legada.");
         publicationService.publish(org.getId(), userId, "pub@taxia.pt", qa.getId());
 
-        // Simula entrada publicada antes da regra: technicalAnswer removida a posteriori.
-        var published = qaRepository.findById(qa.getId()).get();
-        published.updateCuration(null, published.getShortAnswer(), null,
-                published.getTopic(), published.getSubtopic(), published.getJurisdiction(),
-                published.getRiskLevel(), published.isRequiresHumanValidation(),
-                published.getValidFrom(), published.getValidTo(), published.getNotes());
-        qaRepository.save(published);
+        // Simula uma linha legada, publicada antes da regra, sem technicalAnswer. Já não é possível
+        // chegar a este estado pela curadoria (ADR-005), por isso é escrita directamente na BD.
+        entityManager.flush();
+        entityManager.createNativeQuery("UPDATE knowledge_question_answers SET technical_answer = NULL WHERE id = :id")
+                .setParameter("id", qa.getId()).executeUpdate();
+        entityManager.clear();
 
         assertThatThrownBy(() -> publicationService.reindex(org.getId(), userId, qa.getId()))
                 .isInstanceOf(BusinessException.class)
@@ -186,11 +187,18 @@ class KnowledgeQuestionAnswerPublicationServiceTest {
         return qaRepository.save(qa);
     }
 
+    /** Fonte primeiro, validação depois: acrescentar uma fonte a uma VALIDATED devolve-a a revisão (ADR-005). */
     private KnowledgeQuestionAnswer savedValidatedQaWithSource(String question, String answer) {
-        var qa = savedValidatedQa(question, answer);
+        var qa = new KnowledgeQuestionAnswer(org, question, answer, "test", null);
+        qa.updateCuration(null, answer, answer + " Fundamentação técnica completa.",
+                KnowledgeTopic.IVA, null, "PT", KnowledgeRiskLevel.LOW, false, null, null, null);
+        qa.markPendingReview();
+        qa = qaRepository.save(qa);
         curationService.addSource(org.getId(), userId, qa.getId(), new SourceReferenceRequest(
                 KnowledgeSourceType.LEGISLATION, "CIVA", null, null, null, null, null, null, null));
-        return qaRepository.findById(qa.getId()).get();
+        qa = qaRepository.findById(qa.getId()).orElseThrow();
+        qa.validate("revisor");
+        return qaRepository.save(qa);
     }
 
     /** Caso VALIDATED apenas com shortAnswer — proibido publicar. */
@@ -199,10 +207,11 @@ class KnowledgeQuestionAnswerPublicationServiceTest {
         qa.updateCuration(null, answer, null, KnowledgeTopic.IVA, null, "PT",
                 KnowledgeRiskLevel.LOW, false, null, null, null);
         qa.markPendingReview();
-        qa.validate("revisor");
         qa = qaRepository.save(qa);
         curationService.addSource(org.getId(), userId, qa.getId(), new SourceReferenceRequest(
                 KnowledgeSourceType.LEGISLATION, "CIVA", null, null, null, null, null, null, null));
-        return qaRepository.findById(qa.getId()).get();
+        qa = qaRepository.findById(qa.getId()).orElseThrow();
+        qa.validate("revisor");
+        return qaRepository.save(qa);
     }
 }

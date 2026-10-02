@@ -14,17 +14,20 @@ import com.knowledgeflow.knowledge.entity.KnowledgeSourceReference;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
+import com.knowledgeflow.knowledge.governance.CurationChanges;
 import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class KnowledgeQuestionAnswerCurationService {
@@ -74,7 +77,7 @@ public class KnowledgeQuestionAnswerCurationService {
     public KnowledgeQaDetailResponse getDetail(UUID organizationId, UUID id) {
         KnowledgeQuestionAnswer qa = requireOwned(organizationId, id);
         List<KnowledgeSourceReference> sources = sourceRepository.findByQuestionAnswerId(id);
-        return KnowledgeQaDetailResponse.from(qa, sources, exclusionRepository.findByKnowledgeQaId(qa.getId()));
+        return detail(qa, sources);
     }
 
     // -------------------------------------------------------------------------
@@ -85,8 +88,10 @@ public class KnowledgeQuestionAnswerCurationService {
     public KnowledgeQaDetailResponse updateCuration(
             UUID organizationId, UUID actingUserId, UUID id, KnowledgeQaCurationRequest req) {
 
-        KnowledgeQuestionAnswer qa = requireOwned(organizationId, id);
-        qa.updateCuration(
+        KnowledgeQuestionAnswer qa = requireOwnedForUpdate(organizationId, id);
+        requireExpectedVersion(qa, req.expectedVersion());
+        KnowledgeCurationStatus previousStatus = qa.getCurationStatus();
+        CurationChanges changes = qa.updateCuration(
                 req.normalizedQuestion(),
                 req.shortAnswer(),
                 req.technicalAnswer(),
@@ -100,12 +105,18 @@ public class KnowledgeQuestionAnswerCurationService {
                 req.validTo(),
                 req.notes());
 
-        qaRepository.save(qa);
-        auditService.record(organizationId, actingUserId,
-                AuditAction.KNOWLEDGE_QA_UPDATED, "KnowledgeQuestionAnswer", id);
+        qaRepository.saveAndFlush(qa);
+        if (!changes.isEmpty()) {
+            // Nomes dos campos e natureza da alteração — nunca o conteúdo (ADR-005).
+            auditService.record(organizationId, actingUserId,
+                    AuditAction.KNOWLEDGE_QA_UPDATED, "KnowledgeQuestionAnswer", id,
+                    "changedFields=%s revalidationFields=%s published=%s".formatted(
+                            changes.fieldNames(), changes.revalidationFields(), qa.isPublished()));
+        }
+        recordReturnToReview(organizationId, actingUserId, qa, previousStatus, "material-curation-change");
 
         List<KnowledgeSourceReference> sources = sourceRepository.findByQuestionAnswerId(id);
-        return KnowledgeQaDetailResponse.from(qa, sources, exclusionRepository.findByKnowledgeQaId(qa.getId()));
+        return detail(qa, sources);
     }
 
     @Transactional
@@ -121,7 +132,17 @@ public class KnowledgeQuestionAnswerCurationService {
 
     @Transactional
     public void validate(UUID organizationId, UUID actingUserId, String reviewerName, UUID id) {
-        KnowledgeQuestionAnswer qa = requireOwned(organizationId, id);
+        validate(organizationId, actingUserId, reviewerName, id, null);
+    }
+
+    /**
+     * Valida exactamente a versão que o revisor leu (ADR-005): {@code expectedVersion} diferente da
+     * actual → 409. Conteúdo, fontes e exclusões mudam a versão; lock contra edições concorrentes.
+     */
+    @Transactional
+    public void validate(UUID organizationId, UUID actingUserId, String reviewerName, UUID id, Integer expectedVersion) {
+        KnowledgeQuestionAnswer qa = requireOwnedForUpdate(organizationId, id);
+        requireExpectedVersion(qa, expectedVersion);
 
         // Enforce source requirement at service layer (entity cannot query repository)
         long sourceCount = sourceRepository.countByQuestionAnswerId(id);
@@ -214,8 +235,13 @@ public class KnowledgeQuestionAnswerCurationService {
     public SourceReferenceResponse addSource(
             UUID organizationId, UUID actingUserId, UUID qaId, SourceReferenceRequest req) {
 
-        KnowledgeQuestionAnswer qa = requireOwned(organizationId, qaId);
+        KnowledgeQuestionAnswer qa = requireOwnedForUpdate(organizationId, qaId);
         String url = normalizeAndValidateUrl(req.url());
+        KnowledgeCurationStatus previousStatus = qa.getCurationStatus();
+        // Fonte nova alarga o suporte declarado: recusada se publicada; VALIDATED volta a revisão.
+        qa.registerSourceAddition();
+        qa.markEvidenceChanged();
+        qaRepository.save(qa);
 
         KnowledgeSourceReference src = new KnowledgeSourceReference(qa, req.sourceType(), req.title());
         src.update(req.sourceType(), req.title(), req.legalReference(), url,
@@ -225,6 +251,7 @@ public class KnowledgeQuestionAnswerCurationService {
         auditService.record(organizationId, actingUserId,
                 AuditAction.KNOWLEDGE_QA_SOURCE_ADDED, "KnowledgeQuestionAnswer", qaId,
                 "sourceType=%s title=%s".formatted(req.sourceType(), req.title()));
+        recordReturnToReview(organizationId, actingUserId, qa, previousStatus, "source-added");
 
         return SourceReferenceResponse.from(src);
     }
@@ -245,7 +272,7 @@ public class KnowledgeQuestionAnswerCurationService {
      */
     @Transactional
     public void removeSource(UUID organizationId, UUID actingUserId, UUID qaId, UUID sourceId) {
-        KnowledgeQuestionAnswer qa = requireOwned(organizationId, qaId);
+        KnowledgeQuestionAnswer qa = requireOwnedForUpdate(organizationId, qaId);
 
         KnowledgeSourceReference src = sourceRepository.findById(sourceId)
                 .filter(s -> s.getQuestionAnswer().getId().equals(qaId))
@@ -262,6 +289,8 @@ public class KnowledgeQuestionAnswerCurationService {
         }
 
         sourceRepository.delete(src);
+        qa.markEvidenceChanged();
+        qaRepository.save(qa);
 
         auditService.record(organizationId, actingUserId,
                 AuditAction.KNOWLEDGE_QA_SOURCE_REMOVED, "KnowledgeQuestionAnswer", qaId,
@@ -309,8 +338,54 @@ public class KnowledgeQuestionAnswerCurationService {
     // Guard
     // -------------------------------------------------------------------------
 
+    private KnowledgeQaDetailResponse detail(KnowledgeQuestionAnswer qa, List<KnowledgeSourceReference> sources) {
+        UUID draftId = qaRepository.findByPreviousVersionId(qa.getId()).stream()
+                .filter(v -> !v.isPublished())
+                .filter(v -> v.getCurationStatus() == KnowledgeCurationStatus.IMPORTED
+                        || v.getCurationStatus() == KnowledgeCurationStatus.PENDING_REVIEW
+                        || v.getCurationStatus() == KnowledgeCurationStatus.VALIDATED
+                        || v.getCurationStatus() == KnowledgeCurationStatus.NEEDS_UPDATE)
+                .map(KnowledgeQuestionAnswer::getId).findFirst().orElse(null);
+        boolean previousPublished = qa.getPreviousVersionId() != null
+                && qaRepository.findById(qa.getPreviousVersionId()).map(KnowledgeQuestionAnswer::isPublished).orElse(false);
+        return KnowledgeQaDetailResponse.from(qa, sources, exclusionRepository.findByKnowledgeQaId(qa.getId()),
+                draftId, previousPublished);
+    }
+
+    /** Versão esperada pelo editor (optimistic lock, ADR-005): diferente da actual → 409. */
+    private static void requireExpectedVersion(KnowledgeQuestionAnswer qa, Integer expectedVersion) {
+        if (expectedVersion != null && expectedVersion != qa.getVersion()) {
+            throw new BusinessException(ApiErrorCode.CONFLICT,
+                    "Entry was changed by someone else (expected version %d, current %d) — reload and retry"
+                            .formatted(expectedVersion, qa.getVersion()));
+        }
+    }
+
+    private void recordReturnToReview(UUID organizationId, UUID actingUserId, KnowledgeQuestionAnswer qa,
+            KnowledgeCurationStatus previousStatus, String reason) {
+        if (previousStatus == KnowledgeCurationStatus.VALIDATED
+                && qa.getCurationStatus() == KnowledgeCurationStatus.PENDING_REVIEW) {
+            auditService.record(organizationId, actingUserId,
+                    AuditAction.KNOWLEDGE_QA_STATUS_CHANGED, "KnowledgeQuestionAnswer", qa.getId(),
+                    "previousStatus=VALIDATED newStatus=PENDING_REVIEW reason=%s validationCleared=true"
+                            .formatted(reason));
+        }
+    }
+
+    private KnowledgeQuestionAnswer requireOwnedForUpdate(UUID organizationId, UUID id) {
+        // Lock de escrita sempre que há transacção (o bean de produção é sempre transaccional);
+        // uma instância construída fora do Spring não tem transacção nem nada a serializar.
+        return owned(organizationId, id, TransactionSynchronizationManager.isActualTransactionActive()
+                ? qaRepository.findByIdForUpdate(id) : qaRepository.findById(id));
+    }
+
     private KnowledgeQuestionAnswer requireOwned(UUID organizationId, UUID id) {
-        KnowledgeQuestionAnswer qa = qaRepository.findById(id)
+        return owned(organizationId, id, qaRepository.findById(id));
+    }
+
+    private static KnowledgeQuestionAnswer owned(
+            UUID organizationId, UUID id, Optional<KnowledgeQuestionAnswer> found) {
+        KnowledgeQuestionAnswer qa = found
                 .orElseThrow(() -> new BusinessException(ApiErrorCode.NOT_FOUND,
                         "KnowledgeQuestionAnswer not found: " + id));
         if (!qa.getOrganization().getId().equals(organizationId)) {

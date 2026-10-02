@@ -1,14 +1,11 @@
-package com.knowledgeflow.knowledge.dto;
+package com.knowledgeflow.knowledge.governance;
 
 import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
 import java.time.LocalDate;
 
-/**
- * Payload for PATCH /api/v1/admin/knowledge/qa/{id}/curation. {@code expectedVersion} is the entry
- * version the editor started from (optimistic lock, ADR-005): a different current version → 409.
- */
-public record KnowledgeQaCurationRequest(
+/** Valores curados de uma Q&amp;A, para comparar o estado actual com o pedido. */
+public record CurationSnapshot(
         String normalizedQuestion,
         String shortAnswer,
         String technicalAnswer,
@@ -16,10 +13,8 @@ public record KnowledgeQaCurationRequest(
         String subtopic,
         String jurisdiction,
         KnowledgeRiskLevel riskLevel,
-        Boolean requiresHumanValidation,
+        boolean requiresHumanValidation,
         LocalDate validFrom,
         LocalDate validTo,
-        String notes,
-        Integer expectedVersion
-) {
-}
+        String notes
+) {}

@@ -21,6 +21,11 @@ public record ImportIssue(
         /** Row parsed but not persisted (dry-run or limit reached). */
         DRY_RUN_SKIPPED,
         /** Non-blocking problem: silent fallback, high risk or mandatory human review. */
-        WARNING
+        WARNING,
+        /**
+         * Existing entry is VALIDATED or published and the row would change it: not applied
+         * (ADR-005 — validated content only changes through curation/versioning), row skipped.
+         */
+        PROTECTED_SKIPPED
     }
 }

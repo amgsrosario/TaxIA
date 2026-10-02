@@ -356,6 +356,56 @@ class TaxiaPilotOperationsIT {
         return n != null && n > 0;
     }
 
+    // =========================================================================
+    // ADR-005 — curate-one obeys the same post-validation integrity rules
+    // =========================================================================
+
+    @Test @Order(7)
+    @DisplayName("curate-one on a VALIDATED, unpublished target: material change → PENDING_REVIEW, validation cleared")
+    void curateOneMaterialOnValidatedReturnsToReview() {
+        UUID id = qaRepository.findBySourceSystemAndExternalKey(SOURCE_CURATED, FIX).get(0).getId();
+        assertThat(qaRepository.findById(id).orElseThrow().getCurationStatus()).isEqualTo(KnowledgeCurationStatus.VALIDATED);
+
+        PilotOpsResult cur = ops.curateOne(SOURCE_CURATED, FIX, null, "Resposta tecnica ficticia revista.",
+                null, null, null, null, null, null, null);
+        assertThat(cur.outcome()).isEqualTo(PilotOpsOutcome.CURATED);
+
+        KnowledgeQuestionAnswer after = qaRepository.findById(id).orElseThrow();
+        assertThat(after.getCurationStatus()).isEqualTo(KnowledgeCurationStatus.PENDING_REVIEW);
+        assertThat(after.getReviewedBy()).isNull();
+        assertThat(after.getReviewedAt()).isNull();
+
+        // re-validate for the next scenario
+        assertThat(ops.validateOne(SOURCE_CURATED, FIX, REVIEWER).outcome()).isEqualTo(PilotOpsOutcome.VALIDATED);
+    }
+
+    @Test @Order(8)
+    @DisplayName("curate-one on a published target: material change BLOCKED (new version needed); conservative change applies")
+    void curateOneOnPublishedIsGoverned() {
+        UUID id = qaRepository.findBySourceSystemAndExternalKey(SOURCE_CURATED, FIX).get(0).getId();
+        // published state set directly (no indexing needed for this guard)
+        jdbc.update("UPDATE knowledge_question_answers SET published_at = NOW(), published_by = 'Publicador' WHERE id = ?::uuid",
+                id.toString());
+        String before = qaRepository.findById(id).orElseThrow().getTechnicalAnswer();
+
+        PilotOpsResult material = ops.curateOne(SOURCE_CURATED, FIX, null, "Tentativa de reescrever a publicada.",
+                null, null, null, null, null, null, null);
+        assertThat(material.outcome()).isEqualTo(PilotOpsOutcome.BLOCKED);
+        assertThat(String.join(" ", material.details())).contains("new version");
+        KnowledgeQuestionAnswer unchanged = qaRepository.findById(id).orElseThrow();
+        assertThat(unchanged.getTechnicalAnswer()).isEqualTo(before);
+        assertThat(unchanged.getCurationStatus()).isEqualTo(KnowledgeCurationStatus.VALIDATED);
+        assertThat(unchanged.isPublished()).isTrue();
+
+        PilotOpsResult conservative = ops.curateOne(SOURCE_CURATED, FIX, null, null, null, null, null, null,
+                KnowledgeRiskLevel.CRITICAL, true, null);
+        assertThat(conservative.outcome()).isEqualTo(PilotOpsOutcome.CURATED);
+        KnowledgeQuestionAnswer raised = qaRepository.findById(id).orElseThrow();
+        assertThat(raised.getRiskLevel()).isEqualTo(KnowledgeRiskLevel.CRITICAL);
+        assertThat(raised.getCurationStatus()).isEqualTo(KnowledgeCurationStatus.VALIDATED);
+        assertThat(raised.isPublished()).isTrue();
+    }
+
     private long qaCount(String sourceSystem, String externalKey) {
         Long n = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM knowledge_question_answers "

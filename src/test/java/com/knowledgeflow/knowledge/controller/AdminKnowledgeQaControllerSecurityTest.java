@@ -202,14 +202,14 @@ class AdminKnowledgeQaControllerSecurityTest {
     @DisplayName("ADMIN_A: alteracao, fonte, validate, publish e archive sobre QA da Org B → 404")
     void crossOrg_writes_404() throws Exception {
         mockMvc.perform(patch("/api/v1/admin/knowledge/qa/{id}/curation", qaOfOrgB.getId())
-                        .contentType(MediaType.APPLICATION_JSON).content("{}").with(adminOf(orgA)))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"expectedVersion\":0}").with(adminOf(orgA)))
                 .andExpect(status().isNotFound());
         mockMvc.perform(post("/api/v1/admin/knowledge/qa/{id}/sources", qaOfOrgB.getId())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"sourceType\":\"OTHER\",\"title\":\"x\"}").with(adminOf(orgA)))
                 .andExpect(status().isNotFound());
         mockMvc.perform(post("/api/v1/admin/knowledge/qa/{id}/validate", qaOfOrgB.getId())
-                        .param("reviewerName", "x").with(adminOf(orgA)))
+                        .param("reviewerName", "x").param("expectedVersion", "0").with(adminOf(orgA)))
                 .andExpect(status().isNotFound());
         mockMvc.perform(post("/api/v1/admin/knowledge/qa/{id}/publish", qaOfOrgB.getId())
                         .param("publisherName", "x").with(adminOf(orgA)))

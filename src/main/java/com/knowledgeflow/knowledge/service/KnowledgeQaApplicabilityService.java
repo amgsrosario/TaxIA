@@ -24,6 +24,7 @@ import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Exclusões de aplicabilidade governadas (M4-SCOPE-V2, ADR-004).
@@ -194,8 +195,10 @@ public class KnowledgeQaApplicabilityService {
     private void clearReview(KnowledgeQuestionAnswer qa) {
         if (qa.getApplicabilityReviewedAt() != null) {
             qa.clearApplicabilityReview();
-            qaRepository.save(qa);
         }
+        // ADR-005: o âmbito faz parte do que é validado — muda a versão da Q&A
+        qa.markEvidenceChanged();
+        qaRepository.save(qa);
     }
 
     /** Texto livre entre aspas (com aspas internas escapadas), para não confundir o par chave=valor. */
@@ -266,7 +269,10 @@ public class KnowledgeQaApplicabilityService {
     }
 
     private KnowledgeQuestionAnswer requireOwnedForUpdate(UUID organizationId, UUID id) {
-        return owned(organizationId, id, qaRepository.findByIdForUpdate(id));
+        // Lock de escrita sempre que há transacção (o bean de produção é sempre transaccional);
+        // uma instância construída fora do Spring não tem transacção nem nada a serializar.
+        return owned(organizationId, id, TransactionSynchronizationManager.isActualTransactionActive()
+                ? qaRepository.findByIdForUpdate(id) : qaRepository.findById(id));
     }
 
     private static KnowledgeQuestionAnswer owned(

@@ -1,5 +1,7 @@
 package com.knowledgeflow.knowledge.controller;
 
+import com.knowledgeflow.common.error.ApiErrorCode;
+import com.knowledgeflow.common.error.BusinessException;
 import com.knowledgeflow.knowledge.dto.ApplicabilityExclusionRequest;
 import com.knowledgeflow.knowledge.dto.BenchmarkDraftCase;
 import com.knowledgeflow.knowledge.dto.ImportReport;
@@ -11,6 +13,7 @@ import com.knowledgeflow.knowledge.dto.KnowledgeQaResponse;
 import com.knowledgeflow.knowledge.dto.SimilarQaResult;
 import com.knowledgeflow.knowledge.dto.SourceReferenceRequest;
 import com.knowledgeflow.knowledge.dto.SourceReferenceResponse;
+import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
 import com.knowledgeflow.knowledge.service.KnowledgeBenchmarkDraftService;
@@ -118,10 +121,18 @@ public class AdminKnowledgeQaController {
     // Curation
     // -------------------------------------------------------------------------
 
+    /**
+     * Updates curated fields. {@code expectedVersion} is mandatory (lost-update protection);
+     * material changes to a published entry answer 409 (create a new version — ADR-005).
+     */
     @PatchMapping("/{id}/curation")
     public KnowledgeQaDetailResponse updateCuration(
             @PathVariable UUID id,
             @RequestBody KnowledgeQaCurationRequest request) {
+        if (request == null || request.expectedVersion() == null) {
+            throw new BusinessException(ApiErrorCode.VALIDATION_ERROR,
+                    "expectedVersion is required (the version of the entry being edited)");
+        }
         AuthenticatedUser user = authContext.getRequiredUser();
         return curationService.updateCuration(user.organizationId(), user.userId(), id, request);
     }
@@ -136,9 +147,15 @@ public class AdminKnowledgeQaController {
     @PostMapping("/{id}/validate")
     public ResponseEntity<Void> validate(
             @PathVariable UUID id,
-            @RequestParam String reviewerName) {
+            @RequestParam String reviewerName,
+            @RequestParam(required = false) Integer expectedVersion) {
+        // ADR-005: valida-se a versão que o revisor leu
+        if (expectedVersion == null) {
+            throw new BusinessException(ApiErrorCode.VALIDATION_ERROR,
+                    "expectedVersion is required (the version of the entry being validated)");
+        }
         AuthenticatedUser user = authContext.getRequiredUser();
-        curationService.validate(user.organizationId(), user.userId(), reviewerName, id);
+        curationService.validate(user.organizationId(), user.userId(), reviewerName, id, expectedVersion);
         return ResponseEntity.noContent().build();
     }
 
@@ -264,6 +281,31 @@ public class AdminKnowledgeQaController {
     // -------------------------------------------------------------------------
     // Publication
     // -------------------------------------------------------------------------
+
+    /**
+     * Creates a new, unpublished version of a published entry (copy of content, sources and
+     * exclusions). The published version keeps answering until publish-replacing (ADR-005).
+     */
+    @PostMapping("/{id}/versions")
+    public KnowledgeQaDetailResponse createVersion(@PathVariable UUID id) {
+        AuthenticatedUser user = authContext.getRequiredUser();
+        KnowledgeQuestionAnswer created = publicationService.createNewVersion(user.organizationId(), user.userId(), id);
+        return curationService.getDetail(user.organizationId(), created.getId());
+    }
+
+    /**
+     * Publishes the VALIDATED new version {@code id} and unpublishes the published version it
+     * replaces, atomically (ADR-005).
+     */
+    @PostMapping("/{id}/publish-replacing/{previousId}")
+    public ResponseEntity<Void> publishReplacing(
+            @PathVariable UUID id,
+            @PathVariable UUID previousId,
+            @RequestParam String publisherName) {
+        AuthenticatedUser user = authContext.getRequiredUser();
+        publicationService.publishReplacing(user.organizationId(), user.userId(), publisherName, id, previousId);
+        return ResponseEntity.noContent().build();
+    }
 
     @PostMapping("/{id}/publish")
     public ResponseEntity<Void> publish(

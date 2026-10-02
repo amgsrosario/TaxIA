@@ -104,7 +104,7 @@ class AdminKnowledgeQaControllerTest {
                 null, null, null, null, null,
                 false, null, null, null, 0,
                 OffsetDateTime.now(), OffsetDateTime.now(), List.of(),
-                null, null, List.of());
+                null, null, List.of(), null, false);
         when(curationService.getDetail(ORG_ID, QA_ID)).thenReturn(detail);
 
         mockMvc.perform(get("/api/v1/admin/knowledge/qa/{id}", QA_ID))
@@ -138,7 +138,7 @@ class AdminKnowledgeQaControllerTest {
     @Test
     void validateEndpoint_returns204() throws Exception {
         mockMvc.perform(post("/api/v1/admin/knowledge/qa/{id}/validate", QA_ID)
-                        .param("reviewerName", "revisor@taxia.pt"))
+                        .param("reviewerName", "revisor@taxia.pt").param("expectedVersion", "3"))
                 .andExpect(status().isNoContent());
     }
 

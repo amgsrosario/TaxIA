@@ -203,7 +203,7 @@ class KnowledgeQaSecurityPostgresIT {
     @DisplayName("TC-SEC-02: alteracao cruzada (curadoria, pending-review, outdated, archive, canonical) → NOT_FOUND")
     void crossOrgWrite_notFound() {
         var req = new KnowledgeQaCurationRequest(
-                null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null);
         assertNotFoundForCrossOrg(() -> curationService.updateCuration(ORG_A, ADMIN_A, qaB, req));
         assertNotFoundForCrossOrg(() -> curationService.markPendingReview(ORG_A, ADMIN_A, qaB));
         assertNotFoundForCrossOrg(() -> curationService.markOutdated(ORG_A, ADMIN_A, qaB));
@@ -408,11 +408,12 @@ class KnowledgeQaSecurityPostgresIT {
         legacy.updateCuration(null, "Resposta curada.", "Resposta tecnica.",
                 KnowledgeTopic.OUTROS, null, "PT", KnowledgeRiskLevel.LOW, false, null, null, null);
         legacy.markPendingReview();
-        legacy.validate("Revisor Sec");
         legacy = qaRepository.save(legacy);
         UUID legacyId = legacy.getId();
         curationService.addSource(ORG_A, ADMIN_A, legacyId, new SourceReferenceRequest(
                 KnowledgeSourceType.INTERNAL_OPINION, "Doc ficticio", null, null, null, null, null, null, null));
+        // Fonte antes da validação (ADR-005: fonte nova numa VALIDATED devolve-a a revisão)
+        curationService.validate(ORG_A, ADMIN_A, "Revisor Sec", legacyId);
         publicationService.publish(ORG_A, ADMIN_A, "Editor Sec", legacyId);
 
         assertThatThrownBy(() -> publicationService.createNewVersion(
@@ -487,7 +488,7 @@ class KnowledgeQaSecurityPostgresIT {
         curationService.markPendingReview(orgId, adminId, id);
         curationService.updateCuration(orgId, adminId, id, new KnowledgeQaCurationRequest(
                 null, answer, answer, KnowledgeTopic.IVA, null, "PT",
-                KnowledgeRiskLevel.LOW, false, null, null, null));
+                KnowledgeRiskLevel.LOW, false, null, null, null, null));
         curationService.addSource(orgId, adminId, id, new SourceReferenceRequest(
                 KnowledgeSourceType.INTERNAL_OPINION, "Documento ficticio " + extKey,
                 null, null, null, null, null, null, null));
