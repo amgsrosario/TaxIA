@@ -122,6 +122,10 @@ export interface KnowledgeQaDetail {
   applicabilityReviewedAt: string | null;
   applicabilityReviewedBy: string | null;
   applicabilityExclusions: ApplicabilityExclusion[];
+  /** Versão em preparação (não publicada) derivada desta, se existir (ADR-005). */
+  draftVersionId: string | null;
+  /** A versão anterior (previousVersionId) está publicada. */
+  previousVersionPublished: boolean;
 }
 
 // ── Âmbito de aplicação (M4-SCOPE-V2, ADR-004) ─────────────────────────────
@@ -169,6 +173,8 @@ export interface CurationUpdateRequest {
   validFrom: string | null;
   validTo: string | null;
   notes: string | null;
+  /** Versão do caso que o editor carregou (optimistic lock): diferente da actual → 409. */
+  expectedVersion: number;
 }
 
 /** POST /{id}/sources */

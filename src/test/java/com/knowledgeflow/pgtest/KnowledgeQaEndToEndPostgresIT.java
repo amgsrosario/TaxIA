@@ -374,7 +374,7 @@ class KnowledgeQaEndToEndPostgresIT {
                 false,
                 LocalDate.now(),
                 LocalDate.now().plusYears(1),
-                "Nota ficticia de teste E2E");
+                "Nota ficticia de teste E2E", null);
         curationService.updateCuration(ORG_A, ADMIN_A, qaV1Id, req);
 
         // Associar fonte ficticia
@@ -565,9 +565,9 @@ class KnowledgeQaEndToEndPostgresIT {
     // =========================================================================
 
     @Test @Order(19)
-    @DisplayName("TC-E2E-19: Nova versao substitui V1; V2 publicada; RAG devolve conteudo V2")
+    @DisplayName("TC-E2E-19: Nova versao em paralelo; V1 responde ate publish-replacing; depois so V2")
     void newVersion() {
-        // Criar V2 (despublica V1, cria V2 em PENDING_REVIEW)
+        // Criar V2 (ADR-005: V1 continua publicada; V2 em PENDING_REVIEW, nao indexada)
         KnowledgeQuestionAnswer v2 = publicationService.createNewVersion(
                 ORG_A, ADMIN_A, "Editor E2E", qaV1Id, ANSWER_TECHNICAL_V2);
         qaV2Id = v2.getId();
@@ -576,9 +576,11 @@ class KnowledgeQaEndToEndPostgresIT {
         assertThat(v2.getCurationStatus()).isEqualTo(KnowledgeCurationStatus.PENDING_REVIEW);
         assertThat(v2.getTechnicalAnswer()).isEqualTo(ANSWER_TECHNICAL_V2);
 
-        // V1 deve estar despublicada
+        // V1 continua publicada e o RAG continua a devolver V1
         KnowledgeQuestionAnswer v1 = qaRepository.findById(qaV1Id).orElseThrow();
-        assertThat(v1.isPublished()).isFalse();
+        assertThat(v1.isPublished()).isTrue();
+        List<RetrievedCase> during = ragSearchService.findSimilar(ORG_A, QUESTION_V1);
+        assertThat(during).extracting(RetrievedCase::sourceQaId).contains(qaV1Id).doesNotContain(qaV2Id);
 
         // Adicionar fonte a V2 (cada versao tem o seu proprio ID)
         var srcReq = new SourceReferenceRequest(
@@ -591,8 +593,10 @@ class KnowledgeQaEndToEndPostgresIT {
         // Validar V2
         curationService.validate(ORG_A, ADMIN_A, "Revisor E2E", qaV2Id);
 
-        // Publicar V2
-        publicationService.publish(ORG_A, ADMIN_A, "Editor E2E", qaV2Id);
+        // Publicar V2 substituindo V1 (publish simples é recusado: outra versao publicada)
+        assertThatThrownBy(() -> publicationService.publish(ORG_A, ADMIN_A, "Editor E2E", qaV2Id))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("publish-replacing");
+        publicationService.publishReplacing(ORG_A, ADMIN_A, "Editor E2E", qaV2Id, qaV1Id);
 
         KnowledgeQuestionAnswer v2pub = qaRepository.findById(qaV2Id).orElseThrow();
         assertThat(v2pub.isPublished()).isTrue();
@@ -603,6 +607,7 @@ class KnowledgeQaEndToEndPostgresIT {
         assertThat(results).isNotEmpty();
         assertThat(results.get(0).content()).isEqualTo(ANSWER_TECHNICAL_V2);
         assertThat(results.get(0).sourceQaId()).isEqualTo(qaV2Id);
+        assertThat(results).extracting(RetrievedCase::sourceQaId).doesNotContain(qaV1Id);
     }
 
     // =========================================================================
@@ -614,7 +619,7 @@ class KnowledgeQaEndToEndPostgresIT {
     void previousVersionPreserved() {
         KnowledgeQuestionAnswer v1 = qaRepository.findById(qaV1Id).orElseThrow();
         assertThat(v1).isNotNull();
-        assertThat(v1.isPublished()).isFalse(); // despublicada por createNewVersion
+        assertThat(v1.isPublished()).isFalse(); // despublicada pela substituicao (publish-replacing)
         assertThat(v1.getOriginalQuestion()).isEqualTo(QUESTION_V1);
 
         KnowledgeQuestionAnswer v2 = qaRepository.findById(qaV2Id).orElseThrow();
@@ -751,7 +756,7 @@ class KnowledgeQaEndToEndPostgresIT {
 
         // ORG_A nao pode atualizar dados de ORG_B
         var req = new KnowledgeQaCurationRequest(
-                null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null);
         assertThatThrownBy(() ->
                 curationService.updateCuration(ORG_A, ADMIN_A, qaB, req))
                 .isInstanceOf(BusinessException.class);

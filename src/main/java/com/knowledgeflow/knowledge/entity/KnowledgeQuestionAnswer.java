@@ -5,6 +5,9 @@ import com.knowledgeflow.common.error.BusinessException;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
+import com.knowledgeflow.knowledge.governance.CurationChangePolicy;
+import com.knowledgeflow.knowledge.governance.CurationChanges;
+import com.knowledgeflow.knowledge.governance.CurationSnapshot;
 import com.knowledgeflow.organizations.entity.Organization;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -263,7 +266,20 @@ public class KnowledgeQuestionAnswer {
     // Curation updates (curated fields only — originals are immutable)
     // -------------------------------------------------------------------------
 
-    public void updateCuration(
+    /**
+     * Aplica uma alteração de curadoria segundo a política de integridade (ADR-005), em qualquer
+     * caminho (backoffice, ferramentas do piloto, re-import, serviços internos):
+     * <ul>
+     *   <li>Versão publicada: alterações materiais ou expansivas são recusadas (409) — exigem nova
+     *       versão; conservadoras e livres aplicam-se e a validação mantém-se.</li>
+     *   <li>VALIDATED não publicada: tudo se aplica; se houver alteração material ou expansiva a
+     *       Q&amp;A volta a PENDING_REVIEW e a validação anterior (reviewedBy/At) é limpa.</li>
+     *   <li>Restantes estados: aplica-se tudo, como antes.</li>
+     * </ul>
+     *
+     * @return os campos alterados e a sua natureza (para auditoria)
+     */
+    public CurationChanges updateCuration(
             String normalizedQuestion,
             String shortAnswer,
             String technicalAnswer,
@@ -275,6 +291,16 @@ public class KnowledgeQuestionAnswer {
             LocalDate validFrom,
             LocalDate validTo,
             String notes) {
+        CurationChanges changes = previewCuration(normalizedQuestion, shortAnswer, technicalAnswer, topic,
+                subtopic, jurisdiction, riskLevel, requiresHumanValidation, validFrom, validTo, notes);
+        if (changes.isEmpty()) {
+            return changes;
+        }
+        if (isPublished() && changes.requiresRevalidation()) {
+            throw new BusinessException(ApiErrorCode.CONFLICT,
+                    ("Entry is published: changes to %s require a new version (create a new version, validate it "
+                            + "and publish it replacing this one)").formatted(changes.revalidationFields()));
+        }
         this.normalizedQuestion = normalizedQuestion;
         this.shortAnswer = shortAnswer;
         this.technicalAnswer = technicalAnswer;
@@ -286,6 +312,71 @@ public class KnowledgeQuestionAnswer {
         this.validFrom = validFrom;
         this.validTo = validTo;
         this.notes = notes;
+        if (changes.requiresRevalidation()) {
+            returnToReviewAfterMaterialChange();
+        }
+        return changes;
+    }
+
+    /** Classificação das alterações que {@link #updateCuration} aplicaria, sem aplicar nada. */
+    public CurationChanges previewCuration(
+            String normalizedQuestion,
+            String shortAnswer,
+            String technicalAnswer,
+            KnowledgeTopic topic,
+            String subtopic,
+            String jurisdiction,
+            KnowledgeRiskLevel riskLevel,
+            boolean requiresHumanValidation,
+            LocalDate validFrom,
+            LocalDate validTo,
+            String notes) {
+        return CurationChangePolicy.classify(
+                new CurationSnapshot(this.normalizedQuestion, this.shortAnswer, this.technicalAnswer, this.topic,
+                        this.subtopic, this.jurisdiction, this.riskLevel, this.requiresHumanValidation,
+                        this.validFrom, this.validTo, this.notes),
+                new CurationSnapshot(normalizedQuestion, shortAnswer, technicalAnswer, topic, subtopic,
+                        jurisdiction, riskLevel, requiresHumanValidation, validFrom, validTo, notes));
+    }
+
+    /**
+     * Uma fonte nova ou editada alarga o suporte declarado (ADR-005): recusada numa versão
+     * publicada (exige nova versão); numa VALIDATED não publicada devolve-a a revisão.
+     *
+     * @return true se a Q&amp;A voltou a PENDING_REVIEW
+     */
+    public boolean registerSourceAddition() {
+        if (isPublished()) {
+            throw new BusinessException(ApiErrorCode.CONFLICT,
+                    "Entry is published: adding or changing a source requires a new version");
+        }
+        if (curationStatus == KnowledgeCurationStatus.VALIDATED) {
+            returnToReviewAfterMaterialChange();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Fontes ou exclusões mudaram: a Q&amp;A fica "suja" e o {@code @Version} incrementa, para que
+     * uma validação feita sobre o estado anterior seja recusada (ADR-005).
+     */
+    public void markEvidenceChanged() {
+        this.updatedAt = OffsetDateTime.now();
+    }
+
+    /**
+     * VALIDATED → PENDING_REVIEW, só por alteração material ou expansiva governada: a validação
+     * anterior deixa de corresponder ao conteúdo e é limpa.
+     */
+    private void returnToReviewAfterMaterialChange() {
+        if (curationStatus != KnowledgeCurationStatus.VALIDATED) {
+            return;
+        }
+        this.curationStatus = KnowledgeCurationStatus.PENDING_REVIEW;
+        this.reviewedBy = null;
+        this.reviewedAt = null;
+        if (this.canonical) this.canonical = false;
     }
 
     // -------------------------------------------------------------------------

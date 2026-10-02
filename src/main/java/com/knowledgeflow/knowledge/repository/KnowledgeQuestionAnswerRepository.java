@@ -110,4 +110,21 @@ public interface KnowledgeQuestionAnswerRepository extends JpaRepository<Knowled
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select q from KnowledgeQuestionAnswer q where q.id = :id")
     Optional<KnowledgeQuestionAnswer> findByIdForUpdate(@Param("id") UUID id);
+
+    /** previous_version_id de uma Q&amp;A, sem carregar a entidade (para percorrer a linhagem antes dos locks). */
+    @Query("select q.previousVersionId from KnowledgeQuestionAnswer q where q.id = :id")
+    Optional<UUID> findPreviousVersionIdById(@Param("id") UUID id);
+
+    /** Versões derivadas directamente de uma Q&amp;A (linhagem por previous_version_id). */
+    List<KnowledgeQuestionAnswer> findByPreviousVersionId(UUID previousVersionId);
+
+    /** Chaves externas da mesma família de versões (base e base_vN), para numerar a próxima. */
+    @Query("""
+            select q.externalKey from KnowledgeQuestionAnswer q
+            where q.organization.id = :organizationId
+              and ((:sourceSystem is null and q.sourceSystem is null) or q.sourceSystem = :sourceSystem)
+              and (q.externalKey = :baseKey or q.externalKey like concat(:baseKey, '\\_v%') escape '\\')
+            """)
+    List<String> findVersionKeys(@Param("organizationId") UUID organizationId,
+            @Param("sourceSystem") String sourceSystem, @Param("baseKey") String baseKey);
 }

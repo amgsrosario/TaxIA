@@ -39,7 +39,10 @@ Decisões e roadmap:
 
 - [ADR-001: Generalize the Platform Core](docs/adr/ADR-001-generalize-platform-core.md)
 - [ADR-002: Separate Assistive and Formal Knowledge Circuits](docs/adr/ADR-002-separate-assistive-and-formal-circuits.md)
+- [ADR-004: Applicability Metadata and Governed Exclusions](docs/adr/ADR-004-applicability-metadata-governed-exclusions.md)
+- [ADR-005: Published Content Integrity](docs/adr/ADR-005-published-content-integrity.md)
 - [Technical Roadmap](docs/roadmap.md)
+- [Estado do projecto / handoff](docs/taxia-project-state.md)
 
 ## Stack
 

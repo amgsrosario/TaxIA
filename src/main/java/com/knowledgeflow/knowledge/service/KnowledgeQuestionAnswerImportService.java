@@ -10,9 +10,11 @@ import com.knowledgeflow.knowledge.dto.ImportReport;
 import com.knowledgeflow.knowledge.dto.ImportRow;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.entity.KnowledgeSourceReference;
+import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.enums.KnowledgeSourceType;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
+import com.knowledgeflow.knowledge.governance.CurationChanges;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
 import com.knowledgeflow.knowledge.service.KnowledgeDuplicateDetector.DuplicateResult;
@@ -245,8 +247,41 @@ public class KnowledgeQuestionAnswerImportService {
                 // Idempotent: same key → update metadata only (not originals)
                 var issue = duplicateDetector.toImportIssue(row.rowNumber(), row.externalKey(), dupCheck);
                 if (issue != null) issues.add(issue);
-                if (!dryRun) {
-                    updateMetadata(dupCheck.existing().get(), row);
+                KnowledgeQuestionAnswer existing = dupCheck.existing().get();
+                boolean protectedEntry = existing.getCurationStatus() == KnowledgeCurationStatus.VALIDATED
+                        || existing.isPublished();
+                CurationChanges protectedChanges = protectedEntry ? protectedChanges(existing, row) : null;
+                if (protectedEntry && !protectedChanges.isEmpty()) {
+                    // ADR-005: nunca altera em silêncio uma Q&A VALIDATED/publicada — salta e reporta.
+                    issues.add(new ImportIssue(row.rowNumber(), row.externalKey(), IssueType.PROTECTED_SKIPPED,
+                            "Existing entry is %s%s: re-import would change %s — not applied; use curation/versioning"
+                                    .formatted(existing.getCurationStatus(), existing.isPublished() ? " and published" : "",
+                                            protectedChanges.fieldNames())));
+                    if (!dryRun) {
+                        auditService.record(org.getId(), actingUserId,
+                                AuditAction.KNOWLEDGE_QA_UPDATED, "KnowledgeQuestionAnswer", existing.getId(),
+                                "event=REIMPORT_SKIPPED sourceSystem=%s externalKey=%s changedFields=%s"
+                                        .formatted(sourceSystem, row.externalKey(), protectedChanges.fieldNames()));
+                    }
+                    skipped++;
+                } else if (protectedEntry) {
+                    // Q&A protegida e a linha não pede alterações: nada a escrever (nunca passa pelo
+                    // updateMetadata, cujos defaults de colunas ausentes não se aplicam a conteúdo validado).
+                    if (dryRun) {
+                        issues.add(new ImportIssue(row.rowNumber(), row.externalKey(), IssueType.DRY_RUN_SKIPPED,
+                                "Dry-run: protected entry unchanged by this row (nothing would be written)"));
+                        skipped++;
+                    } else {
+                        updated++;
+                    }
+                } else if (!dryRun) {
+                    CurationChanges applied = updateMetadata(existing, row);
+                    if (!applied.isEmpty()) {
+                        auditService.record(org.getId(), actingUserId,
+                                AuditAction.KNOWLEDGE_QA_UPDATED, "KnowledgeQuestionAnswer", existing.getId(),
+                                "event=REIMPORT sourceSystem=%s externalKey=%s changedFields=%s"
+                                        .formatted(sourceSystem, row.externalKey(), applied.fieldNames()));
+                    }
                     updated++;
                 } else {
                     issues.add(new ImportIssue(row.rowNumber(), row.externalKey(),
@@ -384,9 +419,35 @@ public class KnowledgeQuestionAnswerImportService {
         return qa;
     }
 
-    private void updateMetadata(KnowledgeQuestionAnswer qa, ImportRow row) {
-        // Only update non-original fields on re-import
-        qa.updateCuration(
+    /**
+     * Alterações que o re-import faria numa Q&amp;A protegida (VALIDATED ou publicada); vazio se a
+     * Q&amp;A não é protegida ou se a linha não muda nada.
+     */
+    private CurationChanges protectedChanges(KnowledgeQuestionAnswer qa, ImportRow row) {
+        // Colunas ausentes ou vazias mantêm o valor actual; a pergunta normalizada curada não é
+        // re-derivada da pergunta original (o re-import nunca a muda numa Q&A protegida).
+        return qa.previewCuration(
+                qa.getNormalizedQuestion(),
+                qa.getShortAnswer(),
+                qa.getTechnicalAnswer(),
+                isBlank(row.topic()) ? qa.getTopic() : parseTopic(row.topic()),
+                isBlank(row.subtopic()) ? qa.getSubtopic() : row.subtopic(),
+                isBlank(row.jurisdiction()) ? qa.getJurisdiction() : row.jurisdiction(),
+                isBlank(row.riskLevel()) ? qa.getRiskLevel() : parseRiskLevel(row.riskLevel()),
+                isBlank(row.requiresHumanValidation())
+                        ? qa.isRequiresHumanValidation() : parseBoolean(row.requiresHumanValidation()),
+                isBlank(row.validFrom()) ? qa.getValidFrom() : parseDate(row.validFrom()),
+                isBlank(row.validTo()) ? qa.getValidTo() : parseDate(row.validTo()),
+                isBlank(row.notes()) ? qa.getNotes() : row.notes());
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private CurationChanges updateMetadata(KnowledgeQuestionAnswer qa, ImportRow row) {
+        // Only update non-original fields on re-import (never reached for protected entries)
+        return qa.updateCuration(
                 normalizer.normalizeQuestion(row.question()),
                 qa.getShortAnswer(),
                 qa.getTechnicalAnswer(),

@@ -315,9 +315,9 @@ class KnowledgeQaComplianceTest {
     // Versioning (TC-VER)
     // =========================================================================
 
-    // TC-VER1: createNewVersion → old version unpublished, new has previousVersionId
+    // TC-VER1: createNewVersion → old version stays published (ADR-005), new has previousVersionId
     @Test
-    void versioning_createNewVersion_linkedAndOldUnpublished() {
+    void versioning_createNewVersion_linkedAndOldStaysPublished() {
         KnowledgeQuestionAnswer qa = savedValidatedQaWithSource("Q?", "A original.");
         publicationService.publish(org.getId(), userId, "pub", qa.getId());
         assertThat(qaRepository.findById(qa.getId()).get().isPublished()).isTrue();
@@ -327,7 +327,7 @@ class KnowledgeQaComplianceTest {
 
         assertThat(newV.getPreviousVersionId()).isEqualTo(qa.getId());
         assertThat(newV.getCurationStatus()).isEqualTo(KnowledgeCurationStatus.PENDING_REVIEW);
-        assertThat(qaRepository.findById(qa.getId()).get().isPublished()).isFalse();
+        assertThat(qaRepository.findById(qa.getId()).get().isPublished()).isTrue();
     }
 
     // =========================================================================
@@ -489,7 +489,7 @@ class KnowledgeQaComplianceTest {
         var req = new com.knowledgeflow.knowledge.dto.KnowledgeQaCurationRequest(
                 null, "A taxa fictícia é de 9%.",
                 "A taxa fictícia é de 9%, nos termos do artigo fictício aplicável.",
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
         curationService.updateCuration(org.getId(), userId, qa.getId(), req);
 
         // 4. Add source
@@ -514,7 +514,9 @@ class KnowledgeQaComplianceTest {
         KnowledgeQuestionAnswer newVersion = publicationService.createNewVersion(
                 org.getId(), userId, "pub@taxia.pt", qa.getId(), "A taxa fictícia actualizada é de 9%.");
         assertThat(newVersion.getPreviousVersionId()).isEqualTo(qa.getId());
-        assertThat(qaRepository.findById(qa.getId()).get().isPublished()).isFalse();
+        // ADR-005: a versão publicada continua a responder enquanto a nova está em revisão
+        assertThat(qaRepository.findById(qa.getId()).get().isPublished()).isTrue();
+        assertThat(newVersion.isPublished()).isFalse();
         assertThat(newVersion.getCurationStatus()).isEqualTo(KnowledgeCurationStatus.PENDING_REVIEW);
     }
 
@@ -573,11 +575,18 @@ class KnowledgeQaComplianceTest {
         return qaRepository.save(qa);
     }
 
+    /** Fonte primeiro, validação depois: acrescentar uma fonte a uma VALIDATED devolve-a a revisão (ADR-005). */
     private KnowledgeQuestionAnswer savedValidatedQaWithSource(String question, String answer) {
-        var qa = savedValidatedQa(question, answer);
+        var qa = new KnowledgeQuestionAnswer(org, question, answer, "test", null);
+        qa.updateCuration(null, answer, answer + " Fundamentação técnica completa.",
+                KnowledgeTopic.IVA, null, "PT", KnowledgeRiskLevel.LOW, false, null, null, null);
+        qa.markPendingReview();
+        qa = qaRepository.save(qa);
         curationService.addSource(org.getId(), userId, qa.getId(), new SourceReferenceRequest(
                 KnowledgeSourceType.LEGISLATION, "CFICT (fictício)", null, null, null, null, null, null, null));
-        return qaRepository.findById(qa.getId()).orElseThrow();
+        qa = qaRepository.findById(qa.getId()).orElseThrow();
+        qa.validate("revisor");
+        return qaRepository.save(qa);
     }
 
     private void addSource(KnowledgeQuestionAnswer qa) {

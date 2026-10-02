@@ -199,34 +199,81 @@ class KnowledgeQaTransactionalRollbackPostgresIT {
     }
 
     // =========================================================================
-    // TC-TX-03 — Nova versao falhada mantem a anterior activa
+    // TC-TX-03 — Nova versao nao toca na versao publicada (ADR-005)
     // =========================================================================
 
     @Test
-    @DisplayName("TC-TX-03: createNewVersion que falha a meio da transacao mantem V1 publicada, com embedding, sem V2")
-    void failedNewVersionKeepsPreviousActive() {
-        // O indexer apaga o embedding de V1 e falha logo a seguir, dentro da
-        // transacao de createNewVersion — o rollback tem de repor o embedding.
+    @DisplayName("TC-TX-03: createNewVersion mantem V1 publicada e indexada; V2 sem embedding")
+    void newVersionKeepsPreviousActive() {
         UUID qaId = createValidatedQaWithSource("TX-03");
         publicationService.publish(ORG_ID, USER_ID, "Editor TX", qaId);
         assertThat(embeddingCount(qaId)).isEqualTo(1);
-        long qaCountBefore = totalQaCount();
 
+        // A falha de remoção nunca dispara: criar versão não remove nem indexa nada
         FailInjectionConfig.FAIL_ON_REMOVE.set(true);
-        assertThatThrownBy(() ->
-                publicationService.createNewVersion(
-                        ORG_ID, USER_ID, "Editor TX", qaId, "Resposta ficticia v2."))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Falha simulada");
+        KnowledgeQuestionAnswer v2 = publicationService.createNewVersion(
+                ORG_ID, USER_ID, "Editor TX", qaId, "Resposta ficticia v2.");
         FailInjectionConfig.FAIL_ON_REMOVE.set(false);
 
-        // Rollback total: V1 continua publicada, embedding reposto, nenhuma V2 criada
         KnowledgeQuestionAnswer v1 = qaRepository.findById(qaId).orElseThrow();
         assertThat(v1.isPublished()).isTrue();
         assertThat(v1.getCurationStatus()).isEqualTo(KnowledgeCurationStatus.VALIDATED);
         assertThat(embeddingCount(qaId)).isEqualTo(1);
-        assertThat(totalQaCount()).isEqualTo(qaCountBefore);
-        assertThat(auditActions(qaId)).doesNotContain(AuditAction.KNOWLEDGE_QA_VERSION_CREATED);
+        assertThat(embeddingCount(v2.getId())).isZero();
+        assertThat(v2.isPublished()).isFalse();
+    }
+
+    // =========================================================================
+    // TC-TX-05/06 — publish-replacing falhado: tudo revertido (ADR-005)
+    // =========================================================================
+
+    @Test
+    @DisplayName("TC-TX-05: falha ao indexar V2 em publish-replacing → V1 publicada com embedding; V2 sem embedding")
+    void failedReplacementOnIndexKeepsPrevious() {
+        UUID[] ids = publishedWithValidatedNewVersion("TX-05");
+        FailInjectionConfig.FAIL_ON_INDEX.set(true);
+        assertThatThrownBy(() -> publicationService.publishReplacing(ORG_ID, USER_ID, "Editor TX", ids[1], ids[0]))
+                .isInstanceOf(RuntimeException.class).hasMessageContaining("Falha simulada");
+        FailInjectionConfig.FAIL_ON_INDEX.set(false);
+        assertReplacementRolledBack(ids[0], ids[1]);
+    }
+
+    @Test
+    @DisplayName("TC-TX-06: falha ao desindexar V1 em publish-replacing → embedding de V2 revertido, V1 intacta")
+    void failedReplacementOnRemoveKeepsPrevious() {
+        UUID[] ids = publishedWithValidatedNewVersion("TX-06");
+        FailInjectionConfig.FAIL_ON_REMOVE.set(true);
+        assertThatThrownBy(() -> publicationService.publishReplacing(ORG_ID, USER_ID, "Editor TX", ids[1], ids[0]))
+                .isInstanceOf(RuntimeException.class).hasMessageContaining("Falha simulada");
+        FailInjectionConfig.FAIL_ON_REMOVE.set(false);
+        assertReplacementRolledBack(ids[0], ids[1]);
+
+        // depois da falha, a substituição normal funciona
+        publicationService.publishReplacing(ORG_ID, USER_ID, "Editor TX", ids[1], ids[0]);
+        assertThat(qaRepository.findById(ids[1]).orElseThrow().isPublished()).isTrue();
+        assertThat(qaRepository.findById(ids[0]).orElseThrow().isPublished()).isFalse();
+        assertThat(embeddingCount(ids[1])).isEqualTo(1);
+        assertThat(embeddingCount(ids[0])).isZero();
+    }
+
+    private UUID[] publishedWithValidatedNewVersion(String key) {
+        UUID v1 = createValidatedQaWithSource(key);
+        publicationService.publish(ORG_ID, USER_ID, "Editor TX", v1);
+        UUID v2 = publicationService.createNewVersion(ORG_ID, USER_ID, "Editor TX", v1, "Resposta ficticia v2.").getId();
+        curationService.validate(ORG_ID, USER_ID, "Revisor TX", v2);
+        return new UUID[] {v1, v2};
+    }
+
+    private void assertReplacementRolledBack(UUID v1Id, UUID v2Id) {
+        KnowledgeQuestionAnswer v1 = qaRepository.findById(v1Id).orElseThrow();
+        KnowledgeQuestionAnswer v2 = qaRepository.findById(v2Id).orElseThrow();
+        assertThat(v1.isPublished()).isTrue();
+        assertThat(embeddingCount(v1Id)).isEqualTo(1);
+        assertThat(v2.isPublished()).isFalse();
+        assertThat(v2.getCurationStatus()).isEqualTo(KnowledgeCurationStatus.VALIDATED);
+        assertThat(embeddingCount(v2Id)).isZero();
+        assertThat(auditActions(v2Id)).doesNotContain(AuditAction.KNOWLEDGE_QA_PUBLISHED);
+        assertThat(auditActions(v1Id)).doesNotContain(AuditAction.KNOWLEDGE_QA_UNPUBLISHED);
     }
 
     // =========================================================================
@@ -270,12 +317,15 @@ class KnowledgeQaTransactionalRollbackPostgresIT {
                 KnowledgeTopic.OUTROS, null, "PT",
                 KnowledgeRiskLevel.LOW, false, null, null, null);
         qa.markPendingReview();
-        qa.validate("Revisor TX");
         qa = qaRepository.save(qa);
 
         curationService.addSource(ORG_ID, USER_ID, qa.getId(), new SourceReferenceRequest(
                 KnowledgeSourceType.INTERNAL_OPINION, "Documento Ficticio TX",
                 "TX-REF", null, null, null, null, null, null));
+        // Fonte antes da validação: acrescentar fonte a uma VALIDATED devolve-a a revisão (ADR-005).
+        qa = qaRepository.findById(qa.getId()).orElseThrow();
+        qa.validate("Revisor TX");
+        qaRepository.save(qa);
         return qa.getId();
     }
 

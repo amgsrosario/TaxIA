@@ -21,7 +21,16 @@ function formatDate(value: string | null): string {
  * Âmbito de aplicação (M4-SCOPE-V2, ADR-004): âmbito derivado (só leitura), exclusões governadas
  * ("Não se aplica a") e marca de revisão. Só backoffice admin; nada disto chega a DEMO/EXTERNAL.
  */
-export function QaApplicabilityPanel({ qaId, reviewer }: { qaId: string; reviewer: string }) {
+export function QaApplicabilityPanel({
+  qaId,
+  reviewer,
+  onChanged,
+}: {
+  qaId: string;
+  reviewer: string;
+  /** Alterações efectivas mudam a versão da Q&amp;A (ADR-005): a página recarrega o detalhe. */
+  onChanged?: () => void;
+}) {
   const [state, setState] = useState<KnowledgeQaApplicability | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -52,6 +61,7 @@ export function QaApplicabilityPanel({ qaId, reviewer }: { qaId: string; reviewe
       const result = await action();
       setState(result);
       setNotice(message(result));
+      onChanged?.();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Operação falhou.");
     } finally {

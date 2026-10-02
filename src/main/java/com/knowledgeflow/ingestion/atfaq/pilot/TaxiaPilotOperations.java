@@ -232,7 +232,9 @@ public class TaxiaPilotOperations {
     /**
      * Curates a single explicit Q&A, reusing the governed curation service. Every provided field
      * overrides; every omitted field ({@code null}) keeps the entity's current value — a merge, never
-     * a wipe. Does not change the curation status.
+     * a wipe. Obeys ADR-005 like every other path: on a VALIDATED, unpublished entry a material or
+     * expansive change returns it to PENDING_REVIEW (reported as {@code status=}); on a published
+     * entry it is refused (BLOCKED — a new version is needed).
      *
      * <p>Note (PROMPT 100 — "não inventar campos"): the domain has no {@code freshness} or
      * {@code parecerRequirement} attributes, so this tooling exposes only the real curated fields
@@ -268,7 +270,8 @@ public class TaxiaPilotOperations {
                 requiresHumanValidation != null ? requiresHumanValidation : qa.isRequiresHumanValidation(),
                 qa.getValidFrom(),
                 qa.getValidTo(),
-                notes != null ? notes : qa.getNotes());
+                notes != null ? notes : qa.getNotes(),
+                qa.getVersion());
         try {
             curationService.updateCuration(qa.getOrganization().getId(), curatorId, qa.getId(), req);
         } catch (RuntimeException e) {
@@ -276,6 +279,7 @@ public class TaxiaPilotOperations {
             return b.build(PilotOpsOutcome.BLOCKED, false);
         }
         b.detail("curator=" + CURATOR_EMAIL);
+        qaRepository.findById(qa.getId()).ifPresent(after -> b.detail("status=" + after.getCurationStatus()));
         b.detail("shortAnswerSet=" + (req.shortAnswer() != null && !req.shortAnswer().isBlank()));
         b.detail("technicalAnswerSet=" + (req.technicalAnswer() != null && !req.technicalAnswer().isBlank()));
         log.info("TaxiaPilotOperations curated one governed pilot candidate: {}", qa.getId());
@@ -401,7 +405,8 @@ public class TaxiaPilotOperations {
             return b.build(PilotOpsOutcome.NO_CHANGE, false);
         }
         try {
-            curationService.validate(qa.getOrganization().getId(), curatorId, reviewerName, qa.getId());
+            curationService.validate(qa.getOrganization().getId(), curatorId, reviewerName, qa.getId(),
+                    qa.getVersion());
         } catch (RuntimeException e) {
             b.detail("validate refused: " + e.getMessage());
             return b.build(PilotOpsOutcome.BLOCKED, false);

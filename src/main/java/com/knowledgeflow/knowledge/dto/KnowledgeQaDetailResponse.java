@@ -46,12 +46,18 @@ public record KnowledgeQaDetailResponse(
         List<SourceReferenceResponse> sources,
         OffsetDateTime applicabilityReviewedAt,
         String applicabilityReviewedBy,
-        List<ApplicabilityExclusionResponse> applicabilityExclusions
+        List<ApplicabilityExclusionResponse> applicabilityExclusions,
+        /** Versão em preparação derivada desta (não publicada), se existir (ADR-005). */
+        UUID draftVersionId,
+        /** A versão de que esta deriva (previousVersionId) está publicada (ADR-005). */
+        boolean previousVersionPublished
 ) {
     public static KnowledgeQaDetailResponse from(
             KnowledgeQuestionAnswer qa,
             List<KnowledgeSourceReference> sources,
-            List<KnowledgeQaApplicabilityExclusion> exclusions) {
+            List<KnowledgeQaApplicabilityExclusion> exclusions,
+            UUID draftVersionId,
+            boolean previousVersionPublished) {
         return new KnowledgeQaDetailResponse(
                 qa.getId(),
                 qa.getExternalKey(),
@@ -83,6 +89,8 @@ public record KnowledgeQaDetailResponse(
                 sources.stream().map(SourceReferenceResponse::from).toList(),
                 qa.getApplicabilityReviewedAt(),
                 qa.getApplicabilityReviewedBy(),
-                exclusions.stream().map(ApplicabilityExclusionResponse::from).toList());
+                exclusions.stream().map(ApplicabilityExclusionResponse::from).toList(),
+                draftVersionId,
+                previousVersionPublished);
     }
 }

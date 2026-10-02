@@ -290,7 +290,7 @@ class BackendResiliencePostgresIT {
     // =========================================================================
 
     @Test
-    @DisplayName("TC-RES-06: duas criacoes de versao simultaneas → no maximo 1 nova versao, estado coerente")
+    @DisplayName("TC-RES-06: duas criacoes de versao simultaneas → exactamente 1 nova versao; V1 continua publicada")
     void concurrentVersioningYieldsAtMostOneNewVersion() throws Exception {
         UUID qaId = createValidatedQaWithSource("RES-06");
         publicationService.publish(ORG_ID, USER_ID, "Editor Res", qaId);
@@ -301,16 +301,17 @@ class BackendResiliencePostgresIT {
                 () -> { publicationService.createNewVersion(
                         ORG_ID, USER_ID, "Editor B", qaId, "Nova resposta B."); return true; });
 
-        assertThat(successes).isBetween(1, 2);
+        // ADR-005: lock da versão publicada + uma só versão em preparação → a segunda falha (409)
+        assertThat(successes).isEqualTo(1);
 
-        // Estado coerente: V1 despublicada; numero de novas versoes igual ao de sucessos
+        // Estado coerente: V1 continua publicada e indexada; uma só nova versão, não publicada
         KnowledgeQuestionAnswer v1 = qaRepository.findById(qaId).orElseThrow();
-        assertThat(v1.isPublished()).isFalse();
+        assertThat(v1.isPublished()).isTrue();
         long newVersions = qaRepository.findAll().stream()
                 .filter(q -> qaId.equals(q.getPreviousVersionId()))
                 .count();
-        assertThat(newVersions).isEqualTo(successes);
-        assertThat(embeddingCount(qaId)).isZero(); // embedding V1 removido
+        assertThat(newVersions).isEqualTo(1);
+        assertThat(embeddingCount(qaId)).isEqualTo(1); // embedding V1 mantém-se
     }
 
     // =========================================================================
@@ -393,11 +394,14 @@ class BackendResiliencePostgresIT {
                 KnowledgeTopic.OUTROS, null, "PT",
                 KnowledgeRiskLevel.LOW, false, null, null, null);
         qa.markPendingReview();
-        qa.validate("Revisor Res");
         qa = qaRepository.save(qa);
         curationService.addSource(ORG_ID, USER_ID, qa.getId(), new SourceReferenceRequest(
                 KnowledgeSourceType.INTERNAL_OPINION, "Documento Ficticio Res",
                 null, null, null, null, null, null, null));
+        // Fonte antes da validação: acrescentar fonte a uma VALIDATED devolve-a a revisão (ADR-005).
+        qa = qaRepository.findById(qa.getId()).orElseThrow();
+        qa.validate("Revisor Res");
+        qaRepository.save(qa);
         return qa.getId();
     }
 

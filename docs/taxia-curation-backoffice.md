@@ -122,9 +122,26 @@ remoção); `POST /exclusions/{marker}/approve-removal?reviewerName=`;
 `POST /exclusions/{marker}/cancel-removal`; `POST /reviewed?reviewerName=`. Todas as
 alterações geram `KNOWLEDGE_QA_APPLICABILITY_UPDATED`. Nada disto aparece em DEMO/EXTERNAL.
 
-Lacuna conhecida, fora deste bloco (follow-up **GOV-PUBLISHED-CONTENT-INTEGRITY**): os campos
-curados de uma Q&A validada ou publicada — incluindo a resposta técnica — podem ser editados
-pelo formulário de curadoria sem nova validação.
+## Integridade pós-validação e versões (ADR-005)
+
+- **Versão publicada**: banner "Esta versão está publicada e validada…"; respostas, tema e
+  subtema ficam só de leitura; só se aceitam notas e alterações restritivas (risco mais alto,
+  validade mais curta). Acrescentar fontes exige nova versão; retirar uma fonte errada (não a
+  última) continua possível. O backend recusa (409) qualquer alteração material vinda do
+  backoffice ou das ferramentas do piloto; o re-import salta e reporta (`PROTECTED_SKIPPED`).
+- **Criar nova versão**: cópia editável (conteúdo, fontes, exclusões) em revisão; a versão
+  publicada continua activa. Uma só versão em preparação de cada vez ("Abrir versão em
+  preparação").
+- **Nova versão**: banner "Nova versão — não publicada. A versão anterior continua activa";
+  edita-se, submete-se a revisão e valida-se como qualquer caso. Quando validada, a substituição
+  ("publicar e substituir") é feita no canal de publicação governado — o backoffice não publica.
+- **Validada, não publicada**: guardar uma alteração material ou expansiva (respostas, tema,
+  subtema, risco mais baixo, validade alargada) ou associar uma fonte pede confirmação ("Esta
+  alteração invalida a validação actual e devolverá a Q&A a revisão") e volta a PENDING_REVIEW.
+- **Validar** valida a versão que o revisor tem no ecrã: se alguém alterou conteúdo, fontes ou
+  exclusões entretanto, a resposta é 409 e é preciso recarregar.
+- **Edição concorrente**: cada gravação envia a versão carregada; se outra pessoa gravou entretanto,
+  a resposta é 409 e é preciso recarregar.
 
 ## Limitações conhecidas / o que ainda não faz
 
