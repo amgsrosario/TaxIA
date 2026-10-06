@@ -7,6 +7,8 @@ import com.knowledgeflow.auth.dto.LoginRequest;
 import com.knowledgeflow.auth.service.AuthService;
 import com.knowledgeflow.security.AuthenticatedUser;
 import com.knowledgeflow.security.AuthenticatedUserContext;
+import com.knowledgeflow.users.credentials.ChangeOwnPasswordRequest;
+import com.knowledgeflow.users.credentials.StaffCredentialService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,10 +25,13 @@ public class AuthController {
 
     private final AuthService authService;
     private final AuthenticatedUserContext authenticatedUserContext;
+    private final StaffCredentialService staffCredentialService;
 
-    public AuthController(AuthService authService, AuthenticatedUserContext authenticatedUserContext) {
+    public AuthController(AuthService authService, AuthenticatedUserContext authenticatedUserContext,
+                          StaffCredentialService staffCredentialService) {
         this.authService = authService;
         this.authenticatedUserContext = authenticatedUserContext;
+        this.staffCredentialService = staffCredentialService;
     }
 
     @PostMapping("/bootstrap-admin")
@@ -44,14 +49,37 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated()") // the staff-only boundary is enforced in SecurityConfig
     public ResponseEntity<CurrentUserResponse> me() {
         AuthenticatedUser user = authenticatedUserContext.getRequiredUser();
         return ResponseEntity.ok(new CurrentUserResponse(
                 user.userId(),
                 user.organizationId(),
                 user.email(),
-                user.roles()
+                user.roles(),
+                authenticatedUserContext.isPasswordChangeRequired()
         ));
+    }
+
+    /**
+     * Own password change (ADR-006). Allowed also while a password change is required. Ends every
+     * session of the user, the calling one included: 204 and a new login is required.
+     */
+    @PostMapping("/password")
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangeOwnPasswordRequest request) {
+        AuthenticatedUser user = authenticatedUserContext.getRequiredUser();
+        staffCredentialService.changeOwnPassword(user.userId(), user.organizationId(),
+                authenticatedUserContext.requiredTokenVersion(),
+                request.currentPassword(), request.newPassword());
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Ends every session of the calling user (token_version++), the calling one included. */
+    @PostMapping("/logout-all")
+    public ResponseEntity<Void> logoutAll() {
+        AuthenticatedUser user = authenticatedUserContext.getRequiredUser();
+        staffCredentialService.logoutAll(user.userId(), user.organizationId(),
+                authenticatedUserContext.requiredTokenVersion());
+        return ResponseEntity.noContent().build();
     }
 }

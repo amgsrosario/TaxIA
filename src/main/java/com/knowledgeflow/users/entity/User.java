@@ -40,6 +40,18 @@ public class User {
 
     private OffsetDateTime deletedAt;
 
+    /**
+     * Monotonic session counter carried in the staff JWT claim {@code tv} (ADR-006). Every token
+     * whose {@code tv} differs from this value is rejected on the next request; the governed
+     * operations below only ever increment it, so an old token can never become valid again.
+     */
+    @Column(nullable = false)
+    private int tokenVersion;
+
+    /** Set by an ADMIN reset or break-glass recovery: the session is restricted to the password change. */
+    @Column(nullable = false)
+    private boolean mustChangePassword;
+
     protected User() {
     }
 
@@ -95,5 +107,85 @@ public class User {
 
     public OffsetDateTime getDeletedAt() {
         return deletedAt;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
+    public int getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
+    }
+
+    // -------------------------------------------------------------------------
+    // Governed credential and session operations (ADR-006). There is no raw password
+    // setter: every path that replaces the hash also invalidates all existing sessions.
+    // Callers must hold a fresh write lock on the row (UserRowLock#lock).
+    // -------------------------------------------------------------------------
+
+    /** Own password change: final password, clears the forced-change flag, ends every session. */
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = requireHash(newPasswordHash);
+        this.mustChangePassword = false;
+        incrementTokenVersion();
+    }
+
+    /** ADMIN reset or break-glass: temporary password that must be changed at the next login. */
+    public void resetPassword(String temporaryPasswordHash) {
+        this.passwordHash = requireHash(temporaryPasswordHash);
+        this.mustChangePassword = true;
+        incrementTokenVersion();
+    }
+
+    /** Ends every session of this user (logout-all, ADMIN revoke, privilege change). */
+    public void revokeSessions() {
+        incrementTokenVersion();
+    }
+
+    public void disable() {
+        if (status == UserStatus.DISABLED) {
+            throw new IllegalStateException("User is already disabled");
+        }
+        this.status = UserStatus.DISABLED;
+        incrementTokenVersion();
+    }
+
+    /**
+     * Reactivation never restores an earlier token version: it increments it, so tokens issued
+     * before the disable (or before any out-of-band status change) stay invalid and a new login
+     * is required.
+     */
+    public void reactivate() {
+        if (status == UserStatus.ACTIVE) {
+            throw new IllegalStateException("User is already active");
+        }
+        this.status = UserStatus.ACTIVE;
+        incrementTokenVersion();
+    }
+
+    public void softDelete() {
+        if (deletedAt == null) {
+            this.deletedAt = OffsetDateTime.now();
+        }
+        incrementTokenVersion();
+    }
+
+    public void incrementTokenVersion() {
+        if (tokenVersion == Integer.MAX_VALUE) {
+            // Never wrap around: a wrapped counter could re-validate an old token.
+            throw new IllegalStateException("token_version exhausted");
+        }
+        tokenVersion++;
+    }
+
+    private static String requireHash(String hash) {
+        if (hash == null || hash.isBlank()) {
+            throw new IllegalArgumentException("password hash is required");
+        }
+        return hash;
     }
 }

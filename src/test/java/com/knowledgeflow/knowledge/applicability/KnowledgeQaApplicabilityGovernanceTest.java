@@ -40,6 +40,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import com.knowledgeflow.security.StaffAuthorities;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -301,7 +302,7 @@ class KnowledgeQaApplicabilityGovernanceTest {
                         .with(jwt().jwt(j -> j.subject(UUID.randomUUID().toString())
                                 .claim("organization_id", org.getId().toString())
                                 .claim("roles", List.of("USER")))
-                                .authorities(new SimpleGrantedAuthority("ROLE_USER")))
+                                .authorities(new SimpleGrantedAuthority(StaffAuthorities.STAFF), new SimpleGrantedAuthority("ROLE_USER")))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"marker\":\"INQUILINO\"}"))
                 .andExpect(status().isForbidden());
         assertThat(exclusionRepository.findByKnowledgeQaId(published.getId())).isEmpty();
@@ -366,6 +367,6 @@ class KnowledgeQaApplicabilityGovernanceTest {
                         .claim("organization_id", organization.getId().toString())
                         .claim("email", "curador@aplic.test")
                         .claim("roles", List.of("ADMIN")))
-                .authorities(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                .authorities(new SimpleGrantedAuthority(StaffAuthorities.STAFF), new SimpleGrantedAuthority("ROLE_ADMIN"));
     }
 }

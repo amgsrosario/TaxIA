@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import com.knowledgeflow.security.StaffAuthorities;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -62,6 +63,6 @@ class AdminAIDemoAskSecurityTest {
                         .claim("organization_id", UUID.randomUUID().toString())
                         .claim("email", role.toLowerCase() + "@demo-ask.test")
                         .claim("roles", List.of(role)))
-                .authorities(new SimpleGrantedAuthority("ROLE_" + role));
+                .authorities(new SimpleGrantedAuthority(StaffAuthorities.STAFF), new SimpleGrantedAuthority("ROLE_" + role));
     }
 }

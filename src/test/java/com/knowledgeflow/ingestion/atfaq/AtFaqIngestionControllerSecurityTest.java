@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import com.knowledgeflow.security.StaffAuthorities;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -58,7 +59,7 @@ class AtFaqIngestionControllerSecurityTest {
                         .claim("organization_id", org.getId().toString())
                         .claim("email", role.toLowerCase() + "@atfaq.test")
                         .claim("roles", List.of(role)))
-                .authorities(new SimpleGrantedAuthority("ROLE_" + role));
+                .authorities(new SimpleGrantedAuthority(StaffAuthorities.STAFF), new SimpleGrantedAuthority("ROLE_" + role));
     }
 
     @Test

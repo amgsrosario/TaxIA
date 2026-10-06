@@ -50,6 +50,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import com.knowledgeflow.security.StaffAuthorities;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -247,10 +248,10 @@ class PublishedContentIntegrityGovernanceTest {
         Organization other = organizationRepository.save(new Organization("Outra org", null));
         RequestPostProcessor otherAdmin = jwt().jwt(j -> j.subject(UUID.randomUUID().toString())
                         .claim("organization_id", other.getId().toString()).claim("roles", List.of("ADMIN")))
-                .authorities(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                .authorities(new SimpleGrantedAuthority(StaffAuthorities.STAFF), new SimpleGrantedAuthority("ROLE_ADMIN"));
         RequestPostProcessor user = jwt().jwt(j -> j.subject(UUID.randomUUID().toString())
                         .claim("organization_id", org.getId().toString()).claim("roles", List.of("USER")))
-                .authorities(new SimpleGrantedAuthority("ROLE_USER"));
+                .authorities(new SimpleGrantedAuthority(StaffAuthorities.STAFF), new SimpleGrantedAuthority("ROLE_USER"));
         mockMvc.perform(post(QA + "/versions", published.getId()).with(otherAdmin)).andExpect(status().isNotFound());
         mockMvc.perform(post(QA + "/versions", published.getId()).with(user)).andExpect(status().isForbidden());
 
@@ -504,6 +505,6 @@ class PublishedContentIntegrityGovernanceTest {
                         .claim("organization_id", org.getId().toString())
                         .claim("email", "curador@integridade.test")
                         .claim("roles", List.of("ADMIN")))
-                .authorities(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                .authorities(new SimpleGrantedAuthority(StaffAuthorities.STAFF), new SimpleGrantedAuthority("ROLE_ADMIN"));
     }
 }

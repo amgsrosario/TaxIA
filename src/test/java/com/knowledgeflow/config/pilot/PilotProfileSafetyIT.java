@@ -49,6 +49,10 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         // connection still comes from @ServiceConnection (the Testcontainers container).
         "spring.datasource.username=pilot_it_synthetic_user",
         "spring.datasource.password=pilot_it_synthetic_password",
+        // ADR-006 — the JWT secret guard always applies on knowledgeflow_pilot: a fictitious,
+        // policy-compliant key (not a test-marked one: this is the real pilot profile) lets the
+        // context boot; the guard itself is tested separately.
+        "knowledgeflow.security.jwt.secret=pilot-it-only-fictitious-jwt-signing-key-0123456789",
         // PASSO 10 — the pilot profile makes NO silent AI decision, so an explicit
         // decision must be supplied to boot. Use the local stub (no external call,
         // no dummy Anthropic key). This proves "with an explicit decision, it boots".

@@ -49,7 +49,9 @@ knowledgeflow:
   security:
     jwt:
       issuer: ${KNOWLEDGEFLOW_JWT_ISSUER:knowledgeflow-backend}
-      secret: ${KNOWLEDGEFLOW_JWT_SECRET:change-this-development-secret-change-this-development-secret}
+      # No default (ADR-006): outside the automated test profiles, and always against
+      # knowledgeflow_pilot, startup fails unless a random secret of >= 32 bytes is set.
+      secret: ${KNOWLEDGEFLOW_JWT_SECRET:}
       access-token-ttl-minutes: ${KNOWLEDGEFLOW_JWT_ACCESS_TOKEN_TTL_MINUTES:60}
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:8081}
