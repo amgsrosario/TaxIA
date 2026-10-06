@@ -41,8 +41,11 @@ O dev server usa a porta **3000** (na allowlist CORS do backend, junto com 5173)
 
 ## Credenciais de piloto
 
-Utilizador ADMIN criado na Etapa 9B.1: `piloto.admin@taxia.local`
-(password definida no bootstrap — **rotação pendente**; nunca guardar em ficheiros).
+Utilizador ADMIN criado na Etapa 9B.1: `piloto.admin@taxia.local`.
+
+- A password foi definida no bootstrap.
+- **A rotação está pendente.** Faz-se depois do rollout da V17, pelo mecanismo governado do ADR-006, e não por SQL.
+- Nunca guardar a password em ficheiros.
 
 ## Fluxo de login
 
@@ -52,6 +55,33 @@ Utilizador ADMIN criado na Etapa 9B.1: `piloto.admin@taxia.local`
 3. Todas as chamadas enviam `Authorization: Bearer …`.
 4. Qualquer 401 limpa a sessão e volta ao login.
 5. Logout local no botão "Terminar sessão".
+6. **Validação por pedido (ADR-006).**
+   - O backend aceita o token só se:
+     - o claim `tv` coincidir com o `token_version` do utilizador;
+     - o utilizador estiver ACTIVE;
+     - a membership estiver activa.
+   - Os papéis efectivos vêm da BD.
+   - Por isso, uma mudança de password, revoke, disable ou mudança de papéis termina a sessão no pedido seguinte (401).
+7. **Mudança obrigatória** (`mustChangePassword`, após reposição por ADMIN ou break-glass).
+   - O backoffice mostra apenas o ecrã "Mudança de password obrigatória".
+   - O backend recusa todas as rotas funcionais (403) até a password ser mudada.
+
+## Credenciais e sessões (ADR-006)
+
+- **Perfil** (`/profile`):
+  - "Alterar password": password actual + nova password com pelo menos 12 caracteres, diferente da actual e do email;
+  - "Terminar todas as sessões".
+  - Ambas as acções terminam também a sessão actual e obrigam a um novo login.
+- **Utilizadores** (`/admin/users`, só ADMIN), sobre utilizadores da mesma organização:
+  - "Invalidar sessões";
+  - "Repor password": password temporária, nunca pré-preenchida, entregue por um canal separado; o utilizador tem de a mudar no login seguinte;
+  - "Desactivar" / "Reactivar".
+  - Todas as acções pedem um motivo, que fica na auditoria.
+  - A alteração de papéis existe na API (`PUT /api/v1/admin/users/{id}/roles`), mas não na UI.
+- **Guardas:**
+  - não se desactiva nem se despromove o último ADMIN activo;
+  - um ADMIN não se desactiva nem repõe a sua própria password por esta via.
+- **Nada disto guarda passwords** em storage. O JWT nunca é mostrado.
 
 ## Fluxo de curadoria (Etapa 9B.3)
 
@@ -88,9 +118,12 @@ Utilizador ADMIN criado na Etapa 9B.1: `piloto.admin@taxia.local`
 - mensagens de erro amigáveis em pt-PT para 401/403/404/400/409/rede
   (sem stack traces; o JWT nunca é logado).
 
-## Endpoints usados (todos pré-existentes; backend não alterado)
+## Endpoints usados
 
 `POST /api/v1/auth/login` · `GET /api/v1/auth/me` · `GET /api/v1/health` ·
+`POST /api/v1/auth/password` · `POST /api/v1/auth/logout-all` ·
+`GET /api/v1/admin/users` · `POST /api/v1/admin/users/{id}/sessions/revoke` ·
+`POST …/{id}/password-reset` · `POST …/{id}/disable` · `POST …/{id}/reactivate` ·
 `GET /api/v1/admin/knowledge/qa` (+`status`,`topic`,`page`,`size`) ·
 `GET /api/v1/admin/knowledge/qa/{id}` · `PATCH …/{id}/curation` ·
 `POST …/{id}/pending-review` · `POST …/{id}/validate` · `POST …/{id}/reject` ·
@@ -149,8 +182,8 @@ alterações geram `KNOWLEDGE_QA_APPLICABILITY_UPDATED`. Nada disto aparece em D
 - sem menu de auditoria (o backend não expõe endpoint REST de auditoria);
 - filtros de risco/texto são locais (o endpoint de listagem não os suporta);
 - fontes não são editáveis nem removíveis pela UI (limitação do backend);
-- sem gestão de utilizadores, MFA, SSO, refresh token, registo ou recuperação
-  de password;
+- sem criação de utilizadores, MFA, SSO, refresh token, registo ou recuperação
+  de password por email (a reposição é feita por um ADMIN ou por break-glass, ADR-006);
 - `/actuator/health` está fora do CORS — o indicador de sistema usa `/api/v1/health`;
 - sem testes automatizados de frontend (stack nova, sem infra prévia; o build
   com typecheck estrito é o gate mínimo).
@@ -162,4 +195,4 @@ alterações geram `KNOWLEDGE_QA_APPLICABILITY_UPDATED`. Nada disto aparece em D
    confirmação reforçada + embeddings caso a caso);
 3. endpoint de auditoria + vista correspondente;
 4. filtros de risco/texto no servidor quando a base crescer;
-5. rotação da password do admin do piloto.
+5. rotação da password do admin do piloto pelo mecanismo do ADR-006, no rollout da V17.

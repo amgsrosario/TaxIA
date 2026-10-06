@@ -15,10 +15,21 @@ docker compose up -d
 # Microserviço de embeddings (terminal próprio; ver EMBEDDINGS_SERVICE_URL)
 # <comando do microserviço Python — ver repositório do serviço de embeddings>
 
-# Backend (exige ANTHROPIC_API_KEY e, em piloto, KNOWLEDGEFLOW_JWT_SECRET não-default)
+# Backend: exige ANTHROPIC_API_KEY, SPRING_DATASOURCE_URL do piloto e KNOWLEDGEFLOW_JWT_SECRET
+# (ADR-006). Sem um secret aleatório de >= 32 bytes o backend NÃO arranca contra knowledgeflow_pilot.
 $env:ANTHROPIC_API_KEY = Read-Host -AsSecureString | ForEach-Object { [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($_)) }
+$env:KNOWLEDGEFLOW_JWT_SECRET = Read-Host -AsSecureString | ForEach-Object { [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($_)) }
+$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:15432/knowledgeflow_pilot"
 .\scripts\run-dev.ps1
 ```
+
+**Em WSL**, o secret do piloto vive num ficheiro local fora do repositório (`~/.config/taxia/pilot-jwt.env`, permissões 600), carregado por `~/.config/taxia/start-pilot-backend.sh`. Esse script:
+- define o perfil e a datasource do piloto;
+- nunca imprime o secret.
+
+O `ANTHROPIC_API_KEY` tem de estar exportado na shell antes de correr o script.
+
+Nunca versionar, colar em chat nem imprimir o secret.
 
 ## 2. Verificar saúde
 
@@ -141,3 +152,47 @@ docker exec -it <pg> psql -U knowledgeflow -c `
 .\scripts\db\windows\restore-taxia.ps1
 # Verificar Flyway e reiniciar o backend; confirmar readiness antes de retomar
 ```
+
+## 11. Credenciais e sessões (ADR-006)
+
+### Secret JWT
+
+- **Gerar** (WSL/Linux): `openssl rand -base64 48`. Gravar directamente no ficheiro local do secret, sem o mostrar.
+- **Rodar o secret:**
+  1. Parar o backend.
+  2. Substituir o valor no ficheiro local.
+  3. Reiniciar.
+  4. Confirmar o login.
+
+  A rotação invalida **todos** os tokens, staff e portal. Usar em caso de exposição ou suspeita sobre o secret.
+- **Confirmar a presença sem revelar o valor:**
+  `[ -n "$KNOWLEDGEFLOW_JWT_SECRET" ] && echo definido || echo AUSENTE`.
+
+### Password e sessões (backoffice)
+
+- **O próprio:** Perfil → "Alterar password" ou "Terminar todas as sessões".
+- **ADMIN:** Utilizadores → "Invalidar sessões", "Repor password" (temporária, entregue fora de banda), "Desactivar"/"Reactivar". O motivo é obrigatório.
+- **Rotação da password do admin do piloto** (rollout V17, acção humana):
+  1. Entrar no backoffice.
+  2. Perfil → "Alterar password".
+  3. Confirmar que o token antigo deixou de funcionar e que o novo login funciona.
+  4. Registar a operação no documento de estado, sem a password.
+
+### Break-glass (ADMIN sem acesso)
+
+Último recurso controlado. Nunca usar `bootstrap-admin`, nem SQL directo salvo blocker real.
+
+1. Fazer backup da base do piloto (secção 4). O launcher não aplica migrações (Flyway desligado). Se o schema do piloto estiver atrás do jar (por exemplo, sem a V17), o arranque falha antes de qualquer escrita. Primeiro faz-se o rollout governado da migração.
+2. Ter o ambiente do piloto definido: `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, `KNOWLEDGEFLOW_JWT_SECRET` e a decisão de provider de IA do perfil `pilot`.
+3. Construir o jar: `mvn -q -DskipTests package`.
+4. Executar **num terminal interactivo**. A password é pedida duas vezes, sem eco.
+   ```bash
+   BREAK_GLASS_ENABLED=true java -cp target/knowledgeflow-backend-*.jar \
+     -Dloader.main=com.knowledgeflow.users.credentials.StaffAdminRecoveryLauncher \
+     org.springframework.boot.loader.launch.PropertiesLauncher \
+     admin-recover --email piloto.admin@taxia.local --reason "motivo"
+   ```
+5. Confirmar o resultado:
+   - `RESULT=RECOVERED`: o ADMIN entra com a password temporária e o backoffice obriga a mudá-la.
+   - `RESULT=BLOCKED`: nada foi escrito (nem dados nem schema); o motivo é indicado.
+6. Não deixar `BREAK_GLASS_ENABLED` exportado. Registar a operação (data, motivo, operador) no documento de estado.

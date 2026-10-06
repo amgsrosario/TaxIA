@@ -107,6 +107,13 @@ Não incluir segredos, tokens, chaves API ou dados pessoais de clientes em
 commits, issues, Pull Requests, prompts ou relatórios. Não imprimir valores
 sensíveis de variáveis de ambiente.
 
+Credenciais e sessões staff seguem o ADR-006:
+- o secret JWT nunca é o valor por omissão nem fica no repositório;
+- os papéis efectivos vêm da BD em cada pedido;
+- password, estado, papéis e sessões mudam-se só pelos fluxos governados (`/api/v1/auth/password`, `/api/v1/admin/users`, CLI break-glass), que incrementam `token_version` e ficam auditados;
+- não usar SQL directo nem o `bootstrap-admin` para recuperar acesso, salvo blocker real;
+- nunca gerar, usar ou reproduzir JWT, passwords ou hashes reais.
+
 Antes de apagar ou substituir dados persistentes, identificar a base afectada,
 o impacto e a possibilidade de recuperação. Operações em bases descartáveis
 de teste podem ser executadas dentro do âmbito da tarefa.
