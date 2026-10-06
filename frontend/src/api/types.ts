@@ -46,6 +46,8 @@ export interface LoginResponse {
   email: string;
   fullName: string;
   roles: string[];
+  /** true após reposição por ADMIN/break-glass: só a mudança de password é permitida. */
+  mustChangePassword: boolean;
 }
 
 /** GET /api/v1/auth/me */
@@ -54,6 +56,18 @@ export interface AuthUser {
   organizationId: string;
   email: string;
   roles: string[];
+  mustChangePassword: boolean;
+}
+
+/** GET /api/v1/admin/users — conta staff da organização (nunca hash nem token). */
+export interface StaffUserSummary {
+  id: string;
+  email: string;
+  fullName: string;
+  status: "ACTIVE" | "DISABLED";
+  roles: string[];
+  mustChangePassword: boolean;
+  self: boolean;
 }
 
 /** KnowledgeQaResponse (lista). */

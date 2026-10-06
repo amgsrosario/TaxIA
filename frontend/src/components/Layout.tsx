@@ -30,6 +30,8 @@ export function Layout() {
         <nav>
           {isAdmin && <NavLink to="/ask">Perguntar à TaxIA</NavLink>}
           <NavLink to="/qa">Conhecimento Q&amp;A</NavLink>
+          {isAdmin && <NavLink to="/admin/users">Utilizadores</NavLink>}
+          <NavLink to="/profile">Perfil</NavLink>
         </nav>
         <div className="spacer" />
         <div className="user">
