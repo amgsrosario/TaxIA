@@ -171,7 +171,12 @@ docker exec -it <pg> psql -U knowledgeflow -c `
 ### Password e sessões (backoffice)
 
 - **O próprio:** Perfil → "Alterar password" ou "Terminar todas as sessões".
-- **ADMIN:** Utilizadores → "Invalidar sessões", "Repor password" (temporária, entregue fora de banda), "Desactivar"/"Reactivar". O motivo é obrigatório.
+- **ADMIN:** Utilizadores → "Invalidar sessões", "Repor password" (temporária, entregue fora de banda; só contas não-ADMIN), "Desactivar"/"Reactivar". O motivo é obrigatório.
+- **Contas ADMIN nunca são repostas por outro ADMIN.** Um ADMIN autenticado usa Perfil → "Alterar password". Um ADMIN sem acesso usa o break-glass (abaixo).
+- **ADMIN desactivado que perdeu a password:**
+  1. Outro ADMIN reactiva a conta.
+  2. O titular usa o break-glass (o break-glass exige um ADMIN activo).
+- **Conceder ADMIN** é recusado enquanto a conta tiver uma password temporária pendente.
 - **Rotação da password do admin do piloto** (rollout V17, acção humana):
   1. Entrar no backoffice.
   2. Perfil → "Alterar password".

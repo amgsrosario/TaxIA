@@ -86,7 +86,7 @@ Em 2026-10-06 confirmou-se que o backend do piloto corria sem `KNOWLEDGEFLOW_JWT
    - **Operações ADMIN** em `/api/v1/admin/users`:
      - `GET` (listagem);
      - `POST /{id}/sessions/revoke`;
-     - `POST /{id}/password-reset`: password temporária definida pelo ADMIN e entregue fora de banda; marca `must_change_password=true`;
+     - `POST /{id}/password-reset`: password temporária definida pelo ADMIN e entregue fora de banda; marca `must_change_password=true`. **Só para contas staff não-ADMIN**: um alvo com papel ADMIN activo (mesmo desactivado) é recusado com 409 (decisão do António, 2026-10-07);
      - `POST /{id}/disable`;
      - `POST /{id}/reactivate`;
      - `PUT /{id}/roles`.
@@ -107,6 +107,10 @@ Em 2026-10-06 confirmou-se que o backend do piloto corria sem `KNOWLEDGEFLOW_JWT
 9. **Guardas.**
    - O último ADMIN activo da organização nunca é desactivado nem perde o papel ADMIN (409). Pela API, o actor é sempre outro ADMIN activo, por isso dispara primeiro a guarda do próprio. Este guard é defesa em profundidade, testado ao nível do serviço.
    - Um ADMIN não se desactiva, não se despromove e não usa o reset por ADMIN sobre si próprio (409).
+   - **Contas ADMIN nunca são repostas por outro ADMIN** (409). Assim, um ADMIN não pode escolher a password de outro ADMIN e agir em seu nome (ver o risco residual aceite, relativo a contas não-ADMIN promovidas mais tarde). As vias são:
+     - ADMIN autenticado: só a mudança da própria password, com a password actual;
+     - ADMIN sem acesso: só o break-glass governado.
+     A política do último ADMIN não muda.
    - Sob o lock da organização volta a confirmar-se que o actor continua a ser ADMIN activo e que a sessão dele continua válida (`tv` actual). Caso contrário: 403 ou 401.
 
 10. **Concorrência.**
@@ -151,7 +155,7 @@ Em 2026-10-06 confirmou-se que o backend do piloto corria sem `KNOWLEDGEFLOW_JWT
 
 14. **Resposta a incidentes de credenciais.**
     - Secret exposto ou inadequado: rodar `KNOWLEDGEFLOW_JWT_SECRET`. É uma invalidação global: todos os tokens staff e portal deixam de ser válidos.
-    - Conta comprometida: revoke ou reset governado.
+    - Conta comprometida: revoke; reset governado se for não-ADMIN; conta ADMIN: revoke e mudança da própria password pelo titular, ou break-glass se não tiver acesso (nunca reset por outro ADMIN nem SQL).
     - Registar os factos e a decisão no documento de estado, sem valores.
 
 ## Consequences
@@ -160,10 +164,54 @@ Em 2026-10-06 confirmou-se que o backend do piloto corria sem `KNOWLEDGEFLOW_JWT
 - **Rollout:** depois da V17 todos os tokens staff emitidos antes ficam inválidos (novo login uma vez).
 - **Arranque:** sem um secret forte o backend não arranca. Isto vale para `run-dev.sh` sem a variável e para o launcher do piloto. Os perfis de teste usam chaves fictícias de teste.
 - **Testes:** os testes MockMvc que usam `jwt()` saltam o conversor, por isso passam a declarar a authority staff. Os testes de segurança novos usam tokens reais.
-- **Risco residual aceite nesta fase (decisão pendente do António):** o reset por ADMIN usa uma password temporária escolhida pelo ADMIN.
-  - Um ADMIN pode repor a password de outro ADMIN, entrar como ele até à mudança obrigatória e agir em seu nome.
-  - A auditoria liga apenas o `USER_PASSWORD_RESET` ao autor.
-  - Alternativas possíveis: recusar o reset ADMIN→ADMIN (usar break-glass) ou gerar a password temporária no servidor.
+- **Risco ADMIN→ADMIN fechado** (decisão do António, 2026-10-07).
+  - Porquê: a password temporária é escolhida pelo ADMIN. Se o reset ADMIN→ADMIN fosse permitido, o ADMIN que o fizesse conhecia a password temporária. Podia fazer ele próprio a mudança obrigatória e ficar indefinidamente com uma sessão ADMIN na identidade do outro.
+  - Por isso:
+    - o reset normal fica restrito a contas não-ADMIN;
+    - conceder ADMIN é recusado (409) enquanto houver uma password temporária pendente (`must_change_password`). Isto fecha a sequência despromover → repor → promover de novo.
+  - Uma conta que foi ADMIN e foi despromovida pode ser reposta como qualquer conta não-ADMIN. Só volta a ADMIN depois de o titular ter definido a sua própria password.
+- **Política final do reset de password** (decisão executiva, 2026-10-07):
+
+  | Caso | Regra |
+  |---|---|
+  | ADMIN → ADMIN | proibido (409) |
+  | ADMIN → próprio, pelo endpoint administrativo | proibido (409); usa a mudança da própria password, com a password actual |
+  | ADMIN sem acesso | recuperação só por break-glass governado |
+  | ADMIN → staff não-ADMIN | permitido |
+
+  Depois do reset:
+  - password temporária e `must_change_password=true`;
+  - `token_version++`, ficando as sessões anteriores inválidas;
+  - operação auditada (`USER_PASSWORD_RESET`).
+
+  Enquanto `must_change_password=true`, a conta não pode receber o papel ADMIN (409). Depois de o titular concluir a mudança obrigatória, a promoção volta a ser tecnicamente permitida.
+
+- **Risco residual — ACEITE PARA O PILOTO** (decisão executiva, 2026-10-07):
+  - **Risco:** um ADMIN que repõe a password de um utilizador não-ADMIN pode, em teoria, assumir temporariamente essa identidade, concluir a mudança obrigatória e promover depois a conta.
+  - **Impacto:** principalmente de atribuição e auditabilidade. Não dá ao actor privilégio superior ao que já tem, porque já é ADMIN.
+  - **Controlos existentes:**
+    - `USER_PASSWORD_RESET` identifica o ADMIN que actuou;
+    - a promoção posterior também é auditada (`USER_ROLES_CHANGED`);
+    - `must_change_password` bloqueia a promoção imediata;
+    - o reset directo de contas ADMIN é proibido;
+    - a recuperação de um ADMIN sem acesso usa break-glass;
+    - o titular legítimo perde o acesso com as credenciais anteriores e detecta a alteração.
+  - **Não adoptado nesta fase:**
+    - regra de quatro olhos;
+    - auditoria como fonte de estado de autorização;
+    - segundo ADMIN obrigatório;
+    - canal externo de entrega da password temporária;
+    - código de uso único;
+    - remoção do reset administrativo;
+    - schema de proveniência do reset.
+
+    Razões: complexidade desproporcionada no piloto; organizações com um só ADMIN ficariam bloqueadas; a auditoria não deve ser fonte de estado de autorização.
+  - **Follow-up futuro:** avaliar um mecanismo de recuperação em que o ADMIN não conheça a credencial, quando existir infraestrutura de entrega e verificação.
+  - Não é uma falha em aberto: é uma decisão de segurança institucionalizada.
+- **ADMIN desactivado sem acesso:** o break-glass exige um ADMIN ACTIVE. O caminho é:
+  1. outro ADMIN reactiva a conta (auditado);
+  2. o titular muda a própria password, se a souber, ou é recuperado por break-glass.
+  Sem SQL directo.
 - **Fora de âmbito:** rate limiting, lockout e auditoria detalhada de login (follow-up); revogação de um único dispositivo; refresh tokens.
 - **Rollout no piloto:** missão separada SEC-PILOT-CREDENTIALS-HARDENING-ROLLOUT.
   - Backup.

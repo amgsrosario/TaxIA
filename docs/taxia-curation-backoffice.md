@@ -74,7 +74,7 @@ Utilizador ADMIN criado na Etapa 9B.1: `piloto.admin@taxia.local`.
   - Ambas as acções terminam também a sessão actual e obrigam a um novo login.
 - **Utilizadores** (`/admin/users`, só ADMIN), sobre utilizadores da mesma organização:
   - "Invalidar sessões";
-  - "Repor password": password temporária, nunca pré-preenchida, entregue por um canal separado; o utilizador tem de a mudar no login seguinte;
+  - "Repor password" (só para contas **não-ADMIN**; o botão não aparece para ADMIN e o backend recusa com 409): password temporária, nunca pré-preenchida, entregue por um canal separado; o utilizador tem de a mudar no login seguinte. Um ADMIN muda a própria password no Perfil; um ADMIN sem acesso é recuperado por break-glass;
   - "Desactivar" / "Reactivar".
   - Todas as acções pedem um motivo, que fica na auditoria.
   - A alteração de papéis existe na API (`PUT /api/v1/admin/users/{id}/roles`), mas não na UI.

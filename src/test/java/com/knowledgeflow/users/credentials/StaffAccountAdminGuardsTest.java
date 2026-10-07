@@ -47,8 +47,9 @@ class StaffAccountAdminGuardsTest {
     private final UserRowLock rowLock = mock(UserRowLock.class);
     private final RoleRepository roles = mock(RoleRepository.class);
     private final AuditService audit = mock(AuditService.class);
+    private final PasswordEncoder encoder = mock(PasswordEncoder.class);
     private final StaffAccountAdminService service = new StaffAccountAdminService(
-            organizations, memberships, users, rowLock, roles, mock(PasswordEncoder.class), audit);
+            organizations, memberships, users, rowLock, roles, encoder, audit);
 
     private final UUID orgId = UUID.randomUUID();
     private final UUID actorId = UUID.randomUUID();
@@ -87,6 +88,38 @@ class StaffAccountAdminGuardsTest {
         assertThat(target.getStatus()).isEqualTo(UserStatus.ACTIVE);
         assertThat(target.getTokenVersion()).isZero();
         verify(audit, never()).record(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void adminAccountIsNeverResetByAnotherAdmin() {
+        // setUp gives the target an active ADMIN membership; another ADMIN may not reset it. The
+        // encoder returns a valid hash, so without the guard the reset would succeed (no 409).
+        when(encoder.encode(any())).thenReturn("$2a$10$zyxwvutsrqponmlkjihgfedcbazyxwvutsrqponmlkjihgfedcbaZ");
+        assertCode(() -> service.resetPassword(actor, 3, targetId, "temporaria-valida-1", "r"), ApiErrorCode.CONFLICT);
+        assertThat(target.isMustChangePassword()).isFalse();
+        assertThat(target.getTokenVersion()).isZero();
+        assertThat(target.getPasswordHash()).isEqualTo(HASH);
+        verify(audit, never()).record(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void adminIsNotGrantedWhileTemporaryPasswordIsPending() {
+        OrganizationUser viewer = mock(OrganizationUser.class);
+        when(viewer.getRole()).thenReturn(new Role(RoleName.VIEWER, "VIEWER"));
+        when(viewer.isActive()).thenReturn(true);
+        when(memberships.findByOrganizationIdAndUserId(orgId, targetId)).thenReturn(List.of(viewer));
+        when(roles.findByName(RoleName.ADMIN)).thenReturn(Optional.of(new Role(RoleName.ADMIN, "ADMIN")));
+        target.resetPassword("$2a$10$tttttttttttttttttttttuabcdefghijklmnopqrstuvwxyzABCDE");
+        int version = target.getTokenVersion();
+
+        assertCode(() -> service.changeRoles(actor, 3, targetId, EnumSet.of(RoleName.ADMIN), "r"), ApiErrorCode.CONFLICT);
+        assertThat(target.getTokenVersion()).isEqualTo(version);
+        verify(audit, never()).record(any(), any(), any(), any(), any(), any());
+
+        // After the holder sets the final password, the same grant goes through.
+        target.changePassword("$2a$10$ffffffffffffffffffffffabcdefghijklmnopqrstuvwxyzABCDE");
+        service.changeRoles(actor, 3, targetId, EnumSet.of(RoleName.ADMIN), "r");
+        assertThat(target.getTokenVersion()).isEqualTo(version + 2);
     }
 
     @Test

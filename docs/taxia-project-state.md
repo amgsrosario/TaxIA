@@ -3,7 +3,7 @@
 Documento de passagem: permite retomar o projecto sem depender de conversas anteriores.
 Confirmar sempre no código, nas migrações e nos ADR (ver [AGENTS.md](../AGENTS.md)).
 
-Última actualização: 2026-10-06 (SEC-PILOT-CREDENTIALS-HARDENING).
+Última actualização: 2026-10-07 (SEC-PILOT-CREDENTIALS-HARDENING).
 
 ## Base e entregas recentes
 
@@ -81,10 +81,13 @@ justificaram descida).
   - papéis efectivos lidos da BD.
 - **Fluxos governados:**
   - mudança da própria password e logout-all;
-  - operações ADMIN (revoke, reset com mudança obrigatória, disable/reactivate, papéis);
+  - operações ADMIN (revoke, reset com mudança obrigatória só para contas não-ADMIN, disable/reactivate, papéis);
+  - contas ADMIN: só a própria mudança de password, ou break-glass se sem acesso (decisão de 2026-10-07);
   - break-glass por CLI, desligado por omissão.
 - **Guardas:**
   - último ADMIN activo protegido;
+  - contas ADMIN nunca repostas por outro ADMIN (409);
+  - não se concede ADMIN com password temporária pendente (409);
   - o secret JWT sem valor por omissão é recusado no arranque (sempre em `knowledgeflow_pilot`).
 - **Incidente de 2026-10-06** (só factos, sem valores):
   - Confirmou-se que o backend do piloto corria **sem `KNOWLEDGEFLOW_JWT_SECRET` próprio**, isto é, com o valor por omissão público versionado no repositório. Quem chegasse ao backend podia forjar tokens.
@@ -134,6 +137,10 @@ Auditoria, `updated_at`, texto servido e embeddings cruzados para as 4 Q&A publi
   7. Testes funcionais.
   8. Backup pós.
   9. Registo neste documento.
+- **Risco residual aceite para o piloto** (ADR-006, decisão executiva de 2026-10-07): um ADMIN que repõe a password de uma conta não-ADMIN pode, em teoria, assumir essa identidade, concluir a mudança obrigatória e promover depois a conta.
+  - É sobretudo uma questão de atribuição, não de privilégio.
+  - O reset e a promoção ficam auditados em nome do ADMIN real.
+  - Follow-up futuro: recuperação sem que o ADMIN conheça a credencial.
 - **Follow-ups de segurança** (ADR-006, fora de âmbito):
   - rate limiting e lockout no `/auth/login`;
   - auditoria detalhada de login (sucesso e falha);

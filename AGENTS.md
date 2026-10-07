@@ -111,6 +111,7 @@ Credenciais e sessões staff seguem o ADR-006:
 - o secret JWT nunca é o valor por omissão nem fica no repositório;
 - os papéis efectivos vêm da BD em cada pedido;
 - password, estado, papéis e sessões mudam-se só pelos fluxos governados (`/api/v1/auth/password`, `/api/v1/admin/users`, CLI break-glass), que incrementam `token_version` e ficam auditados;
+- contas ADMIN nunca são repostas por outro ADMIN: mudança da própria password ou, sem acesso, break-glass;
 - não usar SQL directo nem o `bootstrap-admin` para recuperar acesso, salvo blocker real;
 - nunca gerar, usar ou reproduzir JWT, passwords ou hashes reais.
 

@@ -94,7 +94,8 @@ export function AdminUsersPage() {
                     <button className="secondary" onClick={() => setPending({ user: u, action: "revoke" })}>
                       Invalidar sessões
                     </button>
-                    {!u.self && (
+                    {/* ADR-006: contas ADMIN não são repostas por outro ADMIN (backend devolve 409). */}
+                    {!u.self && !u.roles.includes("ADMIN") && (
                       <button className="secondary" onClick={() => setPending({ user: u, action: "reset" })}>
                         Repor password
                       </button>

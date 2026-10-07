@@ -156,6 +156,7 @@ o acesso de um ADMIN: para isso existe o break-glass governado (ADR-006).
 - **`token_version`** incrementa com mudança/reposição de password, logout-all, revoke, disable, reactivate, mudança de papéis, soft-delete e break-glass.
   - Locks: organização → utilizador, com refresh sob lock (`UserRowLock`).
   - Provado em PostgreSQL por `StaffCredentialsConcurrencyPostgresIT`.
+- **Reset por ADMIN:** só para contas não-ADMIN (409 para alvo com papel ADMIN activo). Conceder ADMIN com password temporária pendente → 409. Um ADMIN usa a própria mudança de password, ou o break-glass se não tiver acesso.
 - **`must_change_password`:** a sessão só alcança `/auth/me`, `/auth/password` e `/auth/logout-all`.
 - **Auditoria:** `USER_PASSWORD_CHANGED`, `USER_PASSWORD_RESET`, `USER_SESSIONS_REVOKED`, `USER_DISABLED`, `USER_REACTIVATED`, `USER_ROLES_CHANGED`, `USER_BREAK_GLASS_RESET`.
   - A metadata contém actor, alvo, organização e motivo.

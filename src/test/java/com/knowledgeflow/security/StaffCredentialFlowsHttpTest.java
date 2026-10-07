@@ -171,6 +171,52 @@ class StaffCredentialFlowsHttpTest extends StaffSecurityHttpTestSupport {
         assertThat(audit(AuditAction.USER_PASSWORD_RESET)).isEmpty();
     }
 
+    @Test
+    @DisplayName("reset ADMIN→ADMIN recusado (409), mesmo com o alvo desactivado; ex-ADMIN despromovido pode ser reposto")
+    void adminAccountsAreNeverResetByAnotherAdmin() throws Exception {
+        String adminToken = login("admin@cred.test", ADMIN_PASSWORD);
+        String secondToken = login("admin2@cred.test", SECOND_ADMIN_PASSWORD);
+
+        postWith(adminToken, adminUsers(secondAdmin.getId(), "password-reset"),
+                Map.of("temporaryPassword", TEMP_PASSWORD, "reason", "x")).andExpect(status().isConflict());
+        getWith(secondToken, ME).andExpect(status().isOk());
+        User untouched = reload(secondAdmin);
+        assertThat(untouched.getTokenVersion()).isZero();
+        assertThat(untouched.isMustChangePassword()).isFalse();
+        assertLoginFails("admin2@cred.test", TEMP_PASSWORD);
+
+        // A disabled account that still holds the ADMIN role is refused as well.
+        postWith(adminToken, adminUsers(secondAdmin.getId(), "disable"), Map.of("reason", "x"))
+                .andExpect(status().isNoContent());
+        postWith(adminToken, adminUsers(secondAdmin.getId(), "password-reset"),
+                Map.of("temporaryPassword", TEMP_PASSWORD, "reason", "x")).andExpect(status().isConflict());
+        assertThat(audit(AuditAction.USER_PASSWORD_RESET)).isEmpty();
+
+        // Once the ADMIN role is removed, the account is an ordinary staff account again.
+        postWith(adminToken, adminUsers(secondAdmin.getId(), "reactivate"), Map.of("reason", "x"))
+                .andExpect(status().isNoContent());
+        putWith(adminToken, adminUsers(secondAdmin.getId(), "roles"), Map.of("roles", List.of("VIEWER"), "reason", "x"))
+                .andExpect(status().isNoContent());
+        postWith(adminToken, adminUsers(secondAdmin.getId(), "password-reset"),
+                Map.of("temporaryPassword", TEMP_PASSWORD, "reason", "x")).andExpect(status().isNoContent());
+        assertThat(reload(secondAdmin).isMustChangePassword()).isTrue();
+
+        // …and it cannot be promoted back to ADMIN while that temporary password is pending
+        // (closes demote → reset → re-grant).
+        putWith(adminToken, adminUsers(secondAdmin.getId(), "roles"), Map.of("roles", List.of("ADMIN"), "reason", "x"))
+                .andExpect(status().isConflict());
+        assertThat(organizationUserRepository.findByUserIdAndDeletedAtIsNull(secondAdmin.getId()).stream()
+                .map(m -> m.getRole().getName()).toList()).containsExactly(RoleName.VIEWER);
+        assertThat(audit(AuditAction.USER_ROLES_CHANGED)).hasSize(1);
+
+        // Allowed path: once the holder has set their own password, ADMIN can be granted again.
+        String restricted = login("admin2@cred.test", TEMP_PASSWORD);
+        postWith(restricted, PASSWORD, change(TEMP_PASSWORD, NEW_PASSWORD)).andExpect(status().isNoContent());
+        putWith(adminToken, adminUsers(secondAdmin.getId(), "roles"), Map.of("roles", List.of("ADMIN"), "reason", "x"))
+                .andExpect(status().isNoContent());
+        getWith(login("admin2@cred.test", NEW_PASSWORD), ADMIN_ONLY).andExpect(status().isOk());
+    }
+
     // ------------------------------------------------------------ revoke
 
     @Test

@@ -39,7 +39,8 @@ import org.springframework.transaction.annotation.Transactional;
  * another organization is never revealed), refuses targets that also belong to another
  * organization (password, status and token_version are global), refuses non-login
  * service accounts, increments the target's token_version and records an audit event with
- * actor, target, organization and reason. The last active ADMIN of an organization can never be
+ * actor, target, organization and reason. The ADMIN password reset never applies to an account
+ * holding an active ADMIN role. The last active ADMIN of an organization can never be
  * disabled or lose the ADMIN role, and an ADMIN cannot disable, demote or reset themselves here.
  */
 @Service
@@ -102,6 +103,13 @@ public class StaffAccountAdminService {
             throw conflict("Use a alteração da própria password, não a reposição por ADMIN.");
         }
         Target target = lockTarget(actor, actorTokenVersion, targetId);
+        // ADR-006: an ADMIN account is never reset by another ADMIN (it could then act as that
+        // ADMIN). An authenticated ADMIN uses the own password change; an ADMIN without access is
+        // recovered only by the governed break-glass.
+        if (target.roles().contains(RoleName.ADMIN)) {
+            throw conflict("Contas ADMIN não podem ser repostas por esta via; usar a alteração da própria "
+                    + "password ou o break-glass governado.");
+        }
         User user = target.user();
         StaffPasswordPolicy.violation(temporaryPassword, user.getEmail()).ifPresent(message -> {
             throw new BusinessException(ApiErrorCode.VALIDATION_ERROR, message);
@@ -157,6 +165,13 @@ public class StaffAccountAdminService {
         if (losesAdmin && user.getStatus() == UserStatus.ACTIVE
                 && organizationUserRepository.countOtherActiveAdmins(target.organization().getId(), user.getId()) == 0) {
             throw conflict("Não é possível retirar o papel ADMIN ao último ADMIN activo da organização.");
+        }
+        // ADR-006: never grant ADMIN while an ADMIN-set temporary password is pending, otherwise
+        // demote → reset → re-grant would hand the resetting ADMIN a password-known ADMIN account.
+        if (desired.contains(RoleName.ADMIN) && !target.roles().contains(RoleName.ADMIN)
+                && user.isMustChangePassword()) {
+            throw conflict("Não é possível conceder ADMIN enquanto a mudança de password obrigatória estiver "
+                    + "pendente.");
         }
         if (desired.equals(target.roles())) {
             return; // nothing to change: no token invalidation, no audit
