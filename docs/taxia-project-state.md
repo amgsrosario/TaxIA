@@ -3,7 +3,7 @@
 Documento de passagem: permite retomar o projecto sem depender de conversas anteriores.
 Confirmar sempre no código, nas migrações e nos ADR (ver [AGENTS.md](../AGENTS.md)).
 
-Última actualização: 2026-10-07 (SEC-PILOT-CREDENTIALS-HARDENING).
+Última actualização: 2026-10-07 (SEC-PILOT-CREDENTIALS-HARDENING-ROLLOUT).
 
 ## Base e entregas recentes
 
@@ -14,10 +14,10 @@ Confirmar sempre no código, nas migrações e nos ADR (ver [AGENTS.md](../AGENT
 | M4-SCOPE | #10 | Gate determinístico de contradição de âmbito (imposto, categoria, operação) |
 | M4-SCOPE-V2 | #11 | Exclusões de aplicabilidade governadas (V16, [ADR-004](adr/ADR-004-applicability-metadata-governed-exclusions.md)) |
 | GOV-PUBLISHED-CONTENT-INTEGRITY | #12 (merged, `324c1f9`) | Integridade pós-validação e versões ([ADR-005](adr/ADR-005-published-content-integrity.md)) |
-| SEC-PILOT-CREDENTIALS-HARDENING | em revisão | Credenciais e sessões staff (V17, [ADR-006](adr/ADR-006-staff-credentials-session-invalidation.md)) |
+| SEC-PILOT-CREDENTIALS-HARDENING | #15 (merged, `f841335`); rollout no piloto concluído em 2026-10-07 | Credenciais e sessões staff (V17, [ADR-006](adr/ADR-006-staff-credentials-session-invalidation.md)) |
 
-Migrações: V1–V17. A V17 (`users.token_version`, `users.must_change_password`) **ainda não está
-aplicada no piloto**: o rollout é uma missão separada, posterior ao merge.
+Migrações: V1–V17. A V17 (`users.token_version`, `users.must_change_password`) está aplicada no
+piloto desde 2026-10-07 (SEC-PILOT-CREDENTIALS-HARDENING-ROLLOUT).
 
 ## Pipeline de grounding vigente
 
@@ -39,8 +39,10 @@ justificaram descida).
 
 ## Piloto
 
-- Base `knowledgeflow_pilot` em **V16** (aplicada em 2026-10-02 pela API do Flyway com as migrações
-  de `main`, depois de validar os checksums V1–V15; sem alteração de conteúdo).
+- Base `knowledgeflow_pilot` em **V17**:
+  - a V16 foi aplicada em 2026-10-02 pela API do Flyway com as migrações de `main`, depois de validar os checksums V1–V15;
+  - a V17 foi aplicada em 2026-10-07 pelo Flyway normal no arranque do backend a partir de `main` `f841335`;
+  - nenhuma das duas alterou conteúdo.
 - 21 Q&A no total, 4 publicadas e VALIDATED, 4 embeddings (um por publicada):
   AT-FAQ-2721, AT-FAQ-5795, AT-FAQ-5930 e CIVA-CONSERVACAO-10A-001_v2.
 - Exclusões de aplicabilidade (ADR-004), definidas pelo António no backoffice em 2026-10-06, todas
@@ -67,7 +69,10 @@ justificaram descida).
   "Que despesas posso deduzir aos rendimentos?").
 - Backups (fora do repositório, `/home/arosario/backups/taxia/`, com `.sha256`):
   `knowledgeflow_pilot_pre_governance_activation_2026-10-02.dump` (antes da V16) e
-  `knowledgeflow_pilot_post_governance_activation_2026-10-02.dump` (estado final).
+  `knowledgeflow_pilot_post_governance_activation_2026-10-02.dump` (estado final);
+  `knowledgeflow_pilot_pre_credentials_rollout_2026-10-07.dump` (V16, antes do rollout; sha256 `ae49689f…`) e
+  `knowledgeflow_pilot_post_credentials_rollout_2026-10-07.dump` (V17, depois do rollout; sha256 `7c2d2f01…`).
+  Os dois de 2026-10-07 têm permissões 600.
 - **Operação:**
   - `scripts/run-dev.*` não define a base. Para o piloto é preciso `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:15432/knowledgeflow_pilot`; sem isso, o backend liga-se a `knowledgeflow`, onde o admin do piloto não existe.
   - Desde o ADR-006 também é obrigatório `KNOWLEDGEFLOW_JWT_SECRET`.
@@ -98,7 +103,19 @@ justificaram descida).
     - o login ADMIN foi reconfirmado pelo António.
   - O piloto permaneceu íntegro: nenhuma escrita de dados; contagens inalteradas.
   - Decisão: endurecimento duradouro pelo ADR-006.
-  - A rotação da password do admin fica para o rollout da V17, pelo mecanismo governado e não por SQL.
+  - A rotação da password do admin ficou para o rollout da V17, pelo mecanismo governado e não por SQL. Foi feita em 2026-10-07 (ver abaixo).
+- **Rollout no piloto (SEC-PILOT-CREDENTIALS-HARDENING-ROLLOUT, 2026-10-07):**
+  - backup pré-rollout válido;
+  - backend antigo (V16) parado e arrancado a partir de `main` `f841335` com o launcher local do piloto, com o mesmo secret próprio de contenção, fora do repositório e nunca impresso;
+  - JWT secret guard OK, V16 → V17 com sucesso, health UP;
+  - os 3 utilizadores ficaram com `token_version=0` e `must_change_password=false`; as 2 contas de serviço ficaram intocadas (DISABLED);
+  - acções humanas do António no backoffice: login ADMIN pós-V17; rotação da password de `piloto.admin@taxia.local` em Perfil → "Alterar password" (`token_version` 0 → 1, `USER_PASSWORD_CHANGED`); novo login com a password nova; "Terminar todas as sessões" (`token_version` 1 → 2, `USER_SESSIONS_REVOKED`); login final, com Q&A e Utilizadores acessíveis;
+  - auditoria: exactamente estes 2 eventos novos (91 → 93), sem segredos na metadata; nenhum `USER_PASSWORD_RESET` nem `USER_BREAK_GLASS_RESET`;
+  - break-glass não executado;
+  - corpus intacto: 21 Q&A, 4 publicadas, 4 embeddings, 29 fontes, 7 exclusões; 3 utilizadores e 1 membership;
+  - backup pós-rollout válido;
+  - o risco residual de reset por ADMIN mantém-se aceite (ADR-006).
+- **Nota operacional:** `/actuator/health/readiness` exige autenticação. Não é regressão: só `/actuator/health` e `/actuator/info` são públicos, como antes. O runbook PowerShell refere `readiness` sem token; está registado como follow-up de documentação.
 
 ## Verificação legacy do piloto (2026-10-02, só de leitura)
 
@@ -127,16 +144,7 @@ Auditoria, `updated_at`, texto servido e embeddings cruzados para as 4 Q&A publi
   não o nome do especialista; avaliar se a validação deve pedir o nome do revisor.
 - Decisão em aberto: levantar ou não o guard rail "o backoffice não publica" para expor
   "publicar e substituir" na UI.
-- **SEC-PILOT-CREDENTIALS-HARDENING-ROLLOUT** (depois do merge, acção humana):
-  1. Backup do piloto.
-  2. Aplicar a V17.
-  3. Reiniciar com o secret actual.
-  4. Novo login.
-  5. Rodar a password de `piloto.admin@taxia.local` pelo backoffice (Perfil → Alterar password).
-  6. Confirmar a invalidação do token antigo.
-  7. Testes funcionais.
-  8. Backup pós.
-  9. Registo neste documento.
+- Runbook PowerShell: a secção 2 usa `/actuator/health/readiness` sem token (responde 401). Rever para usar `/actuator/health` ou autenticar.
 - **Risco residual aceite para o piloto** (ADR-006, decisão executiva de 2026-10-07): um ADMIN que repõe a password de uma conta não-ADMIN pode, em teoria, assumir essa identidade, concluir a mudança obrigatória e promover depois a conta.
   - É sobretudo uma questão de atribuição, não de privilégio.
   - O reset e a promoção ficam auditados em nome do ADMIN real.

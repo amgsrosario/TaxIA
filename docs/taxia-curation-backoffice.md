@@ -44,7 +44,7 @@ O dev server usa a porta **3000** (na allowlist CORS do backend, junto com 5173)
 Utilizador ADMIN criado na Etapa 9B.1: `piloto.admin@taxia.local`.
 
 - A password foi definida no bootstrap.
-- **A rotação está pendente.** Faz-se depois do rollout da V17, pelo mecanismo governado do ADR-006, e não por SQL.
+- **A rotação foi feita em 2026-10-07**, no rollout da V17, pelo mecanismo governado do ADR-006 (Perfil → "Alterar password"), e não por SQL.
 - Nunca guardar a password em ficheiros.
 
 ## Fluxo de login
@@ -195,4 +195,4 @@ alterações geram `KNOWLEDGE_QA_APPLICABILITY_UPDATED`. Nada disto aparece em D
    confirmação reforçada + embeddings caso a caso);
 3. endpoint de auditoria + vista correspondente;
 4. filtros de risco/texto no servidor quando a base crescer;
-5. rotação da password do admin do piloto pelo mecanismo do ADR-006, no rollout da V17.
+5. ~~rotação da password do admin do piloto~~ — concluída em 2026-10-07 (ADR-006).
