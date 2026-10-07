@@ -330,3 +330,7 @@ tr.clickable:hover { background: #f2f5f9; }
 .doc-source-ref { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
 .doc-source-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .doc-source-url { display: inline-block; margin-top: 6px; font-size: 0.82rem; word-break: break-all; }
+
+/* Formulários de password (ADR-006) */
+.password-form > div { margin-bottom: 12px; }
+.password-form button[type="submit"] { width: 100%; }

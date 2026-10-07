@@ -7,6 +7,7 @@ public record CurrentUserResponse(
         UUID userId,
         UUID organizationId,
         String email,
-        List<String> roles
+        List<String> roles,
+        boolean mustChangePassword
 ) {
 }

@@ -121,7 +121,9 @@ public class AuthService {
                 .orElseThrow(() -> invalidCredentials());
 
         User user = membership.getUser();
-        if (user.getStatus() != UserStatus.ACTIVE || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        if (user.getStatus() != UserStatus.ACTIVE
+                || user.isDeleted()
+                || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw invalidCredentials();
         }
 

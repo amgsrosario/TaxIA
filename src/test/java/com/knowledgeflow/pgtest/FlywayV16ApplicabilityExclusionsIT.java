@@ -80,8 +80,8 @@ class FlywayV16ApplicabilityExclusionsIT {
     @Order(2)
     @DisplayName("V16 aplica-se e preserva a Q&A legacy, com revisão de aplicabilidade a NULL")
     void migrateToV16_isAdditive() {
-        assertThat(flyway(null).migrate().migrationsExecuted).isEqualTo(1);
-        assertThat(flyway(null).info().current().getVersion().getVersion()).isEqualTo("16");
+        assertThat(flyway("16").migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(flyway("16").info().current().getVersion().getVersion()).isEqualTo("16");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM knowledge_question_answers WHERE id = ?"
                 + " AND applicability_reviewed_at IS NULL AND applicability_reviewed_by IS NULL"
                 + " AND published_at IS NOT NULL", Integer.class, QA_ID)).isEqualTo(1);
@@ -113,7 +113,7 @@ class FlywayV16ApplicabilityExclusionsIT {
     @Order(5)
     @DisplayName("Flyway validate passa no schema final")
     void validate() {
-        flyway(null).validate();
+        flyway("16").validate();
     }
 
     private void insertExclusion(String marker) {

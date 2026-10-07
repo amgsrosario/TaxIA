@@ -5,6 +5,7 @@ import com.knowledgeflow.clients.dto.ClientPortalAuthResponse;
 import com.knowledgeflow.clients.entity.ClientPortalUser;
 import com.knowledgeflow.organizations.entity.Organization;
 import com.knowledgeflow.security.JwtProperties;
+import com.knowledgeflow.security.TokenTypeAwareJwtAuthenticationConverter;
 import com.knowledgeflow.users.entity.User;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -33,6 +34,10 @@ public class JwtService {
     /** Token type claim value for client portal user tokens */
     public static final String TOKEN_TYPE_CLIENT_PORTAL = "CLIENT_PORTAL";
 
+    /**
+     * Staff token. {@code roles} is informative only (the effective roles are re-read from the
+     * database on every request); {@code tv} binds the token to the user's current token_version.
+     */
     public AuthResponse issueToken(User user, Organization organization, List<String> roles) {
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plusSeconds(jwtProperties.accessTokenTtlMinutes() * 60);
@@ -46,6 +51,7 @@ public class JwtService {
                 .claim("email", user.getEmail())
                 .claim("organization_id", organization.getId().toString())
                 .claim("roles", roles)
+                .claim(TokenTypeAwareJwtAuthenticationConverter.TOKEN_VERSION_CLAIM, user.getTokenVersion())
                 .build();
 
         JwsHeader headers = JwsHeader.with(MacAlgorithm.HS256).build();
@@ -58,7 +64,8 @@ public class JwtService {
                 organization.getId(),
                 user.getEmail(),
                 user.getFullName(),
-                roles
+                roles,
+                user.isMustChangePassword()
         );
     }
 

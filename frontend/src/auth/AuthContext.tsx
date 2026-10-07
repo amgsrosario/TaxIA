@@ -14,6 +14,7 @@ import type { LoginResponse } from "../api/types";
  * Sessão do piloto: o JWT vive em memória e em sessionStorage (sobrevive a
  * refresh, morre ao fechar o separador). Decisão deliberada e documentada
  * para o backoffice de piloto — sem refresh tokens nem persistência longa.
+ * Passwords nunca são guardadas: vivem apenas no estado dos formulários.
  */
 const STORAGE_KEY = "taxia.pilot.session";
 
@@ -24,6 +25,8 @@ export interface SessionInfo {
   organizationId: string;
   roles: string[];
   expiresAt: string;
+  /** Sessão restrita à mudança de password (o backend recusa tudo o resto). */
+  mustChangePassword: boolean;
 }
 
 interface AuthContextValue {
@@ -76,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       organizationId: response.organizationId,
       roles: response.roles,
       expiresAt: response.expiresAt,
+      mustChangePassword: response.mustChangePassword,
     };
     setAuthToken(newSession.token);
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));

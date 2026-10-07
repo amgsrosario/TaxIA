@@ -11,6 +11,10 @@ spring:
       ddl-auto: create-drop
 
 knowledgeflow:
+  security:
+    jwt:
+      # Fictitious, test-only signing key (H2 tests). Never used outside automated tests.
+      secret: test-only-jwt-signing-key-not-a-secret-0123456789
   auth:
     bootstrap:
       enabled: true

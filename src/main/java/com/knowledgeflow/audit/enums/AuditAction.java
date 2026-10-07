@@ -46,5 +46,14 @@ public enum AuditAction {
     AT_FAQ_SECURITY_BLOCKED,
 
     // Auth bootstrap
-    ADMIN_BOOTSTRAPPED
+    ADMIN_BOOTSTRAPPED,
+
+    // Staff credentials and sessions (ADR-006). Metadata never carries a password, hash, JWT or secret.
+    USER_PASSWORD_CHANGED,
+    USER_PASSWORD_RESET,
+    USER_SESSIONS_REVOKED,
+    USER_DISABLED,
+    USER_REACTIVATED,
+    USER_ROLES_CHANGED,
+    USER_BREAK_GLASS_RESET
 }

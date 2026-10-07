@@ -12,6 +12,7 @@ import type {
   LoginResponse,
   PageResponse,
   SourceReference,
+  StaffUserSummary,
   SourceReferenceRequest,
 } from "./types";
 
@@ -111,6 +112,44 @@ export function login(payload: LoginRequest): Promise<LoginResponse> {
 
 export function fetchMe(): Promise<AuthUser> {
   return request<AuthUser>("GET", "/api/v1/auth/me");
+}
+
+/**
+ * Mudança da própria password (ADR-006). Termina todas as sessões, incluindo a actual:
+ * o chamador deve terminar a sessão local e pedir novo login.
+ */
+export function changeOwnPassword(currentPassword: string, newPassword: string): Promise<void> {
+  return request<void>("POST", "/api/v1/auth/password", { currentPassword, newPassword });
+}
+
+/** Termina todas as sessões do próprio utilizador, incluindo a actual. */
+export function logoutAllSessions(): Promise<void> {
+  return request<void>("POST", "/api/v1/auth/logout-all");
+}
+
+// ── Administração de utilizadores staff (ADMIN) ─────────────────────────────
+
+export function listStaffUsers(): Promise<StaffUserSummary[]> {
+  return request<StaffUserSummary[]>("GET", "/api/v1/admin/users");
+}
+
+export function revokeStaffSessions(id: string, reason: string): Promise<void> {
+  return request<void>("POST", `/api/v1/admin/users/${encodeURIComponent(id)}/sessions/revoke`, { reason });
+}
+
+export function resetStaffPassword(id: string, temporaryPassword: string, reason: string): Promise<void> {
+  return request<void>("POST", `/api/v1/admin/users/${encodeURIComponent(id)}/password-reset`, {
+    temporaryPassword,
+    reason,
+  });
+}
+
+export function disableStaffUser(id: string, reason: string): Promise<void> {
+  return request<void>("POST", `/api/v1/admin/users/${encodeURIComponent(id)}/disable`, { reason });
+}
+
+export function reactivateStaffUser(id: string, reason: string): Promise<void> {
+  return request<void>("POST", `/api/v1/admin/users/${encodeURIComponent(id)}/reactivate`, { reason });
 }
 
 // ── Conhecimento Q&A ───────────────────────────────────────────────────────

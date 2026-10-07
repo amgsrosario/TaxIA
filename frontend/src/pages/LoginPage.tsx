@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 
 export function LoginPage() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const notice = (location.state as { message?: string } | null)?.message ?? null;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -17,6 +19,7 @@ export function LoginPage() {
     setBusy(true);
     try {
       await signIn(email, password);
+      setPassword("");
       navigate("/qa", { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erro inesperado no login.");
@@ -32,6 +35,7 @@ export function LoginPage() {
           Tax<span>IA</span>
         </div>
         <div className="subtitle">Backoffice de curadoria — piloto interno</div>
+        {notice && !error && <div className="banner success">{notice}</div>}
         {error && <div className="banner error">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div>

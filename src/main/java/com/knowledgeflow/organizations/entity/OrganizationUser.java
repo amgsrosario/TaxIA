@@ -89,4 +89,20 @@ public class OrganizationUser {
     public OffsetDateTime getDeletedAt() {
         return deletedAt;
     }
+
+    public boolean isActive() {
+        return deletedAt == null;
+    }
+
+    /** Removes this role from the user in the organization (governed role change, ADR-006). */
+    public void softDelete() {
+        if (deletedAt == null) {
+            deletedAt = OffsetDateTime.now();
+        }
+    }
+
+    /** Re-grants a previously removed role, reusing the row (UNIQUE organization/user/role). */
+    public void restore() {
+        deletedAt = null;
+    }
 }

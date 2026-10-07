@@ -63,7 +63,11 @@ Variáveis de ambiente obrigatórias para funcionalidade completa:
 
 ```text
 ANTHROPIC_API_KEY=<chave Anthropic>   # se ausente, usa StubAIService (respostas fixas)
+KNOWLEDGEFLOW_JWT_SECRET=<aleatório, >= 32 bytes; ex.: openssl rand -base64 48>  # obrigatório (ADR-006)
 ```
+
+Sem `KNOWLEDGEFLOW_JWT_SECRET` válido o backend não arranca (excepto nos perfis de teste
+automatizado, e nunca contra `knowledgeflow_pilot`).
 
 ```powershell
 docker-compose up -d
@@ -109,6 +113,19 @@ Autenticação:
 POST /api/v1/auth/bootstrap-admin
 POST /api/v1/auth/login
 GET  /api/v1/auth/me
+POST /api/v1/auth/password        # própria password; termina todas as sessões (ADR-006)
+POST /api/v1/auth/logout-all
+```
+
+Administração de utilizadores staff (ADMIN, mesma organização; ADR-006):
+
+```text
+GET  /api/v1/admin/users
+POST /api/v1/admin/users/{id}/sessions/revoke
+POST /api/v1/admin/users/{id}/password-reset
+POST /api/v1/admin/users/{id}/disable
+POST /api/v1/admin/users/{id}/reactivate
+PUT  /api/v1/admin/users/{id}/roles
 ```
 
 Clientes:
@@ -225,6 +242,8 @@ V10  billing (commercial plans, organization plans, consumption events)
 V11  client portal users
 V12  organization users
 V13  pgvector + knowledge_case_embeddings
+…    (V14–V16: ver docs/taxia-project-state.md)
+V17  users.token_version + users.must_change_password (ADR-006)
 ```
 
 As migrations antigas não são reescritas. A `V5` converte instalações já existentes sem perder dados.

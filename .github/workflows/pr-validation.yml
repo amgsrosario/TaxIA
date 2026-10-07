@@ -45,6 +45,12 @@ jobs:
             KnowledgeFlowApplicationTests
             HealthControllerTest
             SecretsHygieneTest
+            JwtSecretPolicyTest
+            TokenVersionClaimTest
+            StaffPasswordPolicyTest
+            UserCredentialDomainTest
+            StaffAccountAdminGuardsTest
+            StaffAdminRecoveryLauncherTest
             PilotDatasourceCredentialsTest
             PilotAiProviderDefaultsTest
             AtFaqE9cPilotFlagTest

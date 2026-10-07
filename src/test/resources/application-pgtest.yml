@@ -10,6 +10,11 @@ spring:
     show-sql: false
 
 knowledgeflow:
+  security:
+    jwt:
+      # Fictitious, test-only signing key. Satisfies the JWT secret policy because pgtest ITs that
+      # name their disposable container knowledgeflow_pilot are subject to the startup guard.
+      secret: pgtest-only-jwt-signing-key-not-a-secret-0123456789
   ai:
     primary-provider: stub
     providers:

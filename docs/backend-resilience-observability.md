@@ -136,7 +136,31 @@ Política (por ordem de verificação):
 3. Uso único: bloqueado (`409`) assim que exista qualquer utilizador.
 4. Auditado (`ADMIN_BOOTSTRAPPED`).
 
-Nunca activar em produção sem configuração explícita e temporária.
+Nunca activar em produção sem configuração explícita e temporária. Nunca é o meio de recuperar
+o acesso de um ADMIN: para isso existe o break-glass governado (ADR-006).
+
+## 11A. Credenciais e sessões staff (ADR-006)
+
+- **Validação em cada pedido staff:**
+  - assinatura, `exp`/`nbf` (`exp` e `sub` obrigatórios) e issuer;
+  - `token_type=ORG_USER`;
+  - `tv` inteiro igual a `users.token_version`;
+  - utilizador ACTIVE e não apagado;
+  - membership activa na organização do claim.
+  - Falha → `401` com mensagem genérica.
+  - Papéis efectivos lidos da BD; o claim `roles` não confere autoridade.
+- **Fronteira de tipos de token:**
+  - `/api/v1/portal/**` só aceita `CLIENT_PORTAL`;
+  - as restantes rotas autenticadas só aceitam staff;
+  - tipo errado → `403`.
+- **`token_version`** incrementa com mudança/reposição de password, logout-all, revoke, disable, reactivate, mudança de papéis, soft-delete e break-glass.
+  - Locks: organização → utilizador, com refresh sob lock (`UserRowLock`).
+  - Provado em PostgreSQL por `StaffCredentialsConcurrencyPostgresIT`.
+- **Reset por ADMIN:** só para contas não-ADMIN (409 para alvo com papel ADMIN activo). Conceder ADMIN com password temporária pendente → 409. Um ADMIN usa a própria mudança de password, ou o break-glass se não tiver acesso.
+- **`must_change_password`:** a sessão só alcança `/auth/me`, `/auth/password` e `/auth/logout-all`.
+- **Auditoria:** `USER_PASSWORD_CHANGED`, `USER_PASSWORD_RESET`, `USER_SESSIONS_REVOKED`, `USER_DISABLED`, `USER_REACTIVATED`, `USER_ROLES_CHANGED`, `USER_BREAK_GLASS_RESET`.
+  - A metadata contém actor, alvo, organização e motivo.
+  - Nunca contém password, hash, JWT ou secret.
 
 ## 12. Segredos
 
@@ -146,6 +170,13 @@ Nunca activar em produção sem configuração explícita e temporária.
   `mappings`, `heapdump`, `threaddump`.
 - Mensagens de erro e logs não expõem valores de segredos.
 - Testes usam exclusivamente valores fictícios.
+- **Secret JWT** (`JwtSecretStartupGuard`, ADR-006): sem valor por omissão. O arranque é recusado se o secret:
+  - estiver ausente;
+  - for o antigo valor público de desenvolvimento;
+  - tiver menos de 32 bytes;
+  - tiver menos de 10 caracteres distintos.
+
+  Aplica-se fora de `test`/`pgtest` e sempre que a datasource seja `knowledgeflow_pilot`. A mensagem de erro nunca contém o valor.
 
 ## 13. Limites de payload
 
@@ -172,7 +203,8 @@ Optimistic locking (`@Version`) + constraints únicos garantem, sob corrida
 
 ## 15. Rate limiting
 
-**Adiado para a etapa de produção** (decisão desta etapa): não foi introduzida
+**Adiado para a etapa de produção** (decisão desta etapa; reconfirmado no ADR-006 para o
+`/auth/login`, sem lockout nem auditoria detalhada de login — follow-up): não foi introduzida
 infraestrutura de rate limiting. Mitigações actuais: limites de payload, retries
 bounded e autenticação obrigatória. Implementar limite configurável por
 utilizador/organização nos endpoints de IA e importação antes de exposição pública.
@@ -180,7 +212,8 @@ utilizador/organização nos endpoints de IA e importação antes de exposição
 ## 16. Operação em piloto interno
 
 1. Arrancar PostgreSQL (`docker compose up -d`) e o microserviço de embeddings.
-2. Definir env: `ANTHROPIC_API_KEY`, `KNOWLEDGEFLOW_JWT_SECRET` (produção: obrigatório),
+2. Definir env: `ANTHROPIC_API_KEY`, `KNOWLEDGEFLOW_JWT_SECRET` (obrigatório: aleatório, >= 32
+   bytes; o arranque falha sem ele),
    `BOOTSTRAP_ADMIN_ENABLED=true` + `BOOTSTRAP_ADMIN_SECRET` **apenas** para o primeiro
    arranque; desactivar depois.
 3. Verificar `/actuator/health/readiness` (db, pgvector, aiStack) antes de servir tráfego.
