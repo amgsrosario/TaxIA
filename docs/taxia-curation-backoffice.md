@@ -35,7 +35,7 @@ Build de produção: `npm run build` (inclui `tsc --noEmit`; saída em `frontend
 
 | Variável | Default | Nota |
 |---|---|---|
-| `VITE_TAXIA_API_BASE_URL` | `http://localhost:8081` | definida em `frontend/.env.development`; sem segredos |
+| `VITE_TAXIA_API_BASE_URL` | vazia (base relativa `/api/...`) | override opcional (ex.: `http://localhost:8081`); por omissão o dev server do Vite encaminha `/api` para `http://localhost:8081`, por isso o backoffice funciona também noutra máquina da LAN, na porta 3000, sem expor o backend |
 
 O dev server usa a porta **3000** (na allowlist CORS do backend, junto com 5173).
 
