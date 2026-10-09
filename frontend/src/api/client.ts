@@ -16,9 +16,16 @@ import type {
   SourceReferenceRequest,
 } from "./types";
 
-const BASE_URL: string =
-  (import.meta.env.VITE_TAXIA_API_BASE_URL as string | undefined) ??
-  "http://localhost:8081";
+/**
+ * Base da API. Por omissão é relativa (vazia): os pedidos vão para /api/... no mesmo host e
+ * porta que serviram o frontend, e o dev server do Vite encaminha-os para o backend local. Assim o
+ * browser (no próprio portátil ou noutra máquina da LAN) nunca precisa de chegar à porta 8081.
+ * VITE_TAXIA_API_BASE_URL continua a ser um override explícito (ex.: http://localhost:8081);
+ * a barra final, se existir, é removida porque todos os paths começam por "/".
+ */
+const BASE_URL: string = (
+  (import.meta.env.VITE_TAXIA_API_BASE_URL as string | undefined)?.trim() ?? ""
+).replace(/\/+$/, "");
 
 /** Erro de API com mensagem apresentável (nunca stack traces). */
 export class ApiError extends Error {
