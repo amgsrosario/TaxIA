@@ -22,9 +22,6 @@ public class AnswerGroundingValidator {
     private static final Pattern P_TAX_RATE =
             Pattern.compile("\\b(\\d{1,2}(?:[,.]\\d+)?\\s*%)");
 
-    private static final Pattern P_LEGAL_REF_ARTICLE =
-            Pattern.compile("(?i)(artigo\\s+\\d+[.º°]*(?:[\\-A-Z][A-Z]?)?)");
-
     private static final Pattern P_LEGAL_REF_INSTRUMENT =
             Pattern.compile("(?i)(decreto[\\-\\s]lei|portaria|despacho|circular|ofício[\\-\\s]circulado)" +
                     "\\s+n[.º°]?\\.?\\s*\\d+[\\/\\-]?\\d*");
@@ -53,7 +50,6 @@ public class AnswerGroundingValidator {
     /** Patterns for all claim types except MONETARY_THRESHOLD (handled separately). */
     private static final List<Map.Entry<SensitiveClaimType, Pattern>> NON_MONETARY_PATTERNS = List.of(
             Map.entry(SensitiveClaimType.TAX_RATE,         P_TAX_RATE),
-            Map.entry(SensitiveClaimType.LEGAL_REFERENCE,  P_LEGAL_REF_ARTICLE),
             Map.entry(SensitiveClaimType.LEGAL_REFERENCE,  P_LEGAL_REF_INSTRUMENT),
             Map.entry(SensitiveClaimType.DEADLINE,         P_DEADLINE),
             Map.entry(SensitiveClaimType.DATE,             P_DATE),
@@ -99,6 +95,7 @@ public class AnswerGroundingValidator {
         Set<String> seen = new HashSet<>();
 
         detectMonetaryClaims(answer, contextText, context, result, seen);
+        detectArticleClaims(answer, contextText, context, result, seen);
 
         for (var entry : NON_MONETARY_PATTERNS) {
             SensitiveClaimType type = entry.getKey();
@@ -122,6 +119,32 @@ public class AnswerGroundingValidator {
             }
         }
         return result;
+    }
+
+    // -------------------------------------------------------------------------
+    // Legal article references — compared by canonical identity (LegalArticleReference):
+    // "artigo 52.º" ≡ "art. 52.º" ≡ "art 52"; 52 ≠ 152 ≠ 5 ≠ 52.º-A.
+    // -------------------------------------------------------------------------
+
+    private void detectArticleClaims(String answer, String contextText,
+            List<RetrievedCase> context, List<SensitiveClaim> result, Set<String> seen) {
+        Set<String> contextKeys = LegalArticleReference.extractAll(contextText);
+        for (LegalArticleReference.Ref ref : LegalArticleReference.findAll(answer)) {
+            String key = ref.key();
+            if (!seen.add(key)) continue;
+
+            boolean supported = contextKeys.contains(key);
+            List<String> sources = supported
+                    ? context.stream()
+                            .filter(c -> LegalArticleReference.extractAll(
+                                    c.title() + " " + c.question() + " " + nullSafe(c.content())).contains(key))
+                            .map(RetrievedCase::title)
+                            .distinct()
+                            .toList()
+                    : List.of();
+
+            result.add(new SensitiveClaim(ref.text(), SensitiveClaimType.LEGAL_REFERENCE, supported, sources));
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -188,8 +211,18 @@ public class AnswerGroundingValidator {
                 .collect(Collectors.joining(" "));
     }
 
+    /**
+     * Lexical normalisation for the generic comparison. Structural punctuation — parentheses,
+     * semicolons and colons not between two digits, and commas not followed by a digit — counts
+     * as a word boundary, so "(10 anos civis)" supports "10 anos". Between digits it is kept
+     * ("6,5%" never becomes "6 5%" and "1:5%" never "1 5%", which would let "5%" match).
+     * No-break spaces count as spaces.
+     */
     private String normalize(String text) {
         return text.toLowerCase()
+                .replaceAll("[\\u00A0\\u202F]", " ")
+                .replaceAll("(?<!\\d)[();:]|[();:](?!\\d)", " ")
+                .replaceAll(",(?!\\d)", " ")
                 .replaceAll("[.º°]", "")
                 .replaceAll("(\\d)\\s+%", "$1%")
                 .replaceAll("\\s+", " ")
