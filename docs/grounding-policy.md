@@ -198,7 +198,7 @@ Detecta afirmações sensíveis na resposta e verifica se estão no contexto.
 | Tipo | Exemplos |
 |---|---|
 | `TAX_RATE` | `23%`, `6%`, `13,5%` |
-| `LEGAL_REFERENCE` | `artigo 9.º`, `decreto-lei n.º 192/2020` |
+| `LEGAL_REFERENCE` | `artigo 9.º`, `art. 52.º`, `art 135-D`, `decreto-lei n.º 192/2020` |
 | `MONETARY_THRESHOLD` | `650 000 €`, `10 000 euros` |
 | `DEADLINE` | `30 dias`, `3 meses` |
 | `DATE` | `1 de janeiro de 2024` |
@@ -206,10 +206,20 @@ Detecta afirmações sensíveis na resposta e verifica se estão no contexto.
 | `EXEMPTION` | `está isento`, `não está sujeito`, `está dispensado` |
 | `DEDUCTIBILITY` | `é dedutível`, `não é dedutível`, `tem direito à dedução`, `pode deduzir` |
 
-**Método de verificação:** comparação lexical normalizada (minúsculas, sem marcadores ordinais,
-espaços colapsados, verificação com fronteiras de palavra). Afirmações textuais (sem números)
-usam multi-palavras específicas para evitar falsos positivos — a presença de palavras genéricas
-no contexto não suporta automaticamente a afirmação.
+**Método de verificação:**
+
+- **Comparação lexical normalizada:**
+  - minúsculas;
+  - sem marcadores ordinais;
+  - espaços colapsados;
+  - verificação com fronteiras de palavra.
+
+  Parênteses, ponto e vírgula, dois pontos e vírgulas que não sejam separador decimal contam como fronteira. Assim, "(10 anos civis)" suporta "10 anos", e "6,5%" continua a não suportar "5%".
+- **Artigos:** comparados por identidade canónica, ou seja, número mais sufixo de letra opcional.
+  - "artigo 52.º", "art. 52.º", "art 52" e "(art. 52.º, n.º 1, …)" são a mesma referência.
+  - 52, 152, 5 e 52.º-A são referências diferentes: nunca há correspondência por substring.
+  - O número (n.º) e o diploma não fazem parte da identidade.
+- **Afirmações textuais (sem números):** usam multi-palavras específicas para evitar falsos positivos. A presença de palavras genéricas no contexto não suporta automaticamente a afirmação.
 
 ### `GroundingService`
 
