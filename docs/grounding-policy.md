@@ -198,9 +198,9 @@ Detecta afirmações sensíveis na resposta e verifica se estão no contexto.
 | Tipo | Exemplos |
 |---|---|
 | `TAX_RATE` | `23%`, `6%`, `13,5%` |
-| `LEGAL_REFERENCE` | `artigo 9.º`, `art. 52.º`, `art 135-D`, `decreto-lei n.º 192/2020` |
+| `LEGAL_REFERENCE` | `artigo 9.º`, `art. 52.º`, `art 135-D`, `Decreto-Lei n.º 28/2019`, `DL 28/2019`, `Portaria n.º 195/2020` |
 | `MONETARY_THRESHOLD` | `650 000 €`, `10 000 euros` |
-| `DEADLINE` | `30 dias`, `3 meses` |
+| `DEADLINE` | `30 dias`, `3 meses`, `5 dias úteis`, `10 anos civis`, `5.º dia útil`, `15.º dia do mês seguinte` |
 | `DATE` | `1 de janeiro de 2024` |
 | `LEGAL_OBLIGATION` | `é obrigatório`, `deve liquidar IVA`, `deve registar-se`, `pode renunciar` |
 | `EXEMPTION` | `está isento`, `não está sujeito`, `está dispensado` |
@@ -214,13 +214,27 @@ Detecta afirmações sensíveis na resposta e verifica se estão no contexto.
   - espaços colapsados;
   - verificação com fronteiras de palavra.
 
-  Parênteses, ponto e vírgula, dois pontos e vírgulas que não sejam separador decimal contam como fronteira. Assim, "(10 anos civis)" suporta "10 anos", e "6,5%" continua a não suportar "5%".
+  Parênteses, ponto e vírgula, dois pontos e vírgulas que não sejam separador decimal contam como fronteira. Assim, "6,5%" continua a não suportar "5%". Esta comparação aplica-se a taxas e datas. Prazos, artigos e diplomas comparam-se por identidade (ver abaixo).
 - **Artigos:** comparados por identidade canónica, ou seja, número mais sufixo de letra opcional.
   - "artigo 52.º", "art. 52.º", "art 52" e "(art. 52.º, n.º 1, …)" são a mesma referência.
   - 52, 152, 5 e 52.º-A são referências diferentes: nunca há correspondência por substring.
   - O número (n.º) e o diploma não fazem parte da identidade.
+- **Prazos** (`DeadlineReference`): comparados por identidade canónica, nunca por substring. A identidade é forma (cardinal ou ordinal) + número + unidade (dia, mês, ano) + qualificador material.
+  - Ordinais: "5.º dia útil", "5º", "5.°", "5°" e "5.o", com espaços normais ou não separáveis, são a mesma forma. 5.º, 15.º e 10.º são prazos diferentes.
+  - Qualificadores que fazem parte da identidade: "útil/úteis", "civil/civis", "seguido(s)", "consecutivo(s)", "de calendário" e, nos ordinais, "do mês seguinte/anterior".
+  - **Regra conservadora:** retirar ou acrescentar um qualificador muda o prazo. "5 dias úteis" não suporta "5 dias", e "10 anos civis" não suporta "10 anos" (nem o inverso). Não há sinónimos entre qualificadores ("seguidos" ≠ "consecutivos").
+  - Cardinal e ordinal não se cruzam: "5.º dia útil" não suporta "5 dias úteis". Quem cura o conteúdo pode incluir as duas formas, se ambas forem correctas.
+  - "seguinte" isolado ("5.º dia útil seguinte") não é qualificador.
+  - "dia 15 do mês seguinte" ≡ "15.º dia do mês seguinte".
+  - Os números são inteiros: "1.000" (milhares) ≡ "1000" e "2,5" ≡ "2.5" (decimal). "2,5 anos" nunca se reduz a "5 anos".
+- **Diplomas** (`LegalInstrumentReference`): Decreto-Lei, Portaria, Despacho, Circular e Ofício-Circulado comparados por identidade: tipo + número (com sufixo, "442-A") + ano tal como escrito.
+  - "Decreto-Lei n.º 28/2019", "Decreto-Lei nº 28/2019", "Decreto -Lei n.º 28/2019", "DL n.º 28/2019", "DL 28/2019" e "D.L. 28/2019" são a mesma referência.
+  - "Decreto-Lei número 28/2019" e "Decreto-Lei n.o 28/2019" também são a mesma referência. Os números com ponto de milhares são inteiros ("30.250" ≡ "30250").
+  - 28/2019, 198/2012, 28/2020 e 28 (sem ano) são diferentes. Anos com dois dígitos não são expandidos ("442-A/88" ≠ "442-A/1988").
+  - "despacho" e "circular" só contam como diploma com "n.º" ou com ano, porque também são palavras comuns ("o despacho 15 dias depois", "economia circular 2030").
+  - Não detectados: "Lei n.º …", "Decreto Regulamentar", "Despacho Normativo" e "dl" em minúsculas (também é decilitro).
 - **Afirmações textuais** (dedutibilidade, obrigação, isenção): equivalência lexical determinística dentro da **mesma família** e com a **mesma polaridade** (`TextualClaimEquivalence`). Não há correspondência semântica aberta, fuzzy, embeddings nem LLM.
-  - **Formas detectadas nas respostas:** as mesmas de antes. As formulações equivalentes só contam como evidência no contexto.
+  - **Formas detectadas nas respostas:** as mesmas de antes, mais a obrigação negada "não é/são obrigado(s) a" e as formas só de contradição (ver "Obrigação"). As formulações equivalentes só contam como evidência no contexto.
   - **Polaridade** (o âmbito é a frase inteira; "art. 41.º", "n.º" e "1.000" não terminam a frase):
     - **positiva:** sem negador na frase;
     - **negativa:** "não", "nem", "nunca" ou "jamais" imediatamente antes, com até dois clíticos ("não o pode deduzir");
@@ -233,6 +247,27 @@ Detecta afirmações sensíveis na resposta e verifica se estão no contexto.
     - Verbos auxiliares ou genéricos (ser, ter, haver, estar, proceder, efectuar, entender, considerar…) nunca são acção.
     - A frase nuclear canónica de antes ("é obrigatório", número e género colapsados) também suporta.
     - "não deve …" é proibição: é uma família própria e nunca equivale a "não é obrigatório".
+    - A voz passiva ("deve ser emitida") não é acção: o agente da passiva não é o sujeito da frase.
+    - Infinitivo com clítico: "emiti-la" ≡ "emitir", "declará-lo" ≡ "declarar", "vendê-lo" ≡ "vender". "é obrigado a" ≡ "está obrigado a".
+    - **Obrigação negada nas respostas:** "não é/são obrigado(s) a V" é detectada em modo estrito, tal como "não está obrigado a V": tem de ter evidência negativa da mesma acção.
+    - **Formas só de contradição:** "deve(m) V", "tem/têm de V" e "é obrigado a V" (positivo), em qualquer polaridade, são afirmações só quando o contexto tem a mesma acção com a polaridade oposta. Nesse caso ficam sem suporte. Exemplos: "deve declarar" contra "não tem de declarar"; "não tem de emitir" contra "deve emitir"; "deve emitir" contra "não deve emitir". Sem contradição são ignoradas, como antes, para que conselhos como "deve consultar um contabilista" não se tornem afirmações. São detectadas também no início da frase ("Deve emitir…").
+      - **A contradição é conservadora.** Exige:
+        - o mesmo verbo;
+        - o mesmo objecto, isto é, o grupo nominal a seguir ao verbo, até à primeira preposição, sem artigos e com o plural regular em "-as/-es/-os" reduzido ("faturas" ≡ "fatura"; "fatura proforma" ≠ "fatura"; objecto omitido ≠ objecto presente);
+        - o mesmo sujeito: as palavras antes da forma, sem artigos nem conectores iniciais ("sim", "assim", "contudo", "no entanto", "por isso"…). Um sujeito omitido só coincide com outro omitido, porque em português o sujeito omitido pode referir-se a qualquer pessoa.
+      - Não há contradição quando qualquer das frases:
+        - é uma pergunta (a pergunta da Q&A recuperada não é evidência de contradição);
+        - é condicional ou restritiva antes da forma ("se", "como", "quando", "caso", "quem", "salvo", "exceto", "desde que", "sempre que", "a menos que", "neste/nesse/em caso", "em regra", "em geral", "em princípio", "nas/nos …,", excepto "no entanto" e "nos termos de"), ou tem uma condição ou excepção depois da forma ("…, salvo se …", "… se …", "… quando …"). O "-se" reflexo não conta.
+      - Uma afirmação de contradição só é suportada por evidência com a mesma acção e o mesmo objecto. Um "tem de"/"deve" literal noutra frase nunca chega.
+    - **Limites conhecidos** (falsos negativos abertos):
+      - "não precisa de", "não necessita de", "não é necessário";
+      - formas passivas na resposta ("a fatura não tem de ser emitida");
+      - particípios irregulares;
+      - "dispensado de V" como obrigação negada;
+      - evidência passiva: "a fatura deve ser emitida" não contradiz "não tem de emitir fatura". Só a forma estrita "não é obrigado a emitir" é rejeitada sem evidência negativa;
+      - resposta sem sujeito explícito ("Deve emitir fatura.") só contradiz evidência também sem sujeito;
+      - objecto omitido ou pronominal de um lado só ("não o tem de emitir" vs "deve emitir fatura") e plurais irregulares;
+      - ordinais por extenso ("quinto dia útil").
     - "pode", "é aconselhável" e "convém" nunca são obrigação.
   - **Isenção:** "está isento" é suportado por "é/são/ficam isentos", e "não está isento" só por negativas.
   - **Não sujeição, dispensa, proibição e renúncia:** famílias distintas, só com a mesma frase canónica. "não está sujeito" nunca equivale a "está isento".

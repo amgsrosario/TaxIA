@@ -65,6 +65,7 @@ jobs:
             GroundingServiceTest
             LegalReferenceNormalizationTest
             TextualClaimEquivalenceTest
+            GroundingDeadlineInstrumentNegationTest
             SafeResponseFactoryTest
             AnswerDecisionServiceTest
             DocumentedAnswerCriticalScenariosTest

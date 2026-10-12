@@ -134,11 +134,18 @@ class LegalReferenceNormalizationTest {
     // ------------------------------------------------------------ pontuação nas restantes claims
 
     @Test
-    @DisplayName("pontuação estrutural é separador: '(10 anos civis)' suporta '10 anos'")
+    @DisplayName("pontuação estrutural é separador: '(10 anos civis)' suporta '10 anos civis'")
     void parenthesisIsABoundaryForDeadlines() {
-        var result = validate("Conservação obrigatória (10 anos civis).", "O prazo é de 10 anos.");
+        var result = validate("Conservação obrigatória (10 anos civis).", "O prazo é de 10 anos civis.");
         assertThat(result.rejected()).isFalse();
         assertThat(result.allClaims()).allMatch(SensitiveClaim::supported);
+    }
+
+    @Test
+    @DisplayName("M4-GROUNDING-DEADLINE: '(10 anos civis)' já não suporta '10 anos' (qualificador material perdido)")
+    void droppedCivilQualifierIsNotSupported() {
+        var result = validate("Conservação obrigatória (10 anos civis).", "O prazo é de 10 anos.");
+        assertThat(result.rejected()).isTrue();
     }
 
     @Test
