@@ -153,7 +153,9 @@ public class AdminAIController {
                     .map(AnswerSource::title)
                     .toList();
             return new AskResponse(
-                    g.answer(),
+                    // ADR-007: com fundamento CRITICAL a conclusão gerada não é exposta, nem aqui.
+                    DocumentedTaxiaAnswerMapper.suppressesGeneratedAnswer(governance)
+                            ? DocumentedTaxiaAnswerMapper.CRITICAL_LIMIT_ANSWER : g.answer(),
                     g.provider(),
                     g.model(),
                     g.inputTokens(),

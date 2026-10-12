@@ -169,6 +169,8 @@ public class AnswerDecisionService {
         }
         LinkedHashSet<String> out = new LinkedHashSet<>(limitations);
         if (decisionRisk == KnowledgeRiskLevel.CRITICAL) {
+            // A conclusão gerada não é exposta (ADR-007): nenhuma limitação pode pressupor uma resposta.
+            out.removeIf(l -> l.startsWith("A resposta baseia-se no suporte documental disponível"));
             out.add("Um fundamento usado é de risco crítico: a TaxIA não fecha conclusão automática e "
                     + "encaminha para Pedido de parecer.");
         } else if (governance.maxKnownRiskLevel() == KnowledgeRiskLevel.HIGH) {

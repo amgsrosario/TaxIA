@@ -171,6 +171,9 @@ public class InternalDiagnosticsBuilder {
         signals.add("requiresHumanValidation agregado=" + governance.requiresHumanValidation()
                 + (governance.requiresHumanValidation() ? " (piso SUGGESTED)" : ""));
         signals.add("candidatos descartados (threshold, âmbito, aplicabilidade) não participam");
+        if (governance.decisionRiskLevel() == KnowledgeRiskLevel.CRITICAL) {
+            signals.add("conclusão gerada pelo LLM suprimida (fundamento CRITICAL, ADR-007); corpo = Resposta-limite segura");
+        }
         return List.copyOf(signals);
     }
 

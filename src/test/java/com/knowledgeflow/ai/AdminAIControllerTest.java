@@ -396,6 +396,35 @@ class AdminAIControllerTest {
     }
 
     @Test
+    void askAndDemoAsk_criticalFoundation_neverExposeTheGeneratedConclusion() throws Exception {
+        UUID qaId = UUID.fromString("c0000000-0000-0000-0000-00000000c417");
+        GroundedAIResponse conclusive = new GroundedAIResponse(
+                "Conclusão: pode deduzir integralmente o prejuízo de 250 000 €.", AnswerSupportStatus.SUPPORTED,
+                "Context sufficient", List.of(new AnswerSource("Caso crítico", "Caso crítico", 0.95, qaId)),
+                List.of(), List.of(), false, null, true, false, null, 0, "anthropic", "haiku", 10, 5, 0L,
+                List.of(new GroundingFoundation(qaId, "Caso crítico")));
+        when(groundingService.process(anyString(), any(), anyList())).thenReturn(conclusive);
+        when(qaRepository.findGovernanceRowsByIdIn(eq(ORG_ID), anyCollection()))
+                .thenReturn(List.of(new GovernanceRow(qaId.toString(), "CRITICAL", true)));
+
+        String ask = performAsk("Posso deduzir o prejuízo?")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.answer").value(DocumentedTaxiaAnswerMapper.CRITICAL_LIMIT_ANSWER))
+                .andExpect(jsonPath("$.documentedAnswer.answerType").value("RESPOSTA_LIMITE"))
+                .andExpect(jsonPath("$.documentedAnswer.parecerRequirement").value("REQUIRED"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleAnswer").value(DocumentedTaxiaAnswerMapper.CRITICAL_LIMIT_ANSWER))
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(ask).doesNotContain("250 000").doesNotContain("deduzir integralmente");
+
+        String demo = performDemoAsk("{\"question\":\"Posso deduzir o prejuízo?\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.projectedAnswer.visibleAnswerType").value("RESPOSTA_LIMITE"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleParecerRequirement").value("REQUIRED"))
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(demo).doesNotContain("250 000").doesNotContain("deduzir integralmente");
+    }
+
+    @Test
     void ask_lowWithoutHumanValidation_keepsNone() throws Exception {
         UUID qaId = UUID.fromString("6e5d958f-0219-4941-a000-25885a22d2fd");
         when(groundingService.process(anyString(), any(), anyList())).thenReturn(supportedWithFoundation(qaId));

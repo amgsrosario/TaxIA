@@ -3,7 +3,7 @@
 ## Status
 
 Accepted (M4B, 2026-10-12). Decisões humanas: 1-B (piso SUGGESTED), 2b (CRITICAL), risco
-desconhecido fail-closed.
+desconhecido fail-closed e supressão do corpo gerado com fundamento CRITICAL.
 
 ## Context
 
@@ -40,6 +40,19 @@ decidir o significado de `requiresHumanValidation` em runtime e o tratamento de 
    `CONSULTA_DOCUMENTADA_COM_LIMITACOES` (C2), logo pelo menos SUGGESTED.
 8. **CRITICAL.** `answerType=RESPOSTA_LIMITE` e `parecerRequirement=REQUIRED`: a TaxIA não fecha
    conclusão automática. Não é tratado como HIGH.
+   - A geração automática pode existir internamente como etapa técnica, mas a conclusão gerada não
+     é exposta ao utilizador.
+   - O corpo da resposta (resposta curta e técnica, `visibleAnswer` em INTERNAL, DEMO e EXTERNAL, e
+     o `answer` do `/ask`) é substituído por um texto seguro de Resposta-limite que encaminha para
+     Pedido de parecer.
+   - As fontes de enquadramento mantêm-se: a política (§6) admite que a Resposta-limite organize
+     enquadramento e fontes. Não há nova categoria de UI.
+   - As fontes passam a `supportsConclusion=false`, porque já não sustentam uma conclusão exposta. A
+     limitação genérica "A resposta baseia-se…" é retirada.
+   - HIGH, MEDIUM e LOW não herdam esta supressão.
+   - Um CRITICAL cujos metadados não se consigam ler (falha, Q&A inexistente ou de outra organização)
+     é tratado como risco desconhecido, decidido como HIGH (ponto 9): o corpo não é suprimido. Um
+     comportamento mais estrito nesse caso exigiria nova decisão.
 9. **Risco desconhecido.** Risco ausente ou inválido num fundamento usado, Q&A inexistente,
    fundamento DOCUMENT sem Q&A ou falha de leitura:
    - fica identificado como **desconhecido**: `aggregatedRiskLevel=null` e diagnóstico
@@ -72,8 +85,5 @@ decidir o significado de `requiresHumanValidation` em runtime e o tratamento de 
   efeito visível na resposta e a checklist de curadoria explica-o.
 - **Fora de âmbito:** REQUIRED para HIGH com aplicação concreta (não detectável de forma
   determinística), a matriz completa C5+, e a UI.
-- **Decisão pendente (sem impacto actual, porque não há CRITICAL publicado):** com um fundamento
-  CRITICAL, a resposta passa a `RESPOSTA_LIMITE` + `REQUIRED`, com a limitação "não fecha conclusão
-  automática" e o encaminhamento para Pedido de parecer. Mas o texto gerado pelo LLM continua a ser
-  o corpo visível da resposta, porque a projecção não altera o corpo. Fica por decidir se, para
-  CRITICAL, o corpo deve ser substituído por enquadramento ou mantido com a limitação.
+- A decisão sobre o corpo da resposta com fundamento CRITICAL, pendente na revisão, foi fechada
+  (ponto 8): a conclusão gerada não é exposta.

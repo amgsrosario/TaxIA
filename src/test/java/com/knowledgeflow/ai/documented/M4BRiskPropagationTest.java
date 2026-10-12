@@ -253,6 +253,59 @@ class M4BRiskPropagationTest {
         assertThat(answer.parecerRequirement()).isEqualTo(ParecerRequirement.REQUIRED);
     }
 
+    // ------------------------------------------------------------ CRITICAL: corpo conclusivo suprimido (ADR-007)
+
+    private static final String CONCLUSIVE =
+            "Conclusão: a sociedade pode deduzir integralmente o prejuízo de 250 000 € no exercício de 2026 "
+            + "e não está sujeita a qualquer correcção da AT.";
+
+    private DocumentedTaxiaAnswer conclusiveAnswerFor(List<UUID> ids) {
+        List<AnswerSource> sources = ids.stream().map(id -> new AnswerSource("Caso " + id, "Caso " + id, 0.95, id)).toList();
+        GroundedAIResponse grounded = new GroundedAIResponse(CONCLUSIVE, AnswerSupportStatus.SUPPORTED, "Contexto suficiente.",
+                sources, List.of(), List.of(), false, null, true, false, null, 0, "stub", "stub", 0, 0, 0L, foundations(ids));
+        return mapper.fromGroundedResponse("Pergunta?", grounded,
+                sources.stream().map(ResolvedAnswerSource::fallback).toList(), resolver.resolve(ORG, grounded.foundations()));
+    }
+
+    @Test
+    @DisplayName("CRITICAL A–D: corpo conclusivo do LLM não chega à resposta; RESPOSTA_LIMITE, REQUIRED, Pedido de parecer")
+    void critical_suppressesTheGeneratedConclusion() {
+        DocumentedTaxiaAnswer answer = conclusiveAnswerFor(List.of(qa("CRITICAL", true)));
+
+        assertThat(answer.technicalAnswer()).isEqualTo(DocumentedTaxiaAnswerMapper.CRITICAL_LIMIT_ANSWER);
+        assertThat(answer.shortAnswer()).isEqualTo(DocumentedTaxiaAnswerMapper.CRITICAL_LIMIT_ANSWER);
+        assertThat(answer.toString()).doesNotContain("250 000").doesNotContain("deduzir integralmente");
+        assertThat(answer.answerType()).isEqualTo(AnswerType.RESPOSTA_LIMITE);
+        assertThat(answer.parecerRequirement()).isEqualTo(ParecerRequirement.REQUIRED);
+        assertThat(answer.nextSteps()).anyMatch(s -> s.contains("Pedido de parecer"));
+        assertThat(answer.sources()).isNotEmpty() // fontes de enquadramento preservadas (política §6)
+                .noneMatch(SourceEvidence::supportsConclusion);
+        assertThat(answer.limitations()).noneMatch(l -> l.contains("A resposta baseia-se"));
+        assertThat(answer.internalDiagnostics().riskSignals()).anyMatch(s -> s.contains("suprimida"));
+    }
+
+    @ParameterizedTest(name = "CRITICAL E/F: projecção {0} não expõe o corpo conclusivo")
+    @CsvSource({"INTERNAL", "DEMO", "EXTERNAL"})
+    void critical_noProjectionExposesTheConclusion(VisibilityLevel level) {
+        AnswerProjection projected = projection.project(conclusiveAnswerFor(List.of(qa("LOW", false), qa("CRITICAL", false))), level);
+
+        assertThat(projected.visibleAnswer()).isEqualTo(DocumentedTaxiaAnswerMapper.CRITICAL_LIMIT_ANSWER);
+        assertThat(projected.toString()).doesNotContain("250 000").doesNotContain("deduzir integralmente");
+        assertThat(projected.visibleAnswerType()).isEqualTo(AnswerType.RESPOSTA_LIMITE);
+        assertThat(projected.visibleParecerRequirement()).isEqualTo(ParecerRequirement.REQUIRED);
+    }
+
+    @ParameterizedTest(name = "CRITICAL G/H: {0} mantém o corpo gerado (sem herdar a supressão)")
+    @CsvSource({"HIGH, CONSULTA_DOCUMENTADA_COM_LIMITACOES", "MEDIUM, CONSULTA_DOCUMENTADA", "LOW, CONSULTA_DOCUMENTADA"})
+    void nonCritical_keepsTheGeneratedBody(String risk, AnswerType type) {
+        DocumentedTaxiaAnswer answer = conclusiveAnswerFor(List.of(qa(risk, false)));
+
+        assertThat(answer.technicalAnswer()).isEqualTo(CONCLUSIVE);
+        assertThat(answer.answerType()).isEqualTo(type);
+        assertThat(answer.sources()).allMatch(SourceEvidence::supportsConclusion);
+        assertThat(projection.project(answer, VisibilityLevel.EXTERNAL).visibleAnswer()).isEqualTo(CONCLUSIVE);
+    }
+
     // ------------------------------------------------------------ revisão independente
 
     @Test

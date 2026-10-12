@@ -29,6 +29,15 @@ import org.springframework.stereotype.Component;
 @Component
 public class DocumentedTaxiaAnswerMapper {
 
+    /**
+     * Corpo seguro da Resposta-limite quando um fundamento CRITICAL é usado (ADR-007, decisão 2b): a
+     * conclusão gerada pelo LLM nunca é exposta; a resposta encaminha para Pedido de parecer.
+     */
+    public static final String CRITICAL_LIMIT_ANSWER =
+            "Esta questão assenta num fundamento de risco crítico. A TaxIA não apresenta conclusão fiscal "
+            + "automática neste caso: a matéria exige apreciação profissional do caso concreto. Submeta um "
+            + "Pedido de parecer; as fontes indicadas servem apenas de enquadramento.";
+
     private final SourceAssessmentService sourceAssessmentService;
     private final AnswerDecisionService answerDecisionService;
     private final InternalDiagnosticsBuilder internalDiagnosticsBuilder;
@@ -71,14 +80,20 @@ public class DocumentedTaxiaAnswerMapper {
     public DocumentedTaxiaAnswer fromGroundedResponse(
             String question, GroundedAIResponse grounded, List<ResolvedAnswerSource> resolvedSources,
             FoundationGovernance governance) {
-        return build(question, grounded, mapResolvedSources(resolvedSources, grounded.supportStatus()),
-                java.util.Objects.requireNonNull(governance, "governance is required (M4B)"));
+        java.util.Objects.requireNonNull(governance, "governance is required (M4B)");
+        // CRITICAL (ADR-007): as fontes ficam como enquadramento — não sustentam uma conclusão exposta.
+        AnswerSupportStatus sourcesStatus = suppressesGeneratedAnswer(governance) ? null : grounded.supportStatus();
+        return build(question, grounded, mapResolvedSources(resolvedSources, sourcesStatus), governance);
     }
 
     private DocumentedTaxiaAnswer build(String question, GroundedAIResponse grounded, List<SourceEvidence> sources,
             FoundationGovernance governance) {
         AnswerSupportStatus supportStatus = grounded.supportStatus();
         boolean requiresHumanValidation = grounded.requiresHumanValidation() || governance.requiresHumanValidation();
+        // CRITICAL usado (ADR-007): a geração pode existir como etapa técnica, mas a conclusão gerada
+        // não chega a nenhum campo da resposta — corpo substituído pelo texto seguro de Resposta-limite.
+        // As fontes mantêm-se (a Resposta-limite organiza enquadramento e fontes — política §6).
+        String answerBody = suppressesGeneratedAnswer(governance) ? CRITICAL_LIMIT_ANSWER : grounded.answer();
 
         AnswerDecision decision = answerDecisionService.decide(
                 supportStatus,
@@ -100,8 +115,8 @@ public class DocumentedTaxiaAnswerMapper {
                 UUID.randomUUID().toString(),
                 question,
                 null,
-                grounded.answer(),
-                grounded.answer(),
+                answerBody,
+                answerBody,
                 decision.answerType(),
                 supportStatus,
                 governance.aggregatedRiskLevel(),
@@ -117,6 +132,11 @@ public class DocumentedTaxiaAnswerMapper {
                 decision.warnings(),
                 decision.nextSteps(),
                 internalDiagnostics);
+    }
+
+    /** Se a conclusão gerada pelo LLM deve ser suprimida (fundamento CRITICAL usado, ADR-007). */
+    public static boolean suppressesGeneratedAnswer(FoundationGovernance governance) {
+        return governance != null && governance.decisionRiskLevel() == com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel.CRITICAL;
     }
 
     private List<SourceEvidence> mapSources(List<AnswerSource> sources, AnswerSupportStatus supportStatus) {
