@@ -177,6 +177,17 @@ Valores conceptuais:
 
 ## 3-D. Decisão C4 — agregação de risco por fundamentos usados *(FECHADA)*
 
+> **Materialização (M4B, [ADR-007](adr/ADR-007-risk-propagation-and-human-validation.md)).**
+> - **Fundamentos usados:** os candidatos que passaram o threshold de relevância e o gate de âmbito e
+>   aplicabilidade e foram enviados ao provider. Os descartados não contam.
+> - **Agregação:**
+>   - `aggregatedRiskLevel` = nível mais restritivo dos fundamentos usados;
+>   - `requiresHumanValidation=true` num fundamento usado dá piso `SUGGESTED`.
+> - **Efeito na resposta:**
+>   - HIGH → no máximo `CONSULTA_DOCUMENTADA_COM_LIMITACOES`;
+>   - CRITICAL → `RESPOSTA_LIMITE` + `REQUIRED`;
+>   - risco desconhecido → mantém-se identificado como tal (`RISK_UNKNOWN`), mas é decidido como HIGH.
+
 > **C4.** A TaxIA agrega o risco pelo **sinal mais restritivo dos fundamentos
 > relevantes efectivamente usados na resposta**. Casos recuperados pelo RAG mas
 > irrelevantes, residuais ou não usados **não** contaminam o risco agregado.

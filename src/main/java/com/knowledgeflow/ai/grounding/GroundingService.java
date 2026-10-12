@@ -100,6 +100,12 @@ public class GroundingService {
                 .values().stream()
                 .toList();
 
+        // M4B (ADR-007): exactamente os candidatos enviados ao provider no prompt, sem a deduplicação
+        // por título das fontes — o risco agregado e a validação humana vêm destes fundamentos.
+        List<GroundingFoundation> foundations = relevantCases.stream()
+                .map(c -> new GroundingFoundation(c.sourceQaId(), c.title()))
+                .toList();
+
         boolean requiresHuman = assessment.humanReviewRequired()
                 || finalStatus == AnswerSupportStatus.PARTIALLY_SUPPORTED;
         String validationMessage = null;
@@ -126,7 +132,8 @@ public class GroundingService {
                 aiResponse.modelUsed(),
                 aiResponse.inputTokens(),
                 aiResponse.outputTokens(),
-                aiResponse.durationMillis());
+                aiResponse.durationMillis(),
+                foundations);
     }
 
     /**

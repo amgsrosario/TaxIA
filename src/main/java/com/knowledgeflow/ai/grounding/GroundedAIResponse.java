@@ -19,5 +19,8 @@ public record GroundedAIResponse(
         String model,
         int inputTokens,
         int outputTokens,
-        long durationMillis
+        long durationMillis,
+        // M4B (ADR-007): fundamentos efectivamente usados (após relevância e gate de âmbito), sem
+        // deduplicação; vazio quando o provider não foi chamado ou a resposta foi rejeitada.
+        List<GroundingFoundation> foundations
 ) {}

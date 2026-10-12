@@ -30,6 +30,11 @@ Aplicar a **cada** par pergunta/resposta antes de `validate` e novamente antes d
 
 - [ ] O `riskLevel` reflecte o impacto real de uma resposta errada
 - [ ] `requiresHumanValidation=true` está marcado para HIGH/CRITICAL e casos ambíguos
+      — efeito na resposta (ADR-007): enquanto a Q&A for fundamento usado, a resposta sugere
+      Pedido de parecer (`parecerRequirement` no mínimo `SUGGESTED`). Usar `false` só quando a
+      resposta automática dispensa essa sugestão.
+- [ ] Efeito do `riskLevel` na resposta (ADR-007): HIGH nunca dá consulta conclusiva automática;
+      CRITICAL dá Resposta-limite com Pedido de parecer obrigatório.
 - [ ] O `topic`/`subtopic` estão correctos (afectam recuperação e canónicas)
 
 ## Decisão final (escolher uma)

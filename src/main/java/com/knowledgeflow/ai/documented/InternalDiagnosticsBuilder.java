@@ -39,6 +39,21 @@ public class InternalDiagnosticsBuilder {
             List<SourceEvidence> sources,
             AnswerDecision decision,
             KnowledgeRiskLevel aggregatedRiskLevel) {
+        return build(supportStatus, requiresHumanValidation, sources, decision, aggregatedRiskLevel,
+                FoundationGovernance.notAssessed());
+    }
+
+    /**
+     * Variante M4B (ADR-007): descreve também a origem do risco agregado e da validação humana — os
+     * fundamentos usados, os seus níveis e o risco desconhecido, quando existir.
+     */
+    public InternalDiagnostics build(
+            AnswerSupportStatus supportStatus,
+            boolean requiresHumanValidation,
+            List<SourceEvidence> sources,
+            AnswerDecision decision,
+            KnowledgeRiskLevel aggregatedRiskLevel,
+            FoundationGovernance governance) {
 
         if (decision == null) {
             return InternalDiagnostics.empty();
@@ -63,10 +78,11 @@ public class InternalDiagnosticsBuilder {
         boolean isLimitAnswer = decision.answerType() == AnswerType.RESPOSTA_LIMITE;
 
         return new InternalDiagnostics(
-                decisionSignals(supportStatus, requiresHumanValidation, decision, isLimitAnswer),
+                decisionSignals(supportStatus, requiresHumanValidation, decision, isLimitAnswer,
+                        governance != null ? governance.decisionRiskLevel() : null),
                 sourceSignals(safeSources.size(), hasSources, hasOfficialOrLegal, hasStrongOrAdequate,
                         hasOnlyWeak, hasOnlyDerivative),
-                riskSignals(aggregatedRiskLevel),
+                riskSignals(aggregatedRiskLevel, governance != null ? governance : FoundationGovernance.notAssessed()),
                 freshnessSignals(decision, hasOutdated, hasUncertainFreshness),
                 diversitySignals(hasMaterialDiversity, hasSameCore, hasMixedOrUnclear, lacksMaterialDiversity),
                 projectionSignals(),
@@ -79,13 +95,18 @@ public class InternalDiagnosticsBuilder {
 
     private List<String> decisionSignals(
             AnswerSupportStatus supportStatus, boolean requiresHumanValidation,
-            AnswerDecision decision, boolean isLimitAnswer) {
+            AnswerDecision decision, boolean isLimitAnswer, KnowledgeRiskLevel decisionRisk) {
         List<String> signals = new ArrayList<>();
         signals.add("supportStatus=" + (supportStatus != null ? supportStatus.name() : "AUSENTE"));
         signals.add("requiresHumanValidation=" + requiresHumanValidation);
         signals.add("answerType=" + decision.answerType());
         signals.add("parecerRequirement=" + decision.parecerRequirement());
         if (supportStatus == AnswerSupportStatus.SUPPORTED
+                && (decisionRisk == KnowledgeRiskLevel.HIGH || decisionRisk == KnowledgeRiskLevel.CRITICAL)
+                && decision.answerType() != AnswerType.CONSULTA_DOCUMENTADA) {
+            signals.add("SUPPORTED restringido pelo risco dos fundamentos usados (decisão " + decisionRisk.name()
+                    + ", ADR-007)");
+        } else if (supportStatus == AnswerSupportStatus.SUPPORTED
                 && decision.answerType() == AnswerType.CONSULTA_DOCUMENTADA_COM_LIMITACOES) {
             signals.add("SUPPORTED rebaixado para consulta com limitações por fraqueza documental");
         }
@@ -121,12 +142,35 @@ public class InternalDiagnosticsBuilder {
 
     // --- sinais de risco ---
 
-    private List<String> riskSignals(KnowledgeRiskLevel aggregatedRiskLevel) {
+    private List<String> riskSignals(KnowledgeRiskLevel aggregatedRiskLevel, FoundationGovernance governance) {
         List<String> signals = new ArrayList<>();
-        signals.add(aggregatedRiskLevel != null
-                ? "aggregatedRiskLevel=" + aggregatedRiskLevel.name()
-                : "aggregatedRiskLevel ausente (sem risco agregado calculado)");
-        signals.add("riskLevel persistido da entidade não é usado como risco agregado");
+        if (!governance.assessed()) {
+            signals.add(aggregatedRiskLevel != null
+                    ? "aggregatedRiskLevel=" + aggregatedRiskLevel.name()
+                    : "aggregatedRiskLevel ausente (sem informação de fundamentos)");
+            return List.copyOf(signals);
+        }
+        if (governance.foundations().isEmpty()) {
+            signals.add("aggregatedRiskLevel ausente (sem fundamentos usados)");
+            return List.copyOf(signals);
+        }
+        signals.add(governance.aggregatedRiskLevel() != null
+                ? "aggregatedRiskLevel=" + governance.aggregatedRiskLevel().name()
+                        + " (mais restritivo de " + governance.foundations().size() + " fundamento(s) usado(s))"
+                : "aggregatedRiskLevel=RISK_UNKNOWN (fundamento usado com risco desconhecido)");
+        for (FoundationGovernance.FoundationRisk f : governance.foundations()) {
+            signals.add("fundamento " + (f.sourceQaId() != null ? "knowledge-qa:" + f.sourceQaId() : "DOCUMENT")
+                    + " riskLevel=" + (f.riskKnown() ? f.riskLevel().name() : "RISK_UNKNOWN (" + f.unknownReason() + ")")
+                    + " requiresHumanValidation=" + f.requiresHumanValidation());
+        }
+        if (governance.riskUnknown()) {
+            signals.add(governance.decisionRiskLevel() == KnowledgeRiskLevel.CRITICAL
+                    ? "risco desconhecido presente; prevalece o CRITICAL conhecido"
+                    : "risco desconhecido tratado como HIGH na decisão automática (fail-closed)");
+        }
+        signals.add("requiresHumanValidation agregado=" + governance.requiresHumanValidation()
+                + (governance.requiresHumanValidation() ? " (piso SUGGESTED)" : ""));
+        signals.add("candidatos descartados (threshold, âmbito, aplicabilidade) não participam");
         return List.copyOf(signals);
     }
 

@@ -5,6 +5,8 @@ import com.knowledgeflow.ai.documented.AnswerProjectionService;
 import com.knowledgeflow.ai.documented.CuratedSourceResolver;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswer;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
+import com.knowledgeflow.ai.documented.FoundationGovernance;
+import com.knowledgeflow.ai.documented.FoundationGovernanceResolver;
 import com.knowledgeflow.ai.documented.VisibilityLevel;
 import com.knowledgeflow.ai.documented.VisibilityLevelResolver;
 import com.knowledgeflow.ai.grounding.AnswerSource;
@@ -34,6 +36,7 @@ public class AdminAIController {
     private final AnswerProjectionService answerProjectionService;
     private final VisibilityLevelResolver visibilityLevelResolver;
     private final CuratedSourceResolver curatedSourceResolver;
+    private final FoundationGovernanceResolver foundationGovernanceResolver;
 
     public AdminAIController(GroundingService groundingService, RagSearchService ragSearchService,
             AuthenticatedUserContext authenticatedUserContext,
@@ -41,7 +44,8 @@ public class AdminAIController {
             DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper,
             AnswerProjectionService answerProjectionService,
             VisibilityLevelResolver visibilityLevelResolver,
-            CuratedSourceResolver curatedSourceResolver) {
+            CuratedSourceResolver curatedSourceResolver,
+            FoundationGovernanceResolver foundationGovernanceResolver) {
         this.groundingService = groundingService;
         this.ragSearchService = ragSearchService;
         this.authenticatedUserContext = authenticatedUserContext;
@@ -50,6 +54,7 @@ public class AdminAIController {
         this.answerProjectionService = answerProjectionService;
         this.visibilityLevelResolver = visibilityLevelResolver;
         this.curatedSourceResolver = curatedSourceResolver;
+        this.foundationGovernanceResolver = foundationGovernanceResolver;
     }
 
     @PostMapping("/ask")
@@ -61,7 +66,8 @@ public class AdminAIController {
                 request.question(), request.systemPrompt(), visibilityLevelResolver.resolveForAdminAsk());
 
         return ResponseEntity.ok(
-                AskResponse.from(result.grounded(), result.documentedAnswer(), result.projectedAnswer()));
+                AskResponse.from(result.grounded(), result.documentedAnswer(), result.projectedAnswer(),
+                        result.governance()));
     }
 
     /**
@@ -91,17 +97,20 @@ public class AdminAIController {
                 grounded.responseRejected());
 
         // M3: as fontes do grounding passam às fontes documentais curadas das Q&A (por sourceQaId).
+        // M4B (ADR-007): risco e validação humana agregados dos fundamentos efectivamente usados.
+        FoundationGovernance governance = foundationGovernanceResolver.resolve(organizationId, grounded.foundations());
         DocumentedTaxiaAnswer documentedAnswer = documentedTaxiaAnswerMapper.fromGroundedResponse(
-                question, grounded, curatedSourceResolver.resolve(grounded.sources()));
+                question, grounded, curatedSourceResolver.resolve(grounded.sources()), governance);
         AnswerProjection projectedAnswer = answerProjectionService.project(documentedAnswer, targetVisibility);
 
-        return new PipelineResult(grounded, documentedAnswer, projectedAnswer);
+        return new PipelineResult(grounded, documentedAnswer, projectedAnswer, governance);
     }
 
     private record PipelineResult(
             GroundedAIResponse grounded,
             DocumentedTaxiaAnswer documentedAnswer,
-            AnswerProjection projectedAnswer
+            AnswerProjection projectedAnswer,
+            FoundationGovernance governance
     ) {}
 
     public record DemoAskRequest(
@@ -134,8 +143,12 @@ public class AdminAIController {
             DocumentedTaxiaAnswer documentedAnswer,
             AnswerProjection projectedAnswer
     ) {
+        /**
+         * {@code requiresHumanValidation} é o valor agregado (M4B, ADR-007): o do grounding ou o
+         * persistido de qualquer fundamento usado.
+         */
         public static AskResponse from(GroundedAIResponse g, DocumentedTaxiaAnswer documentedAnswer,
-                AnswerProjection projectedAnswer) {
+                AnswerProjection projectedAnswer, FoundationGovernance governance) {
             List<String> sourceTitles = g.sources().stream()
                     .map(AnswerSource::title)
                     .toList();
@@ -147,7 +160,7 @@ public class AdminAIController {
                     g.outputTokens(),
                     g.durationMillis(),
                     g.supportStatus() != null ? g.supportStatus().name() : null,
-                    g.requiresHumanValidation(),
+                    g.requiresHumanValidation() || (governance != null && governance.requiresHumanValidation()),
                     g.validationMessage(),
                     sourceTitles,
                     g.missingInformation(),

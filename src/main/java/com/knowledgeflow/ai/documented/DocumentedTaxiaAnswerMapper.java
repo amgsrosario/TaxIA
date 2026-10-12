@@ -23,8 +23,8 @@ import org.springframework.stereotype.Component;
  * </ul>
  *
  * <p>A projecção por {@link VisibilityLevel} continua reservada para D7. O
- * {@code aggregatedRiskLevel} mantém-se {@code null} enquanto não houver risco agregado
- * real (regra 27).
+ * {@code aggregatedRiskLevel} vem dos fundamentos usados ({@link FoundationGovernance}, M4B/ADR-007);
+ * as variantes sem governança (caminhos legados/teste) mantêm-no {@code null}.
  */
 @Component
 public class DocumentedTaxiaAnswerMapper {
@@ -49,7 +49,8 @@ public class DocumentedTaxiaAnswerMapper {
      * @return resposta documentada equivalente
      */
     public DocumentedTaxiaAnswer fromGroundedResponse(String question, GroundedAIResponse grounded) {
-        return build(question, grounded, mapSources(grounded.sources(), grounded.supportStatus()));
+        return build(question, grounded, mapSources(grounded.sources(), grounded.supportStatus()),
+                FoundationGovernance.notAssessed());
     }
 
     /**
@@ -59,26 +60,41 @@ public class DocumentedTaxiaAnswerMapper {
      */
     public DocumentedTaxiaAnswer fromGroundedResponse(
             String question, GroundedAIResponse grounded, List<ResolvedAnswerSource> resolvedSources) {
-        return build(question, grounded, mapResolvedSources(resolvedSources, grounded.supportStatus()));
+        return build(question, grounded, mapResolvedSources(resolvedSources, grounded.supportStatus()),
+                FoundationGovernance.notAssessed());
     }
 
-    private DocumentedTaxiaAnswer build(String question, GroundedAIResponse grounded, List<SourceEvidence> sources) {
+    /**
+     * Pipeline de produção (M4B, ADR-007): fontes curadas resolvidas e risco/validação humana
+     * agregados dos fundamentos usados.
+     */
+    public DocumentedTaxiaAnswer fromGroundedResponse(
+            String question, GroundedAIResponse grounded, List<ResolvedAnswerSource> resolvedSources,
+            FoundationGovernance governance) {
+        return build(question, grounded, mapResolvedSources(resolvedSources, grounded.supportStatus()),
+                java.util.Objects.requireNonNull(governance, "governance is required (M4B)"));
+    }
+
+    private DocumentedTaxiaAnswer build(String question, GroundedAIResponse grounded, List<SourceEvidence> sources,
+            FoundationGovernance governance) {
         AnswerSupportStatus supportStatus = grounded.supportStatus();
+        boolean requiresHumanValidation = grounded.requiresHumanValidation() || governance.requiresHumanValidation();
 
         AnswerDecision decision = answerDecisionService.decide(
                 supportStatus,
                 grounded.requiresHumanValidation(),
                 sources,
                 grounded.limitations(),
-                grounded.validationMessage());
+                grounded.validationMessage(),
+                governance);
 
-        // aggregatedRiskLevel mantém-se null (regra 27); o diagnóstico observa esse facto.
         InternalDiagnostics internalDiagnostics = internalDiagnosticsBuilder.build(
                 supportStatus,
-                grounded.requiresHumanValidation(),
+                requiresHumanValidation,
                 sources,
                 decision,
-                null);
+                governance.aggregatedRiskLevel(),
+                governance);
 
         return new DocumentedTaxiaAnswer(
                 UUID.randomUUID().toString(),
@@ -88,7 +104,7 @@ public class DocumentedTaxiaAnswerMapper {
                 grounded.answer(),
                 decision.answerType(),
                 supportStatus,
-                null,
+                governance.aggregatedRiskLevel(),
                 decision.parecerRequirement(),
                 VisibilityLevel.INTERNAL,
                 decision.overallFreshnessStatus(),
