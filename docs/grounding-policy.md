@@ -219,7 +219,24 @@ Detecta afirmações sensíveis na resposta e verifica se estão no contexto.
   - "artigo 52.º", "art. 52.º", "art 52" e "(art. 52.º, n.º 1, …)" são a mesma referência.
   - 52, 152, 5 e 52.º-A são referências diferentes: nunca há correspondência por substring.
   - O número (n.º) e o diploma não fazem parte da identidade.
-- **Afirmações textuais (sem números):** usam multi-palavras específicas para evitar falsos positivos. A presença de palavras genéricas no contexto não suporta automaticamente a afirmação.
+- **Afirmações textuais** (dedutibilidade, obrigação, isenção): equivalência lexical determinística dentro da **mesma família** e com a **mesma polaridade** (`TextualClaimEquivalence`). Não há correspondência semântica aberta, fuzzy, embeddings nem LLM.
+  - **Formas detectadas nas respostas:** as mesmas de antes. As formulações equivalentes só contam como evidência no contexto.
+  - **Polaridade** (o âmbito é a frase inteira; "art. 41.º", "n.º" e "1.000" não terminam a frase):
+    - **positiva:** sem negador na frase;
+    - **negativa:** "não", "nem", "nunca" ou "jamais" imediatamente antes, com até dois clíticos ("não o pode deduzir");
+    - **incerta:** outro negador ou limitador antes, na mesma frase ("não é, contudo, …", "nem sempre", "nenhuma das despesas … é", "não residentes"). Nunca serve para equivalências.
+  - **Regra exacta anterior, mantida tal como era:** a mesma frase literal (sem colapsar número nem género), numa ocorrência do contexto que não seja negativa, suporta afirmações positivas e incertas. Assim, nenhuma afirmação fica mais difícil de suportar do que antes. A única excepção é que o contexto negativo deixa de suportar afirmações positivas (bug de polaridade corrigido). As equivalências e o colapso de número e género só se aplicam entre polaridades claras (positiva com positiva, negativa com negativa).
+  - **Dedutibilidade:** "pode deduzir", "é dedutível" e "tem direito à dedução" são suportados também por "permite deduzir" e "pode(m) ser deduzido(s)".
+    - "é deduzido" (retenção, mecânica) não é evidência.
+    - "exclui"/"excluído" não são evidência.
+  - **Obrigação:** evidência da mesma acção, ou seja, do mesmo verbo, incluindo o "-se" e o objecto "IVA" quando existem. Por exemplo, "é obrigatório conservar" é suportado por "deve arquivar e conservar" ou "tem de conservar".
+    - Verbos auxiliares ou genéricos (ser, ter, haver, estar, proceder, efectuar, entender, considerar…) nunca são acção.
+    - A frase nuclear canónica de antes ("é obrigatório", número e género colapsados) também suporta.
+    - "não deve …" é proibição: é uma família própria e nunca equivale a "não é obrigatório".
+    - "pode", "é aconselhável" e "convém" nunca são obrigação.
+  - **Isenção:** "está isento" é suportado por "é/são/ficam isentos", e "não está isento" só por negativas.
+  - **Não sujeição, dispensa, proibição e renúncia:** famílias distintas, só com a mesma frase canónica. "não está sujeito" nunca equivale a "está isento".
+  - **Substantivos isolados** ("dedução", "obrigação", "isenção") nunca são evidência.
 
 ### `GroundingService`
 

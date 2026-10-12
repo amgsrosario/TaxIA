@@ -63,6 +63,8 @@ jobs:
             ContextSufficiencyEvaluatorTest
             AnswerGroundingValidatorTest
             GroundingServiceTest
+            LegalReferenceNormalizationTest
+            TextualClaimEquivalenceTest
             SafeResponseFactoryTest
             AnswerDecisionServiceTest
             DocumentedAnswerCriticalScenariosTest

@@ -34,28 +34,15 @@ public class AnswerGroundingValidator {
                     "(?:janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)" +
                     "\\s+de\\s+\\d{4}\\b");
 
-    private static final Pattern P_OBLIGATION =
-            Pattern.compile("é\\s+obrigatóri[oa][s]?|são\\s+obrigatóri[oa][s]?|" +
-                    "deve\\s+liquidar\\s+(?:o\\s+)?[Ii][Vv][Aa]|deve\\s+registar[\\-\\s]?se|" +
-                    "deve\\s+declarar\\s+(?:o\\s+)?[Ii][Vv][Aa]|est(?:á|ão)\\s+obrigad[ao]s?\\s+a|" +
-                    "é\\s+proibid[ao]|pode\\s+renunciar");
-
-    private static final Pattern P_EXEMPTION =
-            Pattern.compile("est(?:á|ão)\\s+isent[ao]s?|está\\s+dispensad[ao]|não\\s+est(?:á|ão)\\s+sujeit[oa]s?");
-
-    private static final Pattern P_DEDUCTIBILITY =
-            Pattern.compile("é\\s+dedutível|são\\s+dedutíveis?|não\\s+é\\s+dedutível|não\\s+são\\s+dedutíveis?|" +
-                    "tem\\s+direito\\s+à\\s+dedução|têm\\s+direito\\s+à\\s+dedução|pode[m]?\\s+deduzir");
-
-    /** Patterns for all claim types except MONETARY_THRESHOLD (handled separately). */
+    /**
+     * Patterns for the numeric/reference claim types. MONETARY_THRESHOLD, legal articles and the
+     * textual claims (obligation, exemption, deductibility) are handled separately.
+     */
     private static final List<Map.Entry<SensitiveClaimType, Pattern>> NON_MONETARY_PATTERNS = List.of(
             Map.entry(SensitiveClaimType.TAX_RATE,         P_TAX_RATE),
             Map.entry(SensitiveClaimType.LEGAL_REFERENCE,  P_LEGAL_REF_INSTRUMENT),
             Map.entry(SensitiveClaimType.DEADLINE,         P_DEADLINE),
-            Map.entry(SensitiveClaimType.DATE,             P_DATE),
-            Map.entry(SensitiveClaimType.LEGAL_OBLIGATION, P_OBLIGATION),
-            Map.entry(SensitiveClaimType.EXEMPTION,        P_EXEMPTION),
-            Map.entry(SensitiveClaimType.DEDUCTIBILITY,    P_DEDUCTIBILITY)
+            Map.entry(SensitiveClaimType.DATE,             P_DATE)
     );
 
     // -------------------------------------------------------------------------
@@ -96,6 +83,7 @@ public class AnswerGroundingValidator {
 
         detectMonetaryClaims(answer, contextText, context, result, seen);
         detectArticleClaims(answer, contextText, context, result, seen);
+        detectTextualClaims(answer, contextText, context, result, seen);
 
         for (var entry : NON_MONETARY_PATTERNS) {
             SensitiveClaimType type = entry.getKey();
@@ -145,6 +133,37 @@ public class AnswerGroundingValidator {
 
             result.add(new SensitiveClaim(ref.text(), SensitiveClaimType.LEGAL_REFERENCE, supported, sources));
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Textual claims (deductibility, obligation, exemption) — same family and same polarity
+    // (TextualClaimEquivalence): "pode deduzir" ≡ "permite deduzir"; "não …" never ≡ "…";
+    // uncertain polarity only by the pre-existing exact (literal) rule.
+    // -------------------------------------------------------------------------
+
+    private void detectTextualClaims(String answer, String contextText,
+            List<RetrievedCase> context, List<SensitiveClaim> result, Set<String> seen) {
+        List<TextualClaimEquivalence.Statement> evidence = TextualClaimEquivalence.evidence(contextText);
+        for (TextualClaimEquivalence.Statement claim : TextualClaimEquivalence.claims(answer)) {
+            String key = "text:" + claim.family() + ":" + claim.polarity() + ":" + claim.canonical() + ":"
+                    + claim.action();
+            if (!seen.add(key)) continue;
+
+            boolean supported = TextualClaimEquivalence.supports(claim, evidence, contextText);
+            result.add(new SensitiveClaim(claim.text(), claim.family().type, supported,
+                    supported ? titlesSupporting(claim, context) : List.of()));
+        }
+    }
+
+    private List<String> titlesSupporting(TextualClaimEquivalence.Statement claim, List<RetrievedCase> context) {
+        return context.stream()
+                .filter(c -> {
+                    String t = c.title() + " " + c.question() + " " + nullSafe(c.content());
+                    return TextualClaimEquivalence.supports(claim, TextualClaimEquivalence.evidence(t), t);
+                })
+                .map(RetrievedCase::title)
+                .distinct()
+                .toList();
     }
 
     // -------------------------------------------------------------------------
