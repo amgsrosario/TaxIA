@@ -22,8 +22,18 @@ import java.util.regex.Pattern;
  *       Never used for equivalence; only the pre-existing exact rule (same phrase, context
  *       occurrence not NEGATIVE) can support or be supported by it.</li>
  * </ul>
- * Equivalent formulations are recognised only on the evidence side; answers are checked with
- * exactly the formulations the validator already detected. No semantic, fuzzy, embedding or LLM
+ * Equivalent formulations are recognised only on the evidence side. Answers are checked with the
+ * formulations the validator already detected plus "não é/são obrigado(s) a V" (the sibling of
+ * "não está obrigado a V"), all of them <b>strict</b>: they must be supported. Three more answer
+ * formulations — "deve(m) V", "tem/têm de V" and positive "é/são obrigado(s) a V", in either
+ * polarity — are <b>contradiction-only</b>: they are reported (unsupported) only when the context
+ * holds the same action with the opposite polarity ("deve declarar" vs "não tem de declarar";
+ * "não tem de emitir" vs "deve emitir"); otherwise they are ignored, as before, so advice such as
+ * "deve consultar um contabilista" never becomes a claim. A contradiction is conservative: same
+ * verb, same object (first word after the verb, articles skipped), compatible subject (equal words
+ * before the formulation, or none on one side), and neither sentence is a question nor a
+ * conditional/restricted clause ("se", "como", "quando", "caso", "quem", "salvo", "exceto",
+ * "desde que", "sempre que", "nas/nos …,"). No semantic, fuzzy, embedding or LLM
  * matching. Isolated nouns ("dedução", "obrigação", "isenção") are never evidence.
  *
  * <p>Families:
@@ -35,7 +45,8 @@ import java.util.regex.Pattern;
  *       present), from "é obrigatório V", "está obrigado a V", "deve(m) V", "tem/têm de V";
  *       auxiliaries (ser, ter, haver, estar…) are never an action. The old exact core phrase
  *       ("é obrigatório", number/gender collapsed) also supports. "não deve …" is a prohibition:
- *       its own exact family, never "not obliged".</li>
+ *       its own exact family, never "not obliged". Passive voice ("deve ser emitida") is not an
+ *       action: the agent of a passive is not the subject of the sentence.</li>
  *   <li>{@code PROHIBITION}, {@code RENUNCIATION}, {@code DISPENSATION}, {@code NON_SUBJECTION}:
  *       exact canonical phrase only.</li>
  *   <li>{@code EXEMPTION}: "está isento" ≡ "é/são/fica(m) isento(s)". Non-subjection ("não está
@@ -73,7 +84,8 @@ final class TextualClaimEquivalence {
      * core phrase as written (the pre-existing exact rule).
      */
     record Statement(Family family, Polarity polarity, String text, String canonical, String action,
-                     String literal) {
+                     String literal, boolean contradictionOnly, boolean contradictionEligible,
+                     String subject, String object) {
     }
 
     /**
@@ -90,7 +102,8 @@ final class TextualClaimEquivalence {
         }
     }
 
-    private static final String INF = "(\\p{L}+(?:ar|er|ir|or|ôr)(?:-se)?)";
+    /** Infinitive, optionally reflexive ("registar-se") or with an attached clitic ("emiti-la"). */
+    private static final String INF = "(\\p{L}+(?:ar|er|ir|or|ôr)(?:-se)?|\\p{L}+[áéêiô]-l[oa]s?)";
     private static final String INF_PAIR = INF + "(?:\\s+e\\s+" + INF + ")?";
 
     /** Auxiliary/light verbs: never an obligation action ("deve ter em atenção", "devem ser analisadas"). */
@@ -114,6 +127,8 @@ final class TextualClaimEquivalence {
                     Family.OBLIGATION, false, 1),
             new Form(Family.OBLIGATION, cl("est(?:á|ão)\\s+obrigad[ao]s?\\s+a(?:\\s+" + INF + ")?"),
                     Family.OBLIGATION, false, 1),
+            new Form(Family.OBLIGATION, cl("(?:é|são)\\s+obrigad[ao]s?\\s+a(?:\\s+" + INF + ")?"),
+                    Family.OBLIGATION, true, 1),
             new Form(Family.OBLIGATION, cl("deve\\s+(liquidar)\\s+(?:o\\s+)?[Ii][Vv][Aa]|deve\\s+(declarar)\\s+(?:o\\s+)?[Ii][Vv][Aa]"
                     + "|deve\\s+(registar)[\\-\\s]?se"), Family.MUST_NOT, false, 1, true),
             new Form(Family.PROHIBITION, cl("é\\s+proibid[ao]"), Family.PROHIBITION, false, 0),
@@ -123,13 +138,25 @@ final class TextualClaimEquivalence {
             new Form(Family.NON_SUBJECTION, cl("est(?:á|ão)\\s+sujeit[oa]s?"), Family.NON_SUBJECTION, true, 0)
     );
 
+    /**
+     * Contradiction-only answer formulations (see the class comment). A match overlapping a strict
+     * claim is skipped ("não é obrigado a emitir" is strict; "deve liquidar IVA" is strict).
+     */
+    private static final List<Form> CONTRADICTION_FORMS = List.of(
+            new Form(Family.OBLIGATION, ev("(?:é|são)\\s+obrigad[ao]s?\\s+a\\s+" + INF),
+                    Family.OBLIGATION, false, 1),
+            new Form(Family.OBLIGATION, ev("(?:tem|têm)\\s+de\\s+" + INF_PAIR), Family.OBLIGATION, false, 1),
+            new Form(Family.OBLIGATION, ev("deve(?:m)?\\s+(?:ainda\\s+|também\\s+|sempre\\s+)?" + INF_PAIR),
+                    Family.MUST_NOT, false, 1, true)
+    );
+
     private static final List<Form> EVIDENCE_FORMS = List.of(
             new Form(Family.DEDUCTIBILITY, ev("pode(?:m)?\\s+deduzir|permite(?:m)?\\s+deduzir"
                     + "|pode(?:m)?\\s+ser\\s+deduzid[oa]s?|é\\s+dedutível|são\\s+dedutíveis"
                     + "|tem\\s+direito\\s+à\\s+dedução|têm\\s+direito\\s+à\\s+dedução"), Family.DEDUCTIBILITY, false, 0),
             new Form(Family.OBLIGATION, ev("(?:é|são)\\s+obrigatóri[oa]s?(?:\\s+(?:o\\s+|a\\s+)?" + INF + ")?"),
                     Family.OBLIGATION, false, 1),
-            new Form(Family.OBLIGATION, ev("(?:está|estão|fica|ficam)\\s+obrigad[oa]s?\\s+a(?:\\s+" + INF + ")?"),
+            new Form(Family.OBLIGATION, ev("(?:é|são|está|estão|fica|ficam)\\s+obrigad[oa]s?\\s+a(?:\\s+" + INF + ")?"),
                     Family.OBLIGATION, false, 1),
             new Form(Family.OBLIGATION, ev("deve(?:m)?\\s+(?:ainda\\s+|também\\s+|sempre\\s+)?" + INF_PAIR),
                     Family.MUST_NOT, false, 1, true),
@@ -151,6 +178,32 @@ final class TextualClaimEquivalence {
     private static final Pattern NEGATOR_NEARBY = Pattern.compile(
             "(?iu)(?<!\\p{L})(?:não|nem|nunca|jamais|nenhum|nenhuma|nada|caso\\s+algum|sem)(?!\\p{L})");
 
+    /**
+     * Conditional or restricting clause before the formulation: never a basis for contradiction.
+     * "-se" (reflexive), "no entanto" and "nos termos de …" are not restrictions; "neste/nesse/em caso",
+     * "em regra", "em geral" and "em princípio" are (they announce exceptions).
+     */
+    private static final Pattern CONDITIONAL = Pattern.compile(
+            "(?iu)(?<![\\p{L}\\-])(?:se|como|quando|caso|quem|salvo|em\\s+regra|em\\s+geral|em\\s+princípio|exceto|excepto|desde\\s+que|sempre\\s+que"
+                    + "|a\\s+menos\\s+que|enquanto|embora|ainda\\s+que"
+                    + "|n[ao]s?\\s+(?!entanto(?!\\p{L})|termos(?!\\p{L}))\\p{L}+[^,]*,)(?!\\p{L})");
+
+    /** Condition or exception after the formulation, in the same sentence ("…, salvo se …", "… se …"). */
+    private static final Pattern CONDITIONAL_AFTER = Pattern.compile(
+            "(?iu)(?<![\\p{L}\\-])(?:se|salvo|exceto|excepto|caso|quando|desde\\s+que|sempre\\s+que"
+                    + "|a\\s+menos\\s+que|enquanto|embora|ainda\\s+que)(?!\\p{L})");
+
+    /** Leading pure connectives, never part of the subject ("Sim, o prestador …", "No entanto, …"). */
+    private static final Set<String> DISCOURSE = Set.of("sim", "não", "assim", "contudo", "portanto", "então",
+            "ora", "logo", "por", "isso", "no", "entanto", "também", "ainda");
+
+    private static final Set<String> ARTICLES = Set.of("o", "a", "os", "as", "um", "uma", "uns", "umas");
+
+    /** Words that end the object noun phrase ("fatura no prazo legal" → "fatura"). */
+    private static final Set<String> OBJECT_STOP = Set.of("de", "do", "da", "dos", "das", "em", "no", "na", "nos",
+            "nas", "para", "por", "pelo", "pela", "pelos", "pelas", "ao", "aos", "à", "às", "até", "com", "sem",
+            "depois", "antes", "quando", "se", "que", "e", "ou", "nesse", "nessa", "neste", "nesta", "logo", "após");
+
     /** Abbreviations whose dot does not end a sentence ("art. 41.º", "n.º 1", "cf. …"). */
     private static final Pattern ABBREVIATION_BEFORE_DOT =
             Pattern.compile("(?iu)(?<!\\p{L})(?:art|arts|n|al|als|cf|p|pp|ex|nº|n\\.º)$");
@@ -159,11 +212,41 @@ final class TextualClaimEquivalence {
     }
 
     static List<Statement> claims(String answer) {
-        return scan(answer, CLAIM_FORMS);
+        List<int[]> strictSpans = new ArrayList<>();
+        List<Statement> out = scan(answer, CLAIM_FORMS, false, strictSpans, null);
+        out.addAll(scan(answer, CONTRADICTION_FORMS, true, null, strictSpans));
+        return out;
     }
 
     static List<Statement> evidence(String context) {
-        return scan(context, EVIDENCE_FORMS);
+        return scan(context, EVIDENCE_FORMS, false, null, null);
+    }
+
+    /**
+     * Whether a contradiction-only claim is contradicted by the context: evidence with the same
+     * action and the opposite clear polarity. POSITIVE obligation ("deve V", "tem de V") vs
+     * NEGATIVE obligation or prohibition ("não tem de V", "não está obrigado a V", "não deve V");
+     * NEGATIVE obligation or prohibition vs POSITIVE obligation.
+     */
+    static boolean contradicts(Statement claim, List<Statement> evidence) {
+        if (claim.action() == null || claim.polarity() == Polarity.UNCERTAIN || !claim.contradictionEligible()) {
+            return false;
+        }
+        for (Statement e : evidence) {
+            if (e.action() == null || !e.action().equals(claim.action()) || !e.contradictionEligible()) continue;
+            if (!e.object().equals(claim.object())) continue;
+            // Equal subjects only: an omitted subject (Portuguese drops it) may refer to anyone.
+            if (!e.subject().equals(claim.subject())) continue;
+            boolean claimPositive = claim.polarity() == Polarity.POSITIVE;
+            if (claimPositive && e.polarity() == Polarity.NEGATIVE
+                    && (e.family() == Family.OBLIGATION || e.family() == Family.MUST_NOT)) {
+                return true;
+            }
+            if (!claimPositive && e.polarity() == Polarity.POSITIVE && e.family() == Family.OBLIGATION) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -177,7 +260,8 @@ final class TextualClaimEquivalence {
      * </ul>
      */
     static boolean supports(Statement claim, List<Statement> evidence, String contextText) {
-        if (claim.polarity() != Polarity.NEGATIVE && literalOccursNotNegated(claim.literal(), contextText)) {
+        if (!claim.contradictionOnly() && claim.polarity() != Polarity.NEGATIVE
+                && literalOccursNotNegated(claim.literal(), contextText)) {
             return true;
         }
         if (claim.polarity() == Polarity.UNCERTAIN) {
@@ -195,7 +279,13 @@ final class TextualClaimEquivalence {
                     if (e.canonical().equals(claim.canonical())) return true;
                 }
                 case ACTION -> {
-                    if ((claim.action() != null && claim.action().equals(e.action()))
+                    if (claim.contradictionOnly()) {
+                        // Only the same action on the same object; never the bare "tem de"/"deve" core.
+                        if (claim.action() != null && claim.action().equals(e.action())
+                                && claim.object().equals(e.object())) {
+                            return true;
+                        }
+                    } else if ((claim.action() != null && claim.action().equals(e.action()))
                             || e.canonical().equals(claim.canonical())) {
                         return true;
                     }
@@ -222,7 +312,8 @@ final class TextualClaimEquivalence {
         return false;
     }
 
-    private static List<Statement> scan(String raw, List<Form> forms) {
+    private static List<Statement> scan(String raw, List<Form> forms, boolean contradictionOnly,
+            List<int[]> spansOut, List<int[]> skipSpans) {
         List<Statement> out = new ArrayList<>();
         if (raw == null || raw.isBlank()) {
             return out;
@@ -231,6 +322,7 @@ final class TextualClaimEquivalence {
         for (Form form : forms) {
             Matcher m = form.pattern().matcher(text);
             while (m.find()) {
+                if (skipSpans != null && overlaps(skipSpans, m.start(), m.end())) continue;
                 // Polarity scope: the whole current sentence up to the formulation.
                 String clause = text.substring(sentenceStart(text, m.start()), m.start());
                 Matcher attached = NEGATOR_ATTACHED.matcher(clause);
@@ -238,6 +330,8 @@ final class TextualClaimEquivalence {
                         : NEGATOR_NEARBY.matcher(clause).find() ? Polarity.UNCERTAIN
                         : Polarity.POSITIVE;
                 if (form.requiresNegation() && polarity != Polarity.NEGATIVE) continue;
+                if (contradictionOnly && polarity == Polarity.UNCERTAIN) continue;
+                if (spansOut != null) spansOut.add(new int[] {m.start(), m.end()});
                 Family family = polarity == Polarity.NEGATIVE ? form.onNegation() : form.family();
                 String phrase = m.group();
                 String shown = polarity == Polarity.NEGATIVE
@@ -249,15 +343,97 @@ final class TextualClaimEquivalence {
                 // keeps its "a"; "é obrigatório o/a" drops the article before the verb).
                 String asWritten = text.substring(m.start(), coreEnd).strip();
                 String literal = normalize(asWritten.matches("(?iu).*obrigad[oa]s?\\s+a$") ? asWritten : core).replace('-', ' ');
+                boolean eligible = !isQuestion(text, m.end()) && !CONDITIONAL.matcher(clause).find()
+                        && !CONDITIONAL_AFTER.matcher(text.substring(m.end(), sentenceEnd(text, m.end()))).find();
+                String subject = subjectOf(polarity == Polarity.NEGATIVE ? clause.substring(0, attached.start()) : clause);
+                String object = objectAfter(text, m.end());
                 for (String action : actions(form, m, text)) {
                     // "deve" forms: canonical = "deve " + action key (verb, "-se", object "iva").
                     String canonical = form.fullPhraseCanonical() && action != null
                             ? "deve " + action : canonical(core);
-                    out.add(new Statement(family, polarity, shown.strip(), canonical, action, literal));
+                    out.add(new Statement(family, polarity, shown.strip(), canonical, action, literal,
+                            contradictionOnly, eligible, subject, object));
                 }
             }
         }
         return out;
+    }
+
+    /** Whether the sentence containing {@code position} ends with a question mark. */
+    private static boolean isQuestion(String text, int position) {
+        for (int i = position; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '?') return true;
+            if (c == '!' || c == ';' || c == '\n') return false;
+            if (c == '.') {
+                char next = i + 1 < text.length() ? text.charAt(i + 1) : ' ';
+                if (Character.isDigit(next) || next == 'º' || next == 'ª') continue;
+                if (ABBREVIATION_BEFORE_DOT.matcher(text.substring(Math.max(0, i - 4), i)).find()) continue;
+                return false;
+            }
+        }
+        return false;
+    }
+
+    /** Words before the formulation in its clause, lower case, articles, punctuation and leading discourse markers dropped. */
+    private static String subjectOf(String clause) {
+        List<String> w = words(clause);
+        int i = 0;
+        while (i < w.size() && DISCOURSE.contains(w.get(i))) i++;
+        return String.join(" ", w.subList(i, w.size()));
+    }
+
+    /** End of the sentence containing {@code position} (exclusive), with the same dot rules as {@link #sentenceStart}. */
+    private static int sentenceEnd(String text, int position) {
+        for (int i = position; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '!' || c == '?' || c == ';' || c == '\n') return i;
+            if (c == '.') {
+                char next = i + 1 < text.length() ? text.charAt(i + 1) : ' ';
+                if (Character.isDigit(next) || next == 'º' || next == 'ª') continue;
+                if (ABBREVIATION_BEFORE_DOT.matcher(text.substring(Math.max(0, i - 4), i)).find()) continue;
+                return i;
+            }
+        }
+        return text.length();
+    }
+
+    /**
+     * Object noun phrase after the formulation: up to three words, articles skipped, ending at a
+     * preposition/conjunction or punctuation ("a fatura simplificada no prazo" → "fatura simplificada").
+     * Empty at sentence end.
+     */
+    private static String objectAfter(String text, int position) {
+        Matcher w = Pattern.compile("(?u)[\\p{L}\\d]+|[.;:!?,\\n()]").matcher(text);
+        w.region(position, text.length());
+        List<String> words = new ArrayList<>();
+        while (w.find() && words.size() < 3) {
+            String token = w.group().toLowerCase(Locale.ROOT);
+            if (!Character.isLetterOrDigit(token.charAt(0)) || OBJECT_STOP.contains(token)) break;
+            // Regular plural → singular ("faturas" ≡ "fatura"); "mais", "pais", "menos" and irregular plurals stay.
+            if (!ARTICLES.contains(token)) {
+                boolean plural = token.length() > 3 && token.matches(".*[aeo]s") && !token.equals("menos");
+                words.add(plural ? token.substring(0, token.length() - 1) : token);
+            }
+        }
+        return String.join(" ", words);
+    }
+
+    private static List<String> words(String text) {
+        List<String> out = new ArrayList<>();
+        Matcher w = Pattern.compile("(?u)[\\p{L}\\d]+").matcher(text);
+        while (w.find()) {
+            String token = w.group().toLowerCase(Locale.ROOT);
+            if (!ARTICLES.contains(token)) out.add(token);
+        }
+        return out;
+    }
+
+    private static boolean overlaps(List<int[]> spans, int start, int end) {
+        for (int[] s : spans) {
+            if (start < s[1] && s[0] < end) return true;
+        }
+        return false;
     }
 
     /**
@@ -288,16 +464,29 @@ final class TextualClaimEquivalence {
             for (int g = form.actionGroup(); g <= m.groupCount(); g++) {
                 String verb = m.group(g);
                 if (verb == null) continue;
-                String v = verb.toLowerCase(Locale.ROOT);
-                if (AUXILIARIES.contains(v.replace("-se", ""))) continue;
+                String v = cliticInfinitive(verb.toLowerCase(Locale.ROOT));
                 String after = text.substring(m.end(g), Math.min(text.length(), m.end(g) + 8));
-                boolean reflexive = v.endsWith("-se") || after.matches("(?s)^[\\-\\s]se(?!\\p{L}).*");
                 boolean iva = after.matches("(?iu)(?s)^\\s+(?:o\\s+)?iva(?!\\p{L}).*");
+                if (AUXILIARIES.contains(v.replace("-se", ""))) continue;
+                boolean reflexive = v.endsWith("-se") || after.matches("(?s)^[\\-\\s]se(?!\\p{L}).*");
                 verbs.add(v.replace("-se", "") + (reflexive ? "-se" : "") + (iva ? " iva" : ""));
             }
         }
         if (verbs.isEmpty()) verbs.add(null);
         return verbs;
+    }
+
+    /** "declará-lo" → "declarar", "vendê-lo" → "vender", "emiti-la" → "emitir", "pô-lo" → "pôr". */
+    private static String cliticInfinitive(String verb) {
+        Matcher c = Pattern.compile("^(\\p{L}+)([áéêiô])-l[oa]s?$").matcher(verb);
+        if (!c.matches()) return verb;
+        String ending = switch (c.group(2)) {
+            case "á" -> "ar";
+            case "é", "ê" -> "er";
+            case "ô" -> "ôr";
+            default -> "ir";
+        };
+        return c.group(1) + ending;
     }
 
     /** Lower case, no-break spaces and runs of whitespace collapsed. */
@@ -318,6 +507,7 @@ final class TextualClaimEquivalence {
                 .replaceAll("(?<!\\p{L})o iva(?!\\p{L})", "iva")
                 .replaceAll("obrigatóri[oa]s?", "obrigatório")
                 .replaceAll("obrigad[oa]s?", "obrigado")
+                .replaceAll("(?<!\\p{L})é obrigado(?!\\p{L})", "está obrigado")
                 .replaceAll("proibid[oa]s?", "proibido")
                 .replaceAll("isent[oa]s?", "isento")
                 .replaceAll("sujeit[oa]s?", "sujeito")

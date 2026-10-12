@@ -22,26 +22,18 @@ public class AnswerGroundingValidator {
     private static final Pattern P_TAX_RATE =
             Pattern.compile("\\b(\\d{1,2}(?:[,.]\\d+)?\\s*%)");
 
-    private static final Pattern P_LEGAL_REF_INSTRUMENT =
-            Pattern.compile("(?i)(decreto[\\-\\s]lei|portaria|despacho|circular|ofício[\\-\\s]circulado)" +
-                    "\\s+n[.º°]?\\.?\\s*\\d+[\\/\\-]?\\d*");
-
-    private static final Pattern P_DEADLINE =
-            Pattern.compile("\\b(\\d+)\\s+(dias?|meses?|anos?)\\b");
-
     private static final Pattern P_DATE =
             Pattern.compile("(?i)\\b\\d{1,2}\\s+de\\s+" +
                     "(?:janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)" +
                     "\\s+de\\s+\\d{4}\\b");
 
     /**
-     * Patterns for the numeric/reference claim types. MONETARY_THRESHOLD, legal articles and the
-     * textual claims (obligation, exemption, deductibility) are handled separately.
+     * Patterns for the claim types still compared lexically. MONETARY_THRESHOLD, legal articles,
+     * legal instruments, deadlines and the textual claims (obligation, exemption, deductibility)
+     * are compared by canonical identity, separately.
      */
     private static final List<Map.Entry<SensitiveClaimType, Pattern>> NON_MONETARY_PATTERNS = List.of(
             Map.entry(SensitiveClaimType.TAX_RATE,         P_TAX_RATE),
-            Map.entry(SensitiveClaimType.LEGAL_REFERENCE,  P_LEGAL_REF_INSTRUMENT),
-            Map.entry(SensitiveClaimType.DEADLINE,         P_DEADLINE),
             Map.entry(SensitiveClaimType.DATE,             P_DATE)
     );
 
@@ -83,6 +75,8 @@ public class AnswerGroundingValidator {
 
         detectMonetaryClaims(answer, contextText, context, result, seen);
         detectArticleClaims(answer, contextText, context, result, seen);
+        detectInstrumentClaims(answer, contextText, context, result, seen);
+        detectDeadlineClaims(answer, contextText, context, result, seen);
         detectTextualClaims(answer, contextText, context, result, seen);
 
         for (var entry : NON_MONETARY_PATTERNS) {
@@ -136,6 +130,53 @@ public class AnswerGroundingValidator {
     }
 
     // -------------------------------------------------------------------------
+    // Legal instruments — canonical identity (LegalInstrumentReference): type + number + year.
+    // "Decreto-Lei n.º 28/2019" ≡ "DL 28/2019"; 28/2019 ≠ 198/2012 ≠ 28 (no year).
+    // -------------------------------------------------------------------------
+
+    private void detectInstrumentClaims(String answer, String contextText,
+            List<RetrievedCase> context, List<SensitiveClaim> result, Set<String> seen) {
+        Set<String> contextKeys = LegalInstrumentReference.extractAll(contextText);
+        for (LegalInstrumentReference.Ref ref : LegalInstrumentReference.findAll(answer)) {
+            if (!seen.add(ref.key())) continue;
+            boolean supported = contextKeys.contains(ref.key());
+            List<String> sources = supported
+                    ? context.stream()
+                            .filter(c -> LegalInstrumentReference.extractAll(
+                                    c.title() + " " + c.question() + " " + nullSafe(c.content())).contains(ref.key()))
+                            .map(RetrievedCase::title)
+                            .distinct()
+                            .toList()
+                    : List.of();
+            result.add(new SensitiveClaim(ref.text(), SensitiveClaimType.LEGAL_REFERENCE, supported, sources));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Deadlines — canonical identity (DeadlineReference): cardinal/ordinal + number + unit +
+    // material qualifier. "5.º dia útil" ≠ "10.º dia útil"; "5 dias" ≠ "5 dias úteis";
+    // "10 anos" ≠ "10 anos civis" (a dropped qualifier is a different, broader deadline).
+    // -------------------------------------------------------------------------
+
+    private void detectDeadlineClaims(String answer, String contextText,
+            List<RetrievedCase> context, List<SensitiveClaim> result, Set<String> seen) {
+        Set<String> contextKeys = DeadlineReference.extractAll(contextText);
+        for (DeadlineReference.Ref ref : DeadlineReference.findAll(answer)) {
+            if (!seen.add(ref.key())) continue;
+            boolean supported = contextKeys.contains(ref.key());
+            List<String> sources = supported
+                    ? context.stream()
+                            .filter(c -> DeadlineReference.extractAll(
+                                    c.title() + " " + c.question() + " " + nullSafe(c.content())).contains(ref.key()))
+                            .map(RetrievedCase::title)
+                            .distinct()
+                            .toList()
+                    : List.of();
+            result.add(new SensitiveClaim(ref.text(), SensitiveClaimType.DEADLINE, supported, sources));
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Textual claims (deductibility, obligation, exemption) — same family and same polarity
     // (TextualClaimEquivalence): "pode deduzir" ≡ "permite deduzir"; "não …" never ≡ "…";
     // uncertain polarity only by the pre-existing exact (literal) rule.
@@ -150,6 +191,12 @@ public class AnswerGroundingValidator {
             if (!seen.add(key)) continue;
 
             boolean supported = TextualClaimEquivalence.supports(claim, evidence, contextText);
+            if (claim.contradictionOnly()) {
+                // Reported only when the context states the same action with the opposite polarity.
+                if (supported || !TextualClaimEquivalence.contradicts(claim, evidence)) continue;
+                result.add(new SensitiveClaim(claim.text(), claim.family().type, false, List.of()));
+                continue;
+            }
             result.add(new SensitiveClaim(claim.text(), claim.family().type, supported,
                     supported ? titlesSupporting(claim, context) : List.of()));
         }
@@ -231,9 +278,9 @@ public class AnswerGroundingValidator {
     }
 
     /**
-     * Lexical normalisation for the generic comparison. Structural punctuation — parentheses,
-     * semicolons and colons not between two digits, and commas not followed by a digit — counts
-     * as a word boundary, so "(10 anos civis)" supports "10 anos". Between digits it is kept
+     * Lexical normalisation for the generic comparison (rates and dates). Structural punctuation —
+     * parentheses, semicolons and colons not between two digits, and commas not followed by a
+     * digit — counts as a word boundary, so "(23%)" supports "23%". Between digits it is kept
      * ("6,5%" never becomes "6 5%" and "1:5%" never "1 5%", which would let "5%" match).
      * No-break spaces count as spaces.
      */
