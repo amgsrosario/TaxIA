@@ -313,6 +313,22 @@ tr.clickable:hover { background: #f2f5f9; }
 
 .doc-answer-header { margin-bottom: 14px; }
 
+/* Corpo da resposta em Markdown (MarkdownText): hierarquia contida, sem tamanhos de documento */
+.field-block .value.md-text { white-space: normal; line-height: 1.55; }
+.field-block .value.md-text-plain { white-space: pre-wrap; }
+.md-text > :first-child { margin-top: 0; }
+.md-text > :last-child { margin-bottom: 0; }
+.md-text h3, .md-text h4, .md-text h5 { color: var(--navy); font-weight: 600; margin: 14px 0 6px; }
+.md-text h3 { font-size: 1rem; }
+.md-text h4 { font-size: 0.93rem; }
+.md-text h5 { font-size: 0.9rem; color: var(--navy-soft); }
+.md-text p { margin: 0 0 8px; }
+.md-text ul, .md-text ol { margin: 0 0 8px; padding-left: 20px; }
+.md-text li { margin-bottom: 3px; }
+.md-text li > ul, .md-text li > ol { margin: 3px 0 0; }
+.md-text code { font-size: 0.85rem; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 0 3px; }
+.md-text hr { border: 0; border-top: 1px solid var(--border); margin: 10px 0; }
+
 .doc-list { margin: 0; padding-left: 18px; }
 .doc-list li { margin-bottom: 4px; }
 

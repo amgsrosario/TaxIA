@@ -100,6 +100,8 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Instalar dependências
         run: npm ci
+      - name: Testes
+        run: npm test
       # `build` executa `tsc --noEmit` antes do `vite build`.
       - name: Typecheck e build
         run: npm run build

@@ -7,6 +7,7 @@ import type {
   SourceRole,
   VisibleSource,
 } from "../api/types";
+import { MarkdownText } from "./MarkdownText.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DocumentedAnswerPanel — apresentação da resposta documentada profissional.
@@ -103,7 +104,7 @@ export function DocumentedAnswerPanel({ projection }: { projection: AnswerProjec
   const parecerLabel =
     PARECER_LABELS[projection.visibleParecerRequirement] ??
     projection.visibleParecerRequirement;
-  const body = (projection.visibleAnswer ?? "").trim() || NO_ANSWER_BODY;
+  const answerText = (projection.visibleAnswer ?? "").trim();
 
   const limitations = projection.visibleLimitations ?? [];
   const warnings = projection.visibleWarnings ?? [];
@@ -119,7 +120,12 @@ export function DocumentedAnswerPanel({ projection }: { projection: AnswerProjec
       {/* B — Corpo da resposta */}
       <div className="field-block">
         <label>Resposta</label>
-        <div className="value">{body}</div>
+        {answerText ? (
+          // Markdown do LLM apresentado de forma estruturada e segura (sem HTML).
+          <MarkdownText text={answerText} className="value doc-answer-body" />
+        ) : (
+          <div className="value">{NO_ANSWER_BODY}</div>
+        )}
       </div>
 
       {/* C — Necessidade de parecer (nunca escondida) */}
