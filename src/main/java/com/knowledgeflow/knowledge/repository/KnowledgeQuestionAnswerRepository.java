@@ -104,6 +104,21 @@ public interface KnowledgeQuestionAnswerRepository extends JpaRepository<Knowled
     List<KnowledgeQaScopeRow> findScopeRowsByIdIn(@Param("ids") Collection<UUID> ids);
 
     /**
+     * Risco e validação humana persistidos das Q&amp;A usadas como fundamento (M4B, ADR-007), numa só
+     * query nativa e só de leitura. O risco vem como texto: ausente/desconhecido é tratado a jusante
+     * como risco desconhecido. Filtrado pela organização do pedido (defesa em profundidade: os ids
+     * já vêm do RAG restrito à organização); uma Q&amp;A de outra organização não é devolvida.
+     */
+    @Query(value = """
+            select cast(q.id as varchar) as id, q.risk_level as riskLevel, q.requires_human_validation as requiresHumanValidation
+            from knowledge_question_answers q
+            where q.organization_id = :organizationId
+              and q.id in (:ids)
+            """, nativeQuery = true)
+    List<KnowledgeQaGovernanceRow> findGovernanceRowsByIdIn(
+            @Param("organizationId") UUID organizationId, @Param("ids") Collection<UUID> ids);
+
+    /**
      * Q&amp;A com lock de escrita, para serializar as alterações de exclusões de aplicabilidade com
      * a publicação (que actualiza a mesma linha).
      */

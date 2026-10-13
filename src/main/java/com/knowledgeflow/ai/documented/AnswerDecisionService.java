@@ -1,6 +1,7 @@
 package com.knowledgeflow.ai.documented;
 
 import com.knowledgeflow.ai.grounding.AnswerSupportStatus;
+import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -24,7 +25,17 @@ import org.springframework.stereotype.Service;
  *       não é erro (regra 29).</li>
  *   <li><strong>Volume não é robustez</strong> — não se conta fontes em bruto; não se finge
  *       diversidade se {@code sourceDiversity} não for {@code MATERIAL_DIVERSITY}.</li>
- *   <li>Não decide risco agregado nem projecção por visibilidade (regras 21, 25, 27).</li>
+ *   <li>Não calcula o risco agregado nem a projecção por visibilidade (regras 21, 25): recebe o
+ *       risco agregado dos fundamentos usados ({@link FoundationGovernance}, M4B/ADR-007) e aplica-o.</li>
+ * </ul>
+ *
+ * <p>M4B (ADR-007), sobre a decisão base de suporte/fontes, só restringe — nunca alarga:
+ * <ul>
+ *   <li>{@code requiresHumanValidation} persistido de um fundamento usado → validação humana
+ *       agregada {@code true} e piso {@code SUGGESTED} (não é workflow de aprovação — C3);</li>
+ *   <li>HIGH (ou risco desconhecido, fail-closed) → nunca {@code CONSULTA_DOCUMENTADA} conclusiva:
+ *       no máximo {@code CONSULTA_DOCUMENTADA_COM_LIMITACOES} (C2), logo {@code SUGGESTED};</li>
+ *   <li>CRITICAL → {@code RESPOSTA_LIMITE} e {@code REQUIRED}.</li>
  * </ul>
  */
 @Service
@@ -47,6 +58,27 @@ public class AnswerDecisionService {
             List<SourceEvidence> sources,
             List<String> baseLimitations,
             String validationMessage) {
+        return decide(supportStatus, requiresHumanValidation, sources, baseLimitations, validationMessage,
+                FoundationGovernance.notAssessed());
+    }
+
+    /**
+     * Decisão com o risco e a validação humana agregados dos fundamentos usados (M4B, ADR-007).
+     *
+     * @param governance agregação dos fundamentos; {@link FoundationGovernance#notAssessed()} mantém a
+     *     decisão anterior
+     */
+    public AnswerDecision decide(
+            AnswerSupportStatus supportStatus,
+            boolean requiresHumanValidation,
+            List<SourceEvidence> sources,
+            List<String> baseLimitations,
+            String validationMessage,
+            FoundationGovernance governance) {
+
+        FoundationGovernance safeGovernance = java.util.Objects.requireNonNull(governance, "governance is required (M4B)");
+        boolean humanValidation = requiresHumanValidation || safeGovernance.requiresHumanValidation();
+        KnowledgeRiskLevel decisionRisk = safeGovernance.decisionRiskLevel();
 
         List<SourceEvidence> safeSources = sources != null ? sources : List.of();
 
@@ -65,23 +97,32 @@ public class AnswerDecisionService {
                 || lacksMaterialDiversity
                 || (hasSources && !hasStrongOrAdequateSource);
 
-        AnswerType answerType = decideAnswerType(supportStatus, limitationSignals);
+        AnswerType baseAnswerType = decideAnswerType(supportStatus, limitationSignals);
+        AnswerType answerType = applyRiskToAnswerType(baseAnswerType, decisionRisk);
         ParecerRequirement parecerRequirement = decideParecerRequirement(
-                supportStatus, requiresHumanValidation, hasSources, hasOutdatedSources,
+                supportStatus, humanValidation, hasSources, hasOutdatedSources,
                 hasOnlyWeakSources, answerType);
+        if (decisionRisk == KnowledgeRiskLevel.CRITICAL) {
+            parecerRequirement = ParecerRequirement.REQUIRED;
+        }
 
-        List<String> limitations = buildLimitations(
+        List<String> limitations = withRiskLimitations(buildLimitations(
                 supportStatus, baseLimitations, hasSources, hasOnlyWeakSources,
-                hasUncertainFreshness, hasOnlyDerivative, lacksMaterialDiversity);
+                hasUncertainFreshness, hasOnlyDerivative, lacksMaterialDiversity), safeGovernance);
         List<String> warnings = buildWarnings(
-                requiresHumanValidation, validationMessage, hasOutdatedSources, hasOnlyWeakSources);
+                humanValidation, validationMessage, hasOutdatedSources, hasOnlyWeakSources);
         boolean suggestReformulation = !hasSources && isLimitAnswer(supportStatus);
         List<String> nextSteps = buildNextSteps(
                 parecerRequirement, hasUncertainFreshness, hasSources, suggestReformulation);
 
-        String confidenceSummary = buildConfidenceSummary(
-                supportStatus, answerType, hasOfficialOrLegalAuthority, hasOnlyWeakSources,
-                hasOutdatedSources);
+        String baseConfidence = buildConfidenceSummary(
+                supportStatus, answerType, hasOfficialOrLegalAuthority, hasOnlyWeakSources, hasOutdatedSources);
+        // O texto de risco substitui o de suporte só quando foi o risco a restringir a resposta (base
+        // conclusiva) ou é CRITICAL; senão acrescenta-se ao texto de suporte, que continua verdadeiro.
+        String confidenceSummary = riskConfidenceSummary(decisionRisk, safeGovernance)
+                .map(risk -> decisionRisk == KnowledgeRiskLevel.CRITICAL
+                        || baseAnswerType == AnswerType.CONSULTA_DOCUMENTADA ? risk : baseConfidence + " " + risk)
+                .orElse(baseConfidence);
         String sourceSummary = buildSourceSummary(
                 hasSources, hasOfficialOrLegalAuthority, hasOnlyWeakSources, hasOutdatedSources,
                 hasUncertainFreshness, lacksMaterialDiversity);
@@ -92,6 +133,55 @@ public class AnswerDecisionService {
         return new AnswerDecision(
                 answerType, parecerRequirement, confidenceSummary,
                 limitations, warnings, nextSteps, overallFreshnessStatus, sourceSummary);
+    }
+
+    // --- risco agregado (M4B, ADR-007) ---
+
+    /** HIGH/desconhecido: nunca conclusiva (C2); CRITICAL: Resposta-limite (decisão 2b). Só restringe. */
+    private AnswerType applyRiskToAnswerType(AnswerType answerType, KnowledgeRiskLevel decisionRisk) {
+        if (decisionRisk == KnowledgeRiskLevel.CRITICAL) {
+            return AnswerType.RESPOSTA_LIMITE;
+        }
+        if (decisionRisk == KnowledgeRiskLevel.HIGH && answerType == AnswerType.CONSULTA_DOCUMENTADA) {
+            return AnswerType.CONSULTA_DOCUMENTADA_COM_LIMITACOES;
+        }
+        return answerType;
+    }
+
+    /** Quando o risco do fundamento restringe a resposta, a confiança explica esse motivo (não as fontes). */
+    private java.util.Optional<String> riskConfidenceSummary(KnowledgeRiskLevel decisionRisk, FoundationGovernance governance) {
+        if (decisionRisk == KnowledgeRiskLevel.CRITICAL) {
+            return java.util.Optional.of("Fundamento de risco crítico: sem conclusão automática; "
+                    + "enquadramento a confirmar em Pedido de parecer.");
+        }
+        if (decisionRisk == KnowledgeRiskLevel.HIGH) {
+            return java.util.Optional.of(governance.maxKnownRiskLevel() == KnowledgeRiskLevel.HIGH
+                    ? "Fundamento de risco elevado: resposta apresentada com limitações, sem conclusão automática."
+                    : "Risco de um fundamento não determinado: resposta apresentada com a prudência de risco elevado.");
+        }
+        return java.util.Optional.empty();
+    }
+
+    private List<String> withRiskLimitations(List<String> limitations, FoundationGovernance governance) {
+        KnowledgeRiskLevel decisionRisk = governance.decisionRiskLevel();
+        if (decisionRisk != KnowledgeRiskLevel.HIGH && decisionRisk != KnowledgeRiskLevel.CRITICAL) {
+            return limitations;
+        }
+        LinkedHashSet<String> out = new LinkedHashSet<>(limitations);
+        if (decisionRisk == KnowledgeRiskLevel.CRITICAL) {
+            // A conclusão gerada não é exposta (ADR-007): nenhuma limitação pode pressupor uma resposta.
+            out.removeIf(l -> l.startsWith("A resposta baseia-se no suporte documental disponível"));
+            out.add("Um fundamento usado é de risco crítico: a TaxIA não fecha conclusão automática e "
+                    + "encaminha para Pedido de parecer.");
+        } else if (governance.maxKnownRiskLevel() == KnowledgeRiskLevel.HIGH) {
+            out.add("Um fundamento usado é de risco elevado: a resposta não constitui conclusão automática "
+                    + "e deve ser confirmada para o caso concreto.");
+        }
+        if (governance.riskUnknown() && decisionRisk != KnowledgeRiskLevel.CRITICAL) {
+            out.add("O risco de um fundamento usado não está determinado: a resposta é tratada com a "
+                    + "prudência de risco elevado.");
+        }
+        return List.copyOf(out);
     }
 
     // --- answerType ---

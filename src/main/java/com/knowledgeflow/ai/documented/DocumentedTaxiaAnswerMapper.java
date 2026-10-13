@@ -23,11 +23,20 @@ import org.springframework.stereotype.Component;
  * </ul>
  *
  * <p>A projecção por {@link VisibilityLevel} continua reservada para D7. O
- * {@code aggregatedRiskLevel} mantém-se {@code null} enquanto não houver risco agregado
- * real (regra 27).
+ * {@code aggregatedRiskLevel} vem dos fundamentos usados ({@link FoundationGovernance}, M4B/ADR-007);
+ * as variantes sem governança (caminhos legados/teste) mantêm-no {@code null}.
  */
 @Component
 public class DocumentedTaxiaAnswerMapper {
+
+    /**
+     * Corpo seguro da Resposta-limite quando um fundamento CRITICAL é usado (ADR-007, decisão 2b): a
+     * conclusão gerada pelo LLM nunca é exposta; a resposta encaminha para Pedido de parecer.
+     */
+    public static final String CRITICAL_LIMIT_ANSWER =
+            "Esta questão assenta num fundamento de risco crítico. A TaxIA não apresenta conclusão fiscal "
+            + "automática neste caso: a matéria exige apreciação profissional do caso concreto. Submeta um "
+            + "Pedido de parecer; as fontes indicadas servem apenas de enquadramento.";
 
     private final SourceAssessmentService sourceAssessmentService;
     private final AnswerDecisionService answerDecisionService;
@@ -49,7 +58,8 @@ public class DocumentedTaxiaAnswerMapper {
      * @return resposta documentada equivalente
      */
     public DocumentedTaxiaAnswer fromGroundedResponse(String question, GroundedAIResponse grounded) {
-        return build(question, grounded, mapSources(grounded.sources(), grounded.supportStatus()));
+        return build(question, grounded, mapSources(grounded.sources(), grounded.supportStatus()),
+                FoundationGovernance.notAssessed());
     }
 
     /**
@@ -59,36 +69,57 @@ public class DocumentedTaxiaAnswerMapper {
      */
     public DocumentedTaxiaAnswer fromGroundedResponse(
             String question, GroundedAIResponse grounded, List<ResolvedAnswerSource> resolvedSources) {
-        return build(question, grounded, mapResolvedSources(resolvedSources, grounded.supportStatus()));
+        return build(question, grounded, mapResolvedSources(resolvedSources, grounded.supportStatus()),
+                FoundationGovernance.notAssessed());
     }
 
-    private DocumentedTaxiaAnswer build(String question, GroundedAIResponse grounded, List<SourceEvidence> sources) {
+    /**
+     * Pipeline de produção (M4B, ADR-007): fontes curadas resolvidas e risco/validação humana
+     * agregados dos fundamentos usados.
+     */
+    public DocumentedTaxiaAnswer fromGroundedResponse(
+            String question, GroundedAIResponse grounded, List<ResolvedAnswerSource> resolvedSources,
+            FoundationGovernance governance) {
+        java.util.Objects.requireNonNull(governance, "governance is required (M4B)");
+        // CRITICAL (ADR-007): as fontes ficam como enquadramento — não sustentam uma conclusão exposta.
+        AnswerSupportStatus sourcesStatus = suppressesGeneratedAnswer(governance) ? null : grounded.supportStatus();
+        return build(question, grounded, mapResolvedSources(resolvedSources, sourcesStatus), governance);
+    }
+
+    private DocumentedTaxiaAnswer build(String question, GroundedAIResponse grounded, List<SourceEvidence> sources,
+            FoundationGovernance governance) {
         AnswerSupportStatus supportStatus = grounded.supportStatus();
+        boolean requiresHumanValidation = grounded.requiresHumanValidation() || governance.requiresHumanValidation();
+        // CRITICAL usado (ADR-007): a geração pode existir como etapa técnica, mas a conclusão gerada
+        // não chega a nenhum campo da resposta — corpo substituído pelo texto seguro de Resposta-limite.
+        // As fontes mantêm-se (a Resposta-limite organiza enquadramento e fontes — política §6).
+        String answerBody = suppressesGeneratedAnswer(governance) ? CRITICAL_LIMIT_ANSWER : grounded.answer();
 
         AnswerDecision decision = answerDecisionService.decide(
                 supportStatus,
                 grounded.requiresHumanValidation(),
                 sources,
                 grounded.limitations(),
-                grounded.validationMessage());
+                grounded.validationMessage(),
+                governance);
 
-        // aggregatedRiskLevel mantém-se null (regra 27); o diagnóstico observa esse facto.
         InternalDiagnostics internalDiagnostics = internalDiagnosticsBuilder.build(
                 supportStatus,
-                grounded.requiresHumanValidation(),
+                requiresHumanValidation,
                 sources,
                 decision,
-                null);
+                governance.aggregatedRiskLevel(),
+                governance);
 
         return new DocumentedTaxiaAnswer(
                 UUID.randomUUID().toString(),
                 question,
                 null,
-                grounded.answer(),
-                grounded.answer(),
+                answerBody,
+                answerBody,
                 decision.answerType(),
                 supportStatus,
-                null,
+                governance.aggregatedRiskLevel(),
                 decision.parecerRequirement(),
                 VisibilityLevel.INTERNAL,
                 decision.overallFreshnessStatus(),
@@ -101,6 +132,11 @@ public class DocumentedTaxiaAnswerMapper {
                 decision.warnings(),
                 decision.nextSteps(),
                 internalDiagnostics);
+    }
+
+    /** Se a conclusão gerada pelo LLM deve ser suprimida (fundamento CRITICAL usado, ADR-007). */
+    public static boolean suppressesGeneratedAnswer(FoundationGovernance governance) {
+        return governance != null && governance.decisionRiskLevel() == com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel.CRITICAL;
     }
 
     private List<SourceEvidence> mapSources(List<AnswerSource> sources, AnswerSupportStatus supportStatus) {

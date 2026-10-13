@@ -15,8 +15,9 @@ import java.util.List;
  * <ul>
  *   <li>{@code aggregatedRiskLevel} reutiliza {@link KnowledgeRiskLevel} mas representa o
  *       risco <em>agregado da resposta</em> (máximo dos fundamentos usados — C4); não é o
- *       {@code riskLevel} persistido da entidade Knowledge QA. Pode ser {@code null}
- *       enquanto não houver base clara.</li>
+ *       {@code riskLevel} persistido de uma Q&amp;A isolada (M4B/ADR-007). É {@code null} sem
+ *       fundamentos usados ou quando um fundamento usado tem risco desconhecido (RISK_UNKNOWN,
+ *       explicado no diagnóstico interno), salvo se outro fundamento for CRITICAL — o máximo.</li>
  *   <li>{@code internalDiagnostics} ({@link InternalDiagnostics}, D11) descreve o caminho
  *       técnico até à conclusão e é apenas para {@code INTERNAL}/{@code CURATION_ONLY}
  *       (bastidores C7); {@code EXTERNAL}/{@code DEMO} nunca o expõem. Só existe em runtime,

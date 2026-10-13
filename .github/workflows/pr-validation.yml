@@ -68,6 +68,8 @@ jobs:
             GroundingDeadlineInstrumentNegationTest
             SafeResponseFactoryTest
             AnswerDecisionServiceTest
+            M4BRiskPropagationTest
+            M4BFoundationsGroundingTest
             DocumentedAnswerCriticalScenariosTest
           )
           mvn -B test -Dtest="$(IFS=,; echo "${tests[*]}")"

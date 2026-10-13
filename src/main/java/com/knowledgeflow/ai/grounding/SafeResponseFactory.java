@@ -40,7 +40,8 @@ public class SafeResponseFactory {
                 "none",
                 0,
                 0,
-                0L);
+                0L,
+                List.of());
     }
 
     public GroundedAIResponse buildRejected(
@@ -64,6 +65,7 @@ public class SafeResponseFactory {
                 aiResponse.modelUsed(),
                 aiResponse.inputTokens(),
                 aiResponse.outputTokens(),
-                aiResponse.durationMillis());
+                aiResponse.durationMillis(),
+                List.of());
     }
 }

@@ -50,7 +50,7 @@ class DocumentedAnswerCriticalScenariosTest {
                 answer, status, "Motivo", sources,
                 List.of(), List.of(), requiresHumanValidation,
                 requiresHumanValidation ? "Apreciação humana recomendada." : null,
-                true, false, null, 0, "stub", "stub", 0, 0, 0L);
+                true, false, null, 0, "stub", "stub", 0, 0, 0L, List.of());
     }
 
     /** SourceEvidence composta manualmente para exercitar a decisão sem passar pelo assessor. */

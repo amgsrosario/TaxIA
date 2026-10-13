@@ -26,7 +26,7 @@ class DocumentedTaxiaAnswerMapperTest {
         return new GroundedAIResponse(
                 "Resposta.", status, "Motivo", sources,
                 List.of(), List.of(), requiresHumanValidation, null,
-                true, false, null, 0, "stub", "stub", 0, 0, 0L);
+                true, false, null, 0, "stub", "stub", 0, 0, 0L, List.of());
     }
 
     @Test

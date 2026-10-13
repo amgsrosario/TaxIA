@@ -18,15 +18,19 @@ import com.knowledgeflow.ai.documented.AnswerDecisionService;
 import com.knowledgeflow.ai.documented.AnswerProjectionService;
 import com.knowledgeflow.ai.documented.CuratedSourceResolver;
 import com.knowledgeflow.ai.documented.DocumentedTaxiaAnswerMapper;
+import com.knowledgeflow.ai.documented.FoundationGovernanceResolver;
 import com.knowledgeflow.ai.documented.InternalDiagnosticsBuilder;
 import com.knowledgeflow.ai.documented.SourceAssessmentService;
 import com.knowledgeflow.ai.documented.VisibilityLevelResolver;
 import com.knowledgeflow.ai.grounding.AnswerSource;
 import com.knowledgeflow.ai.grounding.AnswerSupportStatus;
 import com.knowledgeflow.ai.grounding.GroundedAIResponse;
+import com.knowledgeflow.ai.grounding.GroundingFoundation;
 import com.knowledgeflow.ai.grounding.GroundingService;
 import com.knowledgeflow.common.error.GlobalExceptionHandler;
 import com.knowledgeflow.knowledge.enums.KnowledgeSourceType;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaGovernanceRow;
+import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRow;
 import com.knowledgeflow.rag.RagSearchService;
@@ -57,6 +61,7 @@ class AdminAIControllerTest {
     @Mock private AuthenticatedUserContext authenticatedUserContext;
     @Mock private com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics;
     @Mock private KnowledgeSourceReferenceRepository sourceRepository;
+    @Mock private KnowledgeQuestionAnswerRepository qaRepository;
 
     // Mapper real (stateless, aditivo) — usado pelo @InjectMocks para não partir o fluxo.
     @Spy private DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper =
@@ -77,7 +82,7 @@ class AdminAIControllerTest {
         // e não consultam a base, pelo que os testes anteriores mantêm o comportamento.
         var controller = new AdminAIController(groundingService, ragSearchService, authenticatedUserContext,
                 metrics, documentedTaxiaAnswerMapper, answerProjectionService, visibilityLevelResolver,
-                new CuratedSourceResolver(sourceRepository));
+                new CuratedSourceResolver(sourceRepository), new FoundationGovernanceResolver(qaRepository));
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -231,7 +236,7 @@ class AdminAIControllerTest {
         var resp = new GroundedAIResponse(
                 "Resposta com fonte.", AnswerSupportStatus.SUPPORTED, "OK",
                 List.of(src), List.of(), List.of(), false, null,
-                true, false, null, 0, "stub", "stub", 0, 0, 0L);
+                true, false, null, 0, "stub", "stub", 0, 0, 0L, List.of());
         when(groundingService.process(anyString(), any(), anyList())).thenReturn(resp);
 
         performAsk("Pergunta")
@@ -258,7 +263,7 @@ class AdminAIControllerTest {
                 AnswerSupportStatus.REJECTED_UNSUPPORTED, "Afirmações não suportadas",
                 List.of(), List.of(), List.of(), true,
                 "Requer validação humana.", true, true,
-                "Afirmação sem suporte.", 1, "anthropic", "haiku", 10, 5, 100L);
+                "Afirmação sem suporte.", 1, "anthropic", "haiku", 10, 5, 100L, List.of());
         when(groundingService.process(anyString(), any(), anyList())).thenReturn(resp);
 
         performAsk("Pergunta")
@@ -271,7 +276,7 @@ class AdminAIControllerTest {
         var resp = new GroundedAIResponse(
                 "Resposta rejeitada.", AnswerSupportStatus.REJECTED_UNSUPPORTED, "Rejeição",
                 List.of(), List.of(), List.of(), true, "Validar.", true, true,
-                "Razão.", 2, "anthropic", "claude-haiku", 100, 50, 1500L);
+                "Razão.", 2, "anthropic", "claude-haiku", 100, 50, 1500L, List.of());
         when(groundingService.process(anyString(), any(), anyList())).thenReturn(resp);
 
         performAsk("Pergunta")
@@ -288,7 +293,7 @@ class AdminAIControllerTest {
                 "Resposta.", AnswerSupportStatus.REQUIRES_HUMAN_REVIEW, "Alto risco",
                 List.of(), List.of(), List.of(), true,
                 "Requer validação por especialista fiscal.", true, false, null,
-                0, "stub", "stub", 0, 0, 0L);
+                0, "stub", "stub", 0, 0, 0L, List.of());
         when(groundingService.process(anyString(), any(), anyList())).thenReturn(resp);
 
         performAsk("Pergunta")
@@ -305,7 +310,7 @@ class AdminAIControllerTest {
         var resp = new GroundedAIResponse(
                 "Resposta.", AnswerSupportStatus.SUPPORTED, "OK",
                 List.of(src1, src2), List.of(), List.of(), false, null,
-                true, false, null, 0, "stub", "stub", 0, 0, 0L);
+                true, false, null, 0, "stub", "stub", 0, 0, 0L, List.of());
         when(groundingService.process(anyString(), any(), anyList())).thenReturn(resp);
 
         performAsk("Pergunta")
@@ -321,7 +326,7 @@ class AdminAIControllerTest {
         var resp = new GroundedAIResponse(
                 "Resposta.", AnswerSupportStatus.SUPPORTED, "OK",
                 List.of(src1, src2, src3), List.of(), List.of(), false, null,
-                true, false, null, 0, "stub", "stub", 0, 0, 0L);
+                true, false, null, 0, "stub", "stub", 0, 0, 0L, List.of());
         when(groundingService.process(anyString(), any(), anyList())).thenReturn(resp);
 
         performAsk("Pergunta")
@@ -343,6 +348,94 @@ class AdminAIControllerTest {
 
         verify(visibilityLevelResolver).resolveForAdminAsk();
         verify(visibilityLevelResolver, never()).resolveForDemo();
+    }
+
+    // --- M4B (ADR-007): risco e validação humana dos fundamentos usados ---
+
+    private record GovernanceRow(String getId, String getRiskLevel, Boolean getRequiresHumanValidation)
+            implements KnowledgeQaGovernanceRow {
+    }
+
+    private GroundedAIResponse supportedWithFoundation(UUID qaId) {
+        return new GroundedAIResponse(
+                "Resposta documentada.", AnswerSupportStatus.SUPPORTED, "Context sufficient",
+                List.of(new AnswerSource("Caso G2", "Caso G2", 0.89, qaId)), List.of(), List.of(), false, null,
+                true, false, null, 0, "anthropic", "haiku", 10, 5, 0L,
+                List.of(new GroundingFoundation(qaId, "Caso G2")));
+    }
+
+    @Test
+    void ask_propagatesRiskAndHumanValidationOfTheUsedFoundation() throws Exception {
+        UUID qaId = UUID.fromString("82e6f5d9-aada-4baf-846c-4e5feebb64a0");
+        when(groundingService.process(anyString(), any(), anyList())).thenReturn(supportedWithFoundation(qaId));
+        when(qaRepository.findGovernanceRowsByIdIn(eq(ORG_ID), anyCollection()))
+                .thenReturn(List.of(new GovernanceRow(qaId.toString(), "MEDIUM", true)));
+
+        performAsk("Até quando tenho de emitir a factura depois de prestar o serviço?")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requiresHumanValidation").value(true))
+                .andExpect(jsonPath("$.documentedAnswer.aggregatedRiskLevel").value("MEDIUM"))
+                .andExpect(jsonPath("$.documentedAnswer.answerType").value("CONSULTA_DOCUMENTADA"))
+                .andExpect(jsonPath("$.documentedAnswer.parecerRequirement").value("SUGGESTED"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleParecerRequirement").value("SUGGESTED"));
+    }
+
+    @Test
+    void demoAsk_keepsTheRiskDrivenParecer_withoutExposingTheAggregatedRisk() throws Exception {
+        UUID qaId = UUID.fromString("82e6f5d9-aada-4baf-846c-4e5feebb64a0");
+        when(groundingService.process(anyString(), any(), anyList())).thenReturn(supportedWithFoundation(qaId));
+        when(qaRepository.findGovernanceRowsByIdIn(eq(ORG_ID), anyCollection()))
+                .thenReturn(List.of(new GovernanceRow(qaId.toString(), "MEDIUM", true)));
+
+        performDemoAsk("{\"question\":\"Até quando tenho de emitir a factura?\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.projectedAnswer.visibleAnswerType").value("CONSULTA_DOCUMENTADA"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleParecerRequirement").value("SUGGESTED"))
+                .andExpect(jsonPath("$.documentedAnswer").doesNotExist())
+                .andExpect(jsonPath("$.aggregatedRiskLevel").doesNotExist());
+    }
+
+    @Test
+    void askAndDemoAsk_criticalFoundation_neverExposeTheGeneratedConclusion() throws Exception {
+        UUID qaId = UUID.fromString("c0000000-0000-0000-0000-00000000c417");
+        GroundedAIResponse conclusive = new GroundedAIResponse(
+                "Conclusão: pode deduzir integralmente o prejuízo de 250 000 €.", AnswerSupportStatus.SUPPORTED,
+                "Context sufficient", List.of(new AnswerSource("Caso crítico", "Caso crítico", 0.95, qaId)),
+                List.of(), List.of(), false, null, true, false, null, 0, "anthropic", "haiku", 10, 5, 0L,
+                List.of(new GroundingFoundation(qaId, "Caso crítico")));
+        when(groundingService.process(anyString(), any(), anyList())).thenReturn(conclusive);
+        when(qaRepository.findGovernanceRowsByIdIn(eq(ORG_ID), anyCollection()))
+                .thenReturn(List.of(new GovernanceRow(qaId.toString(), "CRITICAL", true)));
+
+        String ask = performAsk("Posso deduzir o prejuízo?")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.answer").value(DocumentedTaxiaAnswerMapper.CRITICAL_LIMIT_ANSWER))
+                .andExpect(jsonPath("$.documentedAnswer.answerType").value("RESPOSTA_LIMITE"))
+                .andExpect(jsonPath("$.documentedAnswer.parecerRequirement").value("REQUIRED"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleAnswer").value(DocumentedTaxiaAnswerMapper.CRITICAL_LIMIT_ANSWER))
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(ask).doesNotContain("250 000").doesNotContain("deduzir integralmente");
+
+        String demo = performDemoAsk("{\"question\":\"Posso deduzir o prejuízo?\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.projectedAnswer.visibleAnswerType").value("RESPOSTA_LIMITE"))
+                .andExpect(jsonPath("$.projectedAnswer.visibleParecerRequirement").value("REQUIRED"))
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(demo).doesNotContain("250 000").doesNotContain("deduzir integralmente");
+    }
+
+    @Test
+    void ask_lowWithoutHumanValidation_keepsNone() throws Exception {
+        UUID qaId = UUID.fromString("6e5d958f-0219-4941-a000-25885a22d2fd");
+        when(groundingService.process(anyString(), any(), anyList())).thenReturn(supportedWithFoundation(qaId));
+        when(qaRepository.findGovernanceRowsByIdIn(eq(ORG_ID), anyCollection()))
+                .thenReturn(List.of(new GovernanceRow(qaId.toString(), "LOW", false)));
+
+        performAsk("Durante quanto tempo deve um sujeito passivo de IVA conservar os registos?")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requiresHumanValidation").value(false))
+                .andExpect(jsonPath("$.documentedAnswer.aggregatedRiskLevel").value("LOW"))
+                .andExpect(jsonPath("$.documentedAnswer.parecerRequirement").value("NONE"));
     }
 
     // --- Endpoint de demonstração /demo/ask ---
@@ -441,7 +534,7 @@ class AdminAIControllerTest {
         when(groundingService.process(anyString(), any(), anyList())).thenReturn(new GroundedAIResponse(
                 "Resposta documentada.", AnswerSupportStatus.SUPPORTED, "OK",
                 List.of(qaSource), List.of(), List.of(), false, null,
-                true, false, null, 0, "anthropic", "haiku", 10, 5, 0L));
+                true, false, null, 0, "anthropic", "haiku", 10, 5, 0L, List.of()));
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-07-24T10:00:00Z");
         when(sourceRepository.findRowsByQuestionAnswerIdIn(anyCollection())).thenReturn(List.of(
                 new KnowledgeSourceReferenceRow(QA_ID, FAQ_ID, KnowledgeSourceType.OFFICIAL_FAQ,
@@ -531,7 +624,7 @@ class AdminAIControllerTest {
         return new GroundedAIResponse(
                 answer, AnswerSupportStatus.SUPPORTED, "Context sufficient",
                 List.of(), List.of(), List.of(), false, null,
-                true, false, null, 0, provider, model, inputTokens, outputTokens, 0L);
+                true, false, null, 0, provider, model, inputTokens, outputTokens, 0L, List.of());
     }
 
     private GroundedAIResponse refusalResponse() {
@@ -539,7 +632,7 @@ class AdminAIControllerTest {
                 "Não foi possível encontrar documentação validada suficiente.",
                 AnswerSupportStatus.INSUFFICIENT_CONTEXT, "Contexto insuficiente",
                 List.of(), List.of("Documentação sobre o tema"), List.of(), false, null,
-                false, false, null, 0, "none", "none", 0, 0, 0L);
+                false, false, null, 0, "none", "none", 0, 0, 0L, List.of());
     }
 
     private GroundedAIResponse rejectedResponse() {
@@ -548,6 +641,6 @@ class AdminAIControllerTest {
                 AnswerSupportStatus.REJECTED_UNSUPPORTED, "Afirmações rejeitadas",
                 List.of(), List.of(), List.of(), true, "Requer validação humana.",
                 true, true, "Afirmação não suportada.", 1,
-                "stub", "stub", 0, 0, 0L);
+                "stub", "stub", 0, 0, 0L, List.of());
     }
 }
