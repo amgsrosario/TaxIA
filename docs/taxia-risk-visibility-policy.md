@@ -481,6 +481,17 @@ comunicada em linguagem profissional).
 
 ## 3-H. Decisão C8 — actualidade e origem temporal da resposta *(FECHADA)*
 
+> **Materialização ([ADR-008](adr/ADR-008-source-freshness-verification.md)).**
+> - **Estado calculado** por fonte usada a partir de verificação humana estruturada; nunca escolhido.
+> - **`CURRENT`:** verificação há no máximo 90 dias (legislação, com versão consolidada confirmada)
+>   ou 60 dias (FAQ/orientação oficial).
+> - **`STABLE_BUT_OLD`:** só com matéria estável justificada, até 365/180 dias.
+> - **`OUTDATED`:** marcadores ou `validTo` da fonte expirado.
+> - **`UNCERTAIN`:** por omissão.
+> - **Agregação:** `overallFreshnessStatus` = pior estado das fontes usadas.
+> - **Efeito na resposta:** com `UNCERTAIN`, no máximo `CONSULTA_DOCUMENTADA_COM_LIMITACOES` e
+>   `SUGGESTED`. Isto aplica a C8 literalmente e fecha a tensão com o D10.
+
 > **C8.** A actualidade das fontes **não** deve produzir automaticamente **ausência
 > de resposta**. A actualidade **gradua** a **força** da resposta, a sua **origem
 > temporal**, o **grau de limitação**, o **tipo de aviso** e o eventual

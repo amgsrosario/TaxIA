@@ -25,6 +25,12 @@ Aplicar a **cada** par pergunta/resposta antes de `validate` e novamente antes d
 - [ ] Prazos confirmados
 - [ ] Valores monetários e limiares confirmados
 - [ ] Datas de validade (`validFrom`/`validTo`) correctas
+- [ ] Actualidade das fontes (ADR-008): verificar cada fonte oficial e registar a verificação no
+      backoffice; na legislação, confirmar a versão oficial/consolidada.
+      - Sem verificação a fonte é "Actualidade não confirmada" e a resposta fica limitada.
+      - Revalidar até 90 dias (legislação) ou 60 dias (FAQ/orientação).
+      - Matéria estável só com justificação.
+      - O estado nunca se escolhe à mão.
 
 ## Classificação
 

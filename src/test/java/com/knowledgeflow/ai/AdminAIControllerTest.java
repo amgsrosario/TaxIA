@@ -65,8 +65,7 @@ class AdminAIControllerTest {
 
     // Mapper real (stateless, aditivo) — usado pelo @InjectMocks para não partir o fluxo.
     @Spy private DocumentedTaxiaAnswerMapper documentedTaxiaAnswerMapper =
-            new DocumentedTaxiaAnswerMapper(new SourceAssessmentService(), new AnswerDecisionService(),
-                    new InternalDiagnosticsBuilder());
+            com.knowledgeflow.ai.documented.FreshnessFixtures.mapper();
 
     // Serviço de projecção real (stateless, aditivo) — projecta INTERNAL no endpoint admin.
     @Spy private AnswerProjectionService answerProjectionService = new AnswerProjectionService();
@@ -356,6 +355,13 @@ class AdminAIControllerTest {
             implements KnowledgeQaGovernanceRow {
     }
 
+    /** Fonte curada verificada (CURRENT): isola o efeito M4B da actualidade (ADR-008). */
+    private void stubVerifiedSource(UUID qaId) {
+        lenient().when(sourceRepository.findRowsByQuestionAnswerIdIn(anyCollection())).thenReturn(List.of(
+                verifiedRow(qaId, UUID.randomUUID(), KnowledgeSourceType.LEGISLATION, "Código do IVA — Artigo 36.º",
+                        "https://info.portaldasfinancas.gov.pt/iva36.aspx", OffsetDateTime.parse("2026-10-12T10:00:00Z"))));
+    }
+
     private GroundedAIResponse supportedWithFoundation(UUID qaId) {
         return new GroundedAIResponse(
                 "Resposta documentada.", AnswerSupportStatus.SUPPORTED, "Context sufficient",
@@ -367,6 +373,7 @@ class AdminAIControllerTest {
     @Test
     void ask_propagatesRiskAndHumanValidationOfTheUsedFoundation() throws Exception {
         UUID qaId = UUID.fromString("82e6f5d9-aada-4baf-846c-4e5feebb64a0");
+        stubVerifiedSource(qaId);
         when(groundingService.process(anyString(), any(), anyList())).thenReturn(supportedWithFoundation(qaId));
         when(qaRepository.findGovernanceRowsByIdIn(eq(ORG_ID), anyCollection()))
                 .thenReturn(List.of(new GovernanceRow(qaId.toString(), "MEDIUM", true)));
@@ -383,6 +390,7 @@ class AdminAIControllerTest {
     @Test
     void demoAsk_keepsTheRiskDrivenParecer_withoutExposingTheAggregatedRisk() throws Exception {
         UUID qaId = UUID.fromString("82e6f5d9-aada-4baf-846c-4e5feebb64a0");
+        stubVerifiedSource(qaId);
         when(groundingService.process(anyString(), any(), anyList())).thenReturn(supportedWithFoundation(qaId));
         when(qaRepository.findGovernanceRowsByIdIn(eq(ORG_ID), anyCollection()))
                 .thenReturn(List.of(new GovernanceRow(qaId.toString(), "MEDIUM", true)));
@@ -427,6 +435,7 @@ class AdminAIControllerTest {
     @Test
     void ask_lowWithoutHumanValidation_keepsNone() throws Exception {
         UUID qaId = UUID.fromString("6e5d958f-0219-4941-a000-25885a22d2fd");
+        stubVerifiedSource(qaId);
         when(groundingService.process(anyString(), any(), anyList())).thenReturn(supportedWithFoundation(qaId));
         when(qaRepository.findGovernanceRowsByIdIn(eq(ORG_ID), anyCollection()))
                 .thenReturn(List.of(new GovernanceRow(qaId.toString(), "LOW", false)));
@@ -537,12 +546,19 @@ class AdminAIControllerTest {
                 true, false, null, 0, "anthropic", "haiku", 10, 5, 0L, List.of()));
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-07-24T10:00:00Z");
         when(sourceRepository.findRowsByQuestionAnswerIdIn(anyCollection())).thenReturn(List.of(
-                new KnowledgeSourceReferenceRow(QA_ID, FAQ_ID, KnowledgeSourceType.OFFICIAL_FAQ,
-                        "Portal das Finanças — FAQ 5930", "CIRS, art. 41.º",
-                        "https://info.portaldasfinancas.gov.pt/faqs-00358.aspx", createdAt.plusMinutes(1)),
-                new KnowledgeSourceReferenceRow(QA_ID, LAW_ID, KnowledgeSourceType.LEGISLATION,
-                        "Código do IRS — Artigo 41.º", "CIRS, art. 41.º",
-                        "https://info.portaldasfinancas.gov.pt/irs41.aspx", createdAt)));
+                verifiedRow(QA_ID, FAQ_ID, KnowledgeSourceType.OFFICIAL_FAQ,
+                        "Portal das Finanças — FAQ 5930", "https://info.portaldasfinancas.gov.pt/faqs-00358.aspx",
+                        createdAt.plusMinutes(1)),
+                verifiedRow(QA_ID, LAW_ID, KnowledgeSourceType.LEGISLATION,
+                        "Código do IRS — Artigo 41.º", "https://info.portaldasfinancas.gov.pt/irs41.aspx", createdAt)));
+    }
+
+    /** Fonte curada com verificação humana estruturada de hoje (CURRENT, ADR-008). */
+    private static KnowledgeSourceReferenceRow verifiedRow(UUID qaId, UUID id, KnowledgeSourceType type, String title,
+            String url, OffsetDateTime createdAt) {
+        return new KnowledgeSourceReferenceRow(qaId, id, type, title, "CIRS, art. 41.º", url, createdAt, null,
+                OffsetDateTime.ofInstant(com.knowledgeflow.ai.documented.FreshnessFixtures.NOW, java.time.ZoneOffset.UTC),
+                UUID.randomUUID(), type == KnowledgeSourceType.LEGISLATION, false, null, null, null);
     }
 
     @Test

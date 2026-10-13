@@ -297,6 +297,23 @@ export function markApplicabilityReviewed(id: string, reviewerName: string): Pro
   return request<KnowledgeQaApplicability>("POST", `${applicabilityPath(id)}/reviewed?${query.toString()}`);
 }
 
+// --- C8 / ADR-008: verificação de actualidade das fontes. O estado é calculado pelo servidor;
+// estas acções só registam factos governados (data e responsável vêm do servidor). ---
+
+export function verifySource(id: string, sourceId: string, consolidatedVersionConfirmed: boolean): Promise<SourceReference> {
+  return request<SourceReference>("POST", `/api/v1/admin/knowledge/qa/${id}/sources/${sourceId}/verification`,
+    { consolidatedVersionConfirmed });
+}
+
+export function revokeSourceVerification(id: string, sourceId: string): Promise<SourceReference> {
+  return request<SourceReference>("DELETE", `/api/v1/admin/knowledge/qa/${id}/sources/${sourceId}/verification`);
+}
+
+export function setSourceStableMatter(id: string, sourceId: string, stableMatter: boolean, reason: string | null): Promise<SourceReference> {
+  return request<SourceReference>("PUT", `/api/v1/admin/knowledge/qa/${id}/sources/${sourceId}/stable-matter`,
+    { stableMatter, reason });
+}
+
 /** Remove uma fonte errada. O backend recusa deixar um caso validado/publicado sem fontes. */
 export function removeSource(id: string, sourceId: string): Promise<void> {
   return request<void>(

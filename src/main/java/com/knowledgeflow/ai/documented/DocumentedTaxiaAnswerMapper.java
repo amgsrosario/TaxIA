@@ -42,12 +42,24 @@ public class DocumentedTaxiaAnswerMapper {
     private final AnswerDecisionService answerDecisionService;
     private final InternalDiagnosticsBuilder internalDiagnosticsBuilder;
 
+    private final SourceFreshnessPolicy sourceFreshnessPolicy;
+
+    /** Testes/legado: política de actualidade com o relógio do sistema. */
     public DocumentedTaxiaAnswerMapper(SourceAssessmentService sourceAssessmentService,
             AnswerDecisionService answerDecisionService,
             InternalDiagnosticsBuilder internalDiagnosticsBuilder) {
+        this(sourceAssessmentService, answerDecisionService, internalDiagnosticsBuilder, new SourceFreshnessPolicy());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DocumentedTaxiaAnswerMapper(SourceAssessmentService sourceAssessmentService,
+            AnswerDecisionService answerDecisionService,
+            InternalDiagnosticsBuilder internalDiagnosticsBuilder,
+            SourceFreshnessPolicy sourceFreshnessPolicy) {
         this.sourceAssessmentService = sourceAssessmentService;
         this.answerDecisionService = answerDecisionService;
         this.internalDiagnosticsBuilder = internalDiagnosticsBuilder;
+        this.sourceFreshnessPolicy = sourceFreshnessPolicy;
     }
 
     /**
@@ -174,16 +186,45 @@ public class DocumentedTaxiaAnswerMapper {
             List<String> relatedSources = origin.sourceQaId() != null
                     ? List.of("knowledge-qa:" + origin.sourceQaId())
                     : List.of();
+            // C8 / ADR-008: actualidade calculada a partir dos dados governados da fonte curada.
+            SourceFreshnessPolicy.Assessment freshness = sourceFreshnessPolicy.assess(facts(curated));
             mapped.add(evidence(assessed,
                     curated.id() != null ? curated.id().toString() : null,
                     curated.title(), curated.sourceType(), curated.legalReference(), curated.url(),
-                    supportsConclusion, relatedSources));
+                    supportsConclusion, relatedSources, freshness));
         }
         return List.copyOf(mapped);
     }
 
+    /** Dados governados da fonte curada; sem eles, só tipo/título/referência (UNCERTAIN ou OUTDATED). */
+    private static SourceFreshnessPolicy.Facts facts(ResolvedAnswerSource.CuratedSource curated) {
+        if (curated.freshnessFacts() != null) {
+            return curated.freshnessFacts();
+        }
+        com.knowledgeflow.knowledge.enums.KnowledgeSourceType type = null;
+        try {
+            type = curated.sourceType() != null
+                    ? com.knowledgeflow.knowledge.enums.KnowledgeSourceType.valueOf(curated.sourceType()) : null;
+        } catch (IllegalArgumentException e) {
+            type = null;
+        }
+        return new SourceFreshnessPolicy.Facts(type, curated.title(), curated.legalReference(), null, null, false,
+                false, false, null, false);
+    }
+
     private SourceEvidence evidence(AnswerSource assessed, String sourceId, String title, String sourceType,
             String legalReference, String url, boolean supportsConclusion, List<String> relatedSources) {
+        return evidence(assessed, sourceId, title, sourceType, legalReference, url, supportsConclusion,
+                relatedSources, null);
+    }
+
+    /**
+     * {@code freshness} {@code null}: fonte sem curadoria (só marcadores textuais → UNCERTAIN/OUTDATED);
+     * senão, a actualidade governada (ADR-008), com o motivo nas notas internas.
+     */
+    private SourceEvidence evidence(AnswerSource assessed, String sourceId, String title, String sourceType,
+            String legalReference, String url, boolean supportsConclusion, List<String> relatedSources,
+            SourceFreshnessPolicy.Assessment freshness) {
         SourceRole sourceRole = sourceAssessmentService.assessSourceRole(assessed);
         return new SourceEvidence(
                 sourceId,
@@ -195,7 +236,7 @@ public class DocumentedTaxiaAnswerMapper {
                 sourceAssessmentService.buildSourceCore(assessed),
                 sourceAssessmentService.buildSourceDiversityGroup(assessed),
                 sourceAssessmentService.assessSourceDiversity(assessed),
-                sourceAssessmentService.assessFreshnessStatus(assessed),
+                freshness != null ? freshness.status() : sourceAssessmentService.assessFreshnessStatus(assessed),
                 legalReference,
                 url,
                 true,
@@ -205,7 +246,7 @@ public class DocumentedTaxiaAnswerMapper {
                 sourceRole == SourceRole.DERIVATIVE_REPLICATED,
                 relatedSources,
                 null,
-                List.of());
+                freshness != null ? List.of("freshness: " + freshness.status() + " — " + freshness.reason()) : List.of());
     }
 
     private List<String> safeList(List<String> list) {

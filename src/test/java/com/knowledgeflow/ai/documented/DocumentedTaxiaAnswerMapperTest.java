@@ -131,8 +131,8 @@ class DocumentedTaxiaAnswerMapperTest {
 
         InternalDiagnostics diag = answer.internalDiagnostics();
         assertThat(diag).isNotNull();
-        // Observa a decisão real (lê, não recalcula).
-        assertThat(diag.decisionSignals()).contains("answerType=CONSULTA_DOCUMENTADA");
+        // Observa a decisão real (lê, não recalcula); fonte sem verificação → UNCERTAIN → limitada (ADR-008).
+        assertThat(diag.decisionSignals()).contains("answerType=CONSULTA_DOCUMENTADA_COM_LIMITACOES");
         assertThat(diag.sourceSignals()).contains("fontesUsadas=1", "fonte oficial/legal presente");
         // Risco agregado não é fabricado a partir da entidade.
         assertThat(answer.aggregatedRiskLevel()).isNull();
@@ -226,10 +226,11 @@ class DocumentedTaxiaAnswerMapperTest {
         DocumentedTaxiaAnswer before = mapper.fromGroundedResponse("Despesas dedutíveis?", g);
         DocumentedTaxiaAnswer after = mapper.fromGroundedResponse("Despesas dedutíveis?", g, officialSources(qaSource()));
 
-        assertThat(before.answerType()).isEqualTo(AnswerType.CONSULTA_DOCUMENTADA);
-        assertThat(before.parecerRequirement()).isEqualTo(ParecerRequirement.NONE);
-        assertThat(after.answerType()).isEqualTo(AnswerType.CONSULTA_DOCUMENTADA);
-        assertThat(after.parecerRequirement()).isEqualTo(ParecerRequirement.NONE);
+        // Sem verificação estruturada ambas são UNCERTAIN (ADR-008): a mesma forma e encaminhamento.
+        assertThat(before.answerType()).isEqualTo(AnswerType.CONSULTA_DOCUMENTADA_COM_LIMITACOES);
+        assertThat(before.parecerRequirement()).isEqualTo(ParecerRequirement.SUGGESTED);
+        assertThat(after.answerType()).isEqualTo(before.answerType());
+        assertThat(after.parecerRequirement()).isEqualTo(before.parecerRequirement());
         assertThat(after.warnings()).isEqualTo(before.warnings());
     }
 }

@@ -412,6 +412,12 @@ Heurísticas implementadas:
 - **`freshnessStatus`**: `UNCERTAIN` por defeito; `OUTDATED` só com marcadores explícitos
   de revogação/caducidade/substituição/"sem efeito" — nunca por data antiga isolada nem
   por `KnowledgeCurationStatus.OUTDATED` (regra 25).
+  - **Alterado pelo [ADR-008](adr/ADR-008-source-freshness-verification.md):** a actualidade
+    deixa de ser "apenas textual".
+  - `OUTDATED` também com `validTo` da fonte expirado.
+  - `CURRENT` e `STABLE_BUT_OLD` passam a ser calculados a partir de verificação humana
+    estruturada (`SourceFreshnessPolicy`).
+  - `overallFreshnessStatus` = pior estado das fontes usadas.
 
 O `DocumentedTaxiaAnswerMapper` passou a injectar o serviço e a preencher cada
 `SourceEvidence` com a sua avaliação (incluindo `derivativeOrReplicated` coerente com
@@ -601,9 +607,9 @@ Cenários cobertos:
    reclassificar `RESPOSTA_LIMITE`/`REQUIRED`; `PEDIDO_DE_PARECER` é preservado, nunca erro.
 11. **`aggregatedRiskLevel`** — o mapper não o inventa a partir do `riskLevel` da entidade;
    permanece `null` sem cálculo de risco agregado real.
-12. **`KnowledgeCurationStatus.OUTDATED` ≠ `FreshnessStatus.OUTDATED`** — a actualidade é
-   textual (marcadores de revogação/caducidade); uma fonte legal comum é `UNCERTAIN`, não
-   `OUTDATED`.
+12. **`KnowledgeCurationStatus.OUTDATED` ≠ `FreshnessStatus.OUTDATED`** — uma fonte legal
+   comum sem verificação é `UNCERTAIN`, não `OUTDATED`. Desde o ADR-008, a actualidade combina
+   marcadores, `validTo` da fonte e verificação humana estruturada.
 
 **Testes frontend:** não há infra-estrutura de testes no backoffice (sem Vitest/RTL); em
 conformidade com a tarefa, **não** foram instaladas bibliotecas nem criada configuração — a

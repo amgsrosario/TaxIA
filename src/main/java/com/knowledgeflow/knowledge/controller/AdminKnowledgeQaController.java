@@ -39,6 +39,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,6 +58,7 @@ public class AdminKnowledgeQaController {
     private final KnowledgeQaSimilarityService similarityService;
     private final KnowledgeBenchmarkDraftService benchmarkDraftService;
     private final KnowledgeQaApplicabilityService applicabilityService;
+    private final com.knowledgeflow.knowledge.service.SourceFreshnessCurationService sourceFreshnessService;
     private final AuthenticatedUserContext authContext;
 
     public AdminKnowledgeQaController(
@@ -66,6 +68,7 @@ public class AdminKnowledgeQaController {
             KnowledgeQaSimilarityService similarityService,
             KnowledgeBenchmarkDraftService benchmarkDraftService,
             KnowledgeQaApplicabilityService applicabilityService,
+            com.knowledgeflow.knowledge.service.SourceFreshnessCurationService sourceFreshnessService,
             AuthenticatedUserContext authContext) {
         this.importService = importService;
         this.curationService = curationService;
@@ -73,6 +76,7 @@ public class AdminKnowledgeQaController {
         this.similarityService = similarityService;
         this.benchmarkDraftService = benchmarkDraftService;
         this.applicabilityService = applicabilityService;
+        this.sourceFreshnessService = sourceFreshnessService;
         this.authContext = authContext;
     }
 
@@ -219,6 +223,41 @@ public class AdminKnowledgeQaController {
         AuthenticatedUser user = authContext.getRequiredUser();
         curationService.removeSource(user.organizationId(), user.userId(), id, sourceId);
         return ResponseEntity.noContent().build();
+    }
+
+    // -------------------------------------------------------------------------
+    // Source freshness verification (C8, ADR-008) — o estado é calculado, nunca escolhido
+    // -------------------------------------------------------------------------
+
+    /** Regista verificação humana estruturada da fonte (data e responsável do servidor). */
+    @PostMapping("/{id}/sources/{sourceId}/verification")
+    public SourceReferenceResponse verifySource(
+            @PathVariable UUID id,
+            @PathVariable UUID sourceId,
+            @RequestBody com.knowledgeflow.knowledge.dto.SourceVerificationRequest request) {
+        AuthenticatedUser user = authContext.getRequiredUser();
+        return sourceFreshnessService.verify(user.organizationId(), user.userId(), id, sourceId,
+                request != null && request.consolidatedVersionConfirmed());
+    }
+
+    /** Revoga a verificação (a fonte volta a UNCERTAIN). */
+    @DeleteMapping("/{id}/sources/{sourceId}/verification")
+    public SourceReferenceResponse revokeSourceVerification(
+            @PathVariable UUID id,
+            @PathVariable UUID sourceId) {
+        AuthenticatedUser user = authContext.getRequiredUser();
+        return sourceFreshnessService.revokeVerification(user.organizationId(), user.userId(), id, sourceId);
+    }
+
+    /** Marca/desmarca matéria estável; marcar exige justificação e verificação prévia. */
+    @PutMapping("/{id}/sources/{sourceId}/stable-matter")
+    public SourceReferenceResponse setSourceStableMatter(
+            @PathVariable UUID id,
+            @PathVariable UUID sourceId,
+            @RequestBody @Valid com.knowledgeflow.knowledge.dto.SourceStableMatterRequest request) {
+        AuthenticatedUser user = authContext.getRequiredUser();
+        return sourceFreshnessService.setStableMatter(user.organizationId(), user.userId(), id, sourceId,
+                request.stableMatter(), request.reason());
     }
 
     // -------------------------------------------------------------------------

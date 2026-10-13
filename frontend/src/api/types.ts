@@ -101,6 +101,19 @@ export interface SourceReference {
   validTo: string | null;
   notes: string | null;
   createdAt: string;
+  // C8 / ADR-008 — verificação humana estruturada e actualidade CALCULADA pelo servidor
+  verifiedAt: string | null;
+  verifiedBy: string | null;
+  consolidatedVersionConfirmed: boolean;
+  stableMatter: boolean;
+  stableMatterReason: string | null;
+  stableMatterMarkedAt: string | null;
+  stableMatterMarkedBy: string | null;
+  freshnessStatus: FreshnessStatus;
+  freshnessReason: string;
+  currentUntil: string | null;
+  stableUntil: string | null;
+  revalidationNeeded: boolean;
 }
 
 /** KnowledgeQaDetailResponse. */

@@ -93,9 +93,15 @@ public class AnswerDecisionService {
 
         // Sinais positivos de fraqueza documental. A ausência de fontes não é usada para
         // rebaixar um SUPPORTED do grounding (evita segundo-adivinhar a decisão a montante).
+        // C8 / ADR-008: actualidade agregada = pior estado das fontes usadas. UNCERTAIN nunca sustenta
+        // Consulta documentada conclusiva (no máximo com limitações, parecer pelo menos SUGGESTED).
+        FreshnessStatus overallFreshnessStatus = overallFreshness(safeSources);
+        boolean uncertainOverall = hasSources && overallFreshnessStatus == FreshnessStatus.UNCERTAIN;
+
         boolean limitationSignals = hasOnlyWeakSources || hasOutdatedSources || hasOnlyDerivative
                 || lacksMaterialDiversity
-                || (hasSources && !hasStrongOrAdequateSource);
+                || (hasSources && !hasStrongOrAdequateSource)
+                || uncertainOverall;
 
         AnswerType baseAnswerType = decideAnswerType(supportStatus, limitationSignals);
         AnswerType answerType = applyRiskToAnswerType(baseAnswerType, decisionRisk);
@@ -105,10 +111,13 @@ public class AnswerDecisionService {
         if (decisionRisk == KnowledgeRiskLevel.CRITICAL) {
             parecerRequirement = ParecerRequirement.REQUIRED;
         }
+        if (uncertainOverall && parecerRequirement == ParecerRequirement.NONE) {
+            parecerRequirement = ParecerRequirement.SUGGESTED;
+        }
 
-        List<String> limitations = withRiskLimitations(buildLimitations(
+        List<String> limitations = withFreshnessLimitations(hasSources, overallFreshnessStatus, withRiskLimitations(buildLimitations(
                 supportStatus, baseLimitations, hasSources, hasOnlyWeakSources,
-                hasUncertainFreshness, hasOnlyDerivative, lacksMaterialDiversity), safeGovernance);
+                hasUncertainFreshness, hasOnlyDerivative, lacksMaterialDiversity), safeGovernance));
         List<String> warnings = buildWarnings(
                 humanValidation, validationMessage, hasOutdatedSources, hasOnlyWeakSources);
         boolean suggestReformulation = !hasSources && isLimitAnswer(supportStatus);
@@ -126,9 +135,6 @@ public class AnswerDecisionService {
         String sourceSummary = buildSourceSummary(
                 hasSources, hasOfficialOrLegalAuthority, hasOnlyWeakSources, hasOutdatedSources,
                 hasUncertainFreshness, lacksMaterialDiversity);
-
-        FreshnessStatus overallFreshnessStatus =
-                hasOutdatedSources ? FreshnessStatus.OUTDATED : FreshnessStatus.UNCERTAIN;
 
         return new AnswerDecision(
                 answerType, parecerRequirement, confidenceSummary,
@@ -397,8 +403,35 @@ public class AnswerDecisionService {
         return sources.stream().anyMatch(s -> s.freshnessStatus() == FreshnessStatus.OUTDATED);
     }
 
+    /** Actualidade em falta numa fonte conta como UNCERTAIN (fail-safe). */
     private boolean hasUncertainFreshness(List<SourceEvidence> sources) {
-        return sources.stream().anyMatch(s -> s.freshnessStatus() == FreshnessStatus.UNCERTAIN);
+        return sources.stream().anyMatch(s -> s.freshnessStatus() == null || s.freshnessStatus() == FreshnessStatus.UNCERTAIN);
+    }
+
+    /** Pior estado das fontes usadas (OUTDATED > UNCERTAIN > STABLE_BUT_OLD > CURRENT); sem fontes, UNCERTAIN. */
+    private static FreshnessStatus overallFreshness(List<SourceEvidence> sources) {
+        FreshnessStatus worst = null;
+        for (SourceEvidence s : sources) {
+            FreshnessStatus status = s.freshnessStatus() != null ? s.freshnessStatus() : FreshnessStatus.UNCERTAIN;
+            if (worst == null || SourceFreshnessPolicy.severity(status) > SourceFreshnessPolicy.severity(worst)) {
+                worst = status;
+            }
+        }
+        return worst != null ? worst : FreshnessStatus.UNCERTAIN;
+    }
+
+    /** Limitação explícita de actualidade (UNCERTAIN) e nota de antiguidade (STABLE_BUT_OLD). */
+    private List<String> withFreshnessLimitations(boolean hasSources, FreshnessStatus overall, List<String> limitations) {
+        if (!hasSources || (overall != FreshnessStatus.UNCERTAIN && overall != FreshnessStatus.STABLE_BUT_OLD)) {
+            return limitations;
+        }
+        LinkedHashSet<String> out = new LinkedHashSet<>(limitations);
+        out.add(overall == FreshnessStatus.UNCERTAIN
+                ? "A actualidade das fontes não está confirmada por verificação recente: a resposta não deve ser "
+                        + "tomada como conclusão actual sem confirmar o regime vigente."
+                : "As fontes foram verificadas há mais tempo e tratam matéria estável: confirmar se não houve "
+                        + "alteração antes de aplicar ao caso concreto.");
+        return List.copyOf(out);
     }
 
     private boolean hasOfficialOrLegalAuthority(List<SourceEvidence> sources) {

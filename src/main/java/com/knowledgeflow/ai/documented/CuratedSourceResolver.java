@@ -24,8 +24,11 @@ import org.springframework.stereotype.Component;
  * {@link AnswerSource} — nunca títulos, perguntas, URLs ou referências. Todas as fontes curadas
  * são lidas numa única query. A ordem segue a ordem das fontes do grounding (a do RAG) e, dentro
  * de cada Q&amp;A, {@code createdAt}, título normalizado e id — nunca a ordem devolvida pela base.
- * Fontes repetidas entre Q&amp;A ficam só na primeira ocorrência: por URL quando existe; senão por
- * tipo, referência legal e título. Sem limite de quantidade.
+ * Fontes repetidas entre Q&amp;A ficam uma só vez (por URL quando existe; senão por tipo, referência
+ * legal e título), na posição da primeira ocorrência. Desde o ADR-008 cada cópia tem a sua própria
+ * verificação e {@code validTo}: na colisão fica a cópia com o PIOR estado de actualidade calculado,
+ * para que a deduplicação nunca esconda uma fonte desactualizada ou não verificada. Sem limite de
+ * quantidade.
  *
  * <p>Uma fonte do grounding sem {@code sourceQaId} (casos {@code DOCUMENT}) ou cuja Q&amp;A não
  * tem fontes curadas mantém-se tal como está (fallback), para não apagar evidência. Sem fontes no
@@ -41,8 +44,18 @@ public class CuratedSourceResolver {
 
     private final KnowledgeSourceReferenceRepository sourceRepository;
 
+    private final SourceFreshnessPolicy freshnessPolicy;
+
+    /** Testes/legado: política com o relógio do sistema. */
     public CuratedSourceResolver(KnowledgeSourceReferenceRepository sourceRepository) {
+        this(sourceRepository, new SourceFreshnessPolicy());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public CuratedSourceResolver(KnowledgeSourceReferenceRepository sourceRepository,
+            SourceFreshnessPolicy freshnessPolicy) {
         this.sourceRepository = sourceRepository;
+        this.freshnessPolicy = freshnessPolicy;
     }
 
     public List<ResolvedAnswerSource> resolve(List<AnswerSource> groundedSources) {
@@ -61,7 +74,7 @@ public class CuratedSourceResolver {
 
         List<ResolvedAnswerSource> resolved = new ArrayList<>();
         Set<UUID> expandedQas = new HashSet<>();
-        Set<String> seenKeys = new HashSet<>();
+        Map<String, Integer> positionByKey = new java.util.HashMap<>();
         for (AnswerSource source : groundedSources) {
             List<KnowledgeSourceReferenceRow> rows = source.sourceQaId() == null
                     ? List.of()
@@ -73,12 +86,21 @@ public class CuratedSourceResolver {
             if (!expandedQas.add(source.sourceQaId())) {
                 continue;
             }
-            rows.stream()
-                    .sorted(WITHIN_QA_ORDER)
-                    .filter(row -> seenKeys.add(dedupKey(row)))
-                    .forEach(row -> resolved.add(ResolvedAnswerSource.curated(source, toCurated(row))));
+            for (KnowledgeSourceReferenceRow row : rows.stream().sorted(WITHIN_QA_ORDER).toList()) {
+                ResolvedAnswerSource candidate = ResolvedAnswerSource.curated(source, toCurated(row));
+                Integer position = positionByKey.putIfAbsent(dedupKey(row), resolved.size());
+                if (position == null) {
+                    resolved.add(candidate);
+                } else if (severity(candidate) > severity(resolved.get(position))) {
+                    resolved.set(position, candidate); // a cópia pior prevalece (ADR-008)
+                }
+            }
         }
         return List.copyOf(resolved);
+    }
+
+    private int severity(ResolvedAnswerSource resolved) {
+        return SourceFreshnessPolicy.severity(freshnessPolicy.assess(resolved.curated().freshnessFacts()).status());
     }
 
     private static CuratedSource toCurated(KnowledgeSourceReferenceRow row) {
@@ -87,7 +109,11 @@ public class CuratedSourceResolver {
                 row.sourceType() != null ? row.sourceType().name() : null,
                 row.title(),
                 row.legalReference(),
-                row.url());
+                row.url(),
+                new SourceFreshnessPolicy.Facts(row.sourceType(), row.title(), row.legalReference(), row.validTo(),
+                        row.verifiedAt(), row.verifiedBy() != null, row.consolidatedVersionConfirmed(),
+                        row.stableMatter(), row.stableMatterReason(), row.stableMatterMarkedBy() != null,
+                        row.validFrom()));
     }
 
     private static String dedupKey(KnowledgeSourceReferenceRow row) {

@@ -350,3 +350,12 @@ tr.clickable:hover { background: #f2f5f9; }
 /* Formulários de password (ADR-006) */
 .password-form > div { margin-bottom: 12px; }
 .password-form button[type="submit"] { width: 100%; }
+
+/* C8 / ADR-008 — actualidade calculada das fontes (sem escolha manual do estado) */
+.source-freshness { display: flex; flex-direction: column; gap: 4px; min-width: 220px; }
+.source-freshness .small, .small { font-size: 0.82em; }
+.freshness-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.badge.freshness-CURRENT { background: #e3f4e8; color: #1d6b35; }
+.badge.freshness-STABLE_BUT_OLD { background: #eef2f8; color: #34507a; }
+.badge.freshness-UNCERTAIN { background: #fdf3dc; color: #7a5a12; }
+.badge.freshness-OUTDATED { background: #fbe4e4; color: #8a2222; }

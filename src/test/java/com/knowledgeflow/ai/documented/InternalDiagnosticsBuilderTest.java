@@ -61,7 +61,7 @@ class InternalDiagnosticsBuilderTest {
     void strongLegalSource_observesCleanDecision_withoutRecalculating() {
         SourceEvidence legal = source(
                 AuthorityLevel.LEGAL, SourceRole.PRIMARY, SourceQuality.STRONG,
-                SourceDiversity.MATERIAL_DIVERSITY, FreshnessStatus.UNCERTAIN, "civa");
+                SourceDiversity.MATERIAL_DIVERSITY, FreshnessStatus.CURRENT, "civa");
 
         InternalDiagnostics d = build(AnswerSupportStatus.SUPPORTED, false, List.of(legal), null);
 
@@ -102,7 +102,7 @@ class InternalDiagnosticsBuilderTest {
 
         assertThat(d.freshnessSignals()).contains(
                 "overallFreshnessStatus=OUTDATED",
-                "fonte desactualizada assinalada por marcador textual",
+                "fonte desactualizada assinalada por marcador textual ou validTo expirado",
                 "sem verificação online de actualidade");
         assertThat(d.warningsInternal())
                 .anyMatch(w -> w.contains("enquadramento histórico"));
