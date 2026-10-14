@@ -41,12 +41,16 @@ public class KnowledgeQuestionAnswerCurationService {
             KnowledgeQuestionAnswerRepository qaRepository,
             KnowledgeSourceReferenceRepository sourceRepository,
             KnowledgeQaApplicabilityExclusionRepository exclusionRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            com.knowledgeflow.ai.documented.SourceFreshnessPolicy sourceFreshnessPolicy) {
         this.qaRepository = qaRepository;
         this.sourceRepository = sourceRepository;
         this.exclusionRepository = exclusionRepository;
         this.auditService = auditService;
+        this.sourceFreshnessPolicy = sourceFreshnessPolicy;
     }
+
+    private final com.knowledgeflow.ai.documented.SourceFreshnessPolicy sourceFreshnessPolicy;
 
     // -------------------------------------------------------------------------
     // Queries
@@ -253,14 +257,14 @@ public class KnowledgeQuestionAnswerCurationService {
                 "sourceType=%s title=%s".formatted(req.sourceType(), req.title()));
         recordReturnToReview(organizationId, actingUserId, qa, previousStatus, "source-added");
 
-        return SourceReferenceResponse.from(src);
+        return SourceReferenceResponse.from(src, sourceFreshnessPolicy);
     }
 
     @Transactional(readOnly = true)
     public List<SourceReferenceResponse> listSources(UUID organizationId, UUID qaId) {
         requireOwned(organizationId, qaId);
         return sourceRepository.findByQuestionAnswerId(qaId)
-                .stream().map(SourceReferenceResponse::from).toList();
+                .stream().map(src -> SourceReferenceResponse.from(src, sourceFreshnessPolicy)).toList();
     }
 
     /**
@@ -349,7 +353,7 @@ public class KnowledgeQuestionAnswerCurationService {
         boolean previousPublished = qa.getPreviousVersionId() != null
                 && qaRepository.findById(qa.getPreviousVersionId()).map(KnowledgeQuestionAnswer::isPublished).orElse(false);
         return KnowledgeQaDetailResponse.from(qa, sources, exclusionRepository.findByKnowledgeQaId(qa.getId()),
-                draftId, previousPublished);
+                draftId, previousPublished, sourceFreshnessPolicy);
     }
 
     /** Versão esperada pelo editor (optimistic lock, ADR-005): diferente da actual → 409. */

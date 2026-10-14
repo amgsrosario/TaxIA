@@ -70,6 +70,8 @@ jobs:
             AnswerDecisionServiceTest
             M4BRiskPropagationTest
             M4BFoundationsGroundingTest
+            SourceFreshnessPolicyTest
+            FreshnessDecisionTest
             DocumentedAnswerCriticalScenariosTest
           )
           mvn -B test -Dtest="$(IFS=,; echo "${tests[*]}")"

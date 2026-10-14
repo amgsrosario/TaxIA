@@ -134,6 +134,15 @@ Auditoria, `updated_at`, texto servido e embeddings cruzados para as 4 Q&A publi
     as fontes actuais, validar humanamente e publicar substituindo a versão anterior (ADR-005).
     **Concluída em 2026-10-06** (ver secção Piloto).
 
+## Actualidade das fontes (C8, ADR-008) — em PR, merge bloqueado até autorização pós-BNI
+
+- Actualidade calculada por fonte a partir de verificação humana estruturada (V18). Janelas: 90/60
+  dias CURRENT e 365/180 dias para matéria estável. `validTo` expirado → OUTDATED. Agregação pelo
+  pior estado; UNCERTAIN → no máximo "com limitações" + SUGGESTED.
+- Ao activar, todas as respostas do piloto ficam limitadas até ao backfill humano
+  ([plano](c8-freshness-backfill-plan.md)): G1, G2 e CIVA v2 primeiro; as AT-FAQ exigem
+  verificação nova.
+
 ## Follow-ups abertos
 
 - Cobertura parcial (perguntas multi-matéria) e fluxo de clarificação (perguntas ambíguas).

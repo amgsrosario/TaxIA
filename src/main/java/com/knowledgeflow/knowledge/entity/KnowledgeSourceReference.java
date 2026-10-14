@@ -54,6 +54,29 @@ public class KnowledgeSourceReference {
     @Column(nullable = false)
     private OffsetDateTime createdAt;
 
+    // --- C8 / ADR-008: verificação humana estruturada (a actualidade é calculada, nunca guardada) ---
+
+    /** Última verificação humana estruturada (relógio das janelas CURRENT/STABLE_BUT_OLD). */
+    private OffsetDateTime verifiedAt;
+
+    /** Utilizador (referência governada a {@code users.id}) que fez a verificação. */
+    private UUID verifiedBy;
+
+    /** Legislação: confirmada a versão oficial/consolidada aplicável na verificação. */
+    @Column(nullable = false)
+    private boolean consolidatedVersionConfirmed;
+
+    /** Matéria estável declarada por curador, com justificação (STABLE_BUT_OLD, nunca automático). */
+    @Column(nullable = false)
+    private boolean stableMatter;
+
+    @Column(columnDefinition = "TEXT")
+    private String stableMatterReason;
+
+    private OffsetDateTime stableMatterMarkedAt;
+
+    private UUID stableMatterMarkedBy;
+
     protected KnowledgeSourceReference() {
     }
 
@@ -93,6 +116,46 @@ public class KnowledgeSourceReference {
         this.notes = notes;
     }
 
+    /** Regista uma verificação humana estruturada (substitui a anterior: o relógio recomeça). */
+    public void recordVerification(UUID verifier, OffsetDateTime at, boolean consolidatedConfirmed) {
+        if (verifier == null || at == null) {
+            throw new IllegalArgumentException("verification requires a verifier and a timestamp");
+        }
+        this.verifiedBy = verifier;
+        this.verifiedAt = at;
+        this.consolidatedVersionConfirmed = consolidatedConfirmed;
+    }
+
+    /**
+     * Revoga a verificação: a fonte volta a não ter prova de actualidade (UNCERTAIN). A matéria
+     * estável também é retirada — a decisão tem de ser reexaminada depois de nova verificação.
+     */
+    public void revokeVerification() {
+        this.verifiedBy = null;
+        this.verifiedAt = null;
+        this.consolidatedVersionConfirmed = false;
+        clearStableMatter();
+    }
+
+    /** Marca matéria estável: exige justificação não vazia e o curador responsável. */
+    public void markStableMatter(UUID curator, OffsetDateTime at, String reason) {
+        if (curator == null || at == null || reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("stable matter requires a curator, a timestamp and a reason");
+        }
+        this.stableMatter = true;
+        this.stableMatterReason = reason.strip();
+        this.stableMatterMarkedAt = at;
+        this.stableMatterMarkedBy = curator;
+    }
+
+    /** Desmarca matéria estável (conservador); o registo fica na auditoria. */
+    public void clearStableMatter() {
+        this.stableMatter = false;
+        this.stableMatterReason = null;
+        this.stableMatterMarkedAt = null;
+        this.stableMatterMarkedBy = null;
+    }
+
     // Getters
     public UUID getId() { return id; }
     public KnowledgeQuestionAnswer getQuestionAnswer() { return questionAnswer; }
@@ -106,4 +169,11 @@ public class KnowledgeSourceReference {
     public LocalDate getValidTo() { return validTo; }
     public String getNotes() { return notes; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+    public OffsetDateTime getVerifiedAt() { return verifiedAt; }
+    public UUID getVerifiedBy() { return verifiedBy; }
+    public boolean isConsolidatedVersionConfirmed() { return consolidatedVersionConfirmed; }
+    public boolean isStableMatter() { return stableMatter; }
+    public String getStableMatterReason() { return stableMatterReason; }
+    public OffsetDateTime getStableMatterMarkedAt() { return stableMatterMarkedAt; }
+    public UUID getStableMatterMarkedBy() { return stableMatterMarkedBy; }
 }

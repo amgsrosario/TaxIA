@@ -26,11 +26,21 @@ public record ResolvedAnswerSource(AnswerSource origin, CuratedSource curated) {
     }
 
     /** Fonte documental curada (KnowledgeSourceReference) já lida da base. */
+    /**
+     * @param freshnessFacts dados governados de actualidade (C8, ADR-008); {@code null} = sem dados
+     *     (actualidade calculada apenas com o tipo, título e referência: UNCERTAIN ou OUTDATED)
+     */
     public record CuratedSource(
             UUID id,
             String sourceType,
             String title,
             String legalReference,
-            String url
-    ) {}
+            String url,
+            SourceFreshnessPolicy.Facts freshnessFacts
+    ) {
+
+        public CuratedSource(UUID id, String sourceType, String title, String legalReference, String url) {
+            this(id, sourceType, title, legalReference, url, null);
+        }
+    }
 }

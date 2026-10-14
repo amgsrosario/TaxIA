@@ -58,6 +58,18 @@ public record KnowledgeQaDetailResponse(
             List<KnowledgeQaApplicabilityExclusion> exclusions,
             UUID draftVersionId,
             boolean previousVersionPublished) {
+        return from(qa, sources, exclusions, draftVersionId, previousVersionPublished,
+                new com.knowledgeflow.ai.documented.SourceFreshnessPolicy());
+    }
+
+    /** Com a actualidade das fontes calculada pela política injectada (C8, ADR-008). */
+    public static KnowledgeQaDetailResponse from(
+            KnowledgeQuestionAnswer qa,
+            List<KnowledgeSourceReference> sources,
+            List<KnowledgeQaApplicabilityExclusion> exclusions,
+            UUID draftVersionId,
+            boolean previousVersionPublished,
+            com.knowledgeflow.ai.documented.SourceFreshnessPolicy freshnessPolicy) {
         return new KnowledgeQaDetailResponse(
                 qa.getId(),
                 qa.getExternalKey(),
@@ -86,7 +98,7 @@ public record KnowledgeQaDetailResponse(
                 qa.getVersion(),
                 qa.getCreatedAt(),
                 qa.getUpdatedAt(),
-                sources.stream().map(SourceReferenceResponse::from).toList(),
+                sources.stream().map(src -> SourceReferenceResponse.from(src, freshnessPolicy)).toList(),
                 qa.getApplicabilityReviewedAt(),
                 qa.getApplicabilityReviewedBy(),
                 exclusions.stream().map(ApplicabilityExclusionResponse::from).toList(),

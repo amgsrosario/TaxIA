@@ -24,6 +24,7 @@ import type {
 import { RiskBadge, StatusBadge } from "../components/Badges";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { QaApplicabilityPanel } from "../components/QaApplicabilityPanel";
+import { SourceFreshnessControls } from "../components/SourceFreshnessControls";
 import {
   QaEvidencePanel,
   SOURCE_TYPE_LABELS,
@@ -571,7 +572,7 @@ export function QaDetailPage() {
             <thead>
               <tr>
                 <th>Tipo</th><th>Título</th><th>Referência legal</th><th>URL</th>
-                <th>Notas</th><th>Acções</th>
+                <th>Notas</th><th>Actualidade (ADR-008)</th><th>Acções</th>
               </tr>
             </thead>
             <tbody>
@@ -586,6 +587,15 @@ export function QaDetailPage() {
                       : <span className="badge risk-HIGH">URL pendente</span>}
                   </td>
                   <td className="muted">{s.notes ?? "—"}</td>
+                  <td>
+                    <SourceFreshnessControls
+                      qaId={id}
+                      source={s}
+                      disabled={busy}
+                      onChanged={refreshDetail}
+                      onError={setError}
+                    />
+                  </td>
                   <td>
                     <button
                       className="secondary"

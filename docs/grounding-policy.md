@@ -233,6 +233,8 @@ Detecta afirmações sensíveis na resposta e verifica se estão no contexto.
   - 28/2019, 198/2012, 28/2020 e 28 (sem ano) são diferentes. Anos com dois dígitos não são expandidos ("442-A/88" ≠ "442-A/1988").
   - "despacho" e "circular" só contam como diploma com "n.º" ou com ano, porque também são palavras comuns ("o despacho 15 dias depois", "economia circular 2030").
   - Não detectados: "Lei n.º …", "Decreto Regulamentar", "Despacho Normativo" e "dl" em minúsculas (também é decilitro).
+- **Actualidade das fontes** não faz parte do validador de afirmações: é decidida a jusante, por
+  fonte usada ([ADR-008](adr/ADR-008-source-freshness-verification.md)).
 - **Afirmações textuais** (dedutibilidade, obrigação, isenção): equivalência lexical determinística dentro da **mesma família** e com a **mesma polaridade** (`TextualClaimEquivalence`). Não há correspondência semântica aberta, fuzzy, embeddings nem LLM.
   - **Formas detectadas nas respostas:** as mesmas de antes, mais a obrigação negada "não é/são obrigado(s) a" e as formas só de contradição (ver "Obrigação"). As formulações equivalentes só contam como evidência no contexto.
   - **Polaridade** (o âmbito é a frase inteira; "art. 41.º", "n.º" e "1.000" não terminam a frase):

@@ -87,7 +87,8 @@ class FlywayV17StaffCredentialsIT {
     @Order(2)
     @DisplayName("V17 aplica-se e os utilizadores legacy ficam com token_version=0 e must_change_password=false")
     void migrateToV17PreservesLegacyUsers() {
-        assertThat(flyway(null).migrate().migrationsExecuted).isEqualTo(1);
+        // Alvo explícito: este teste é sobre a V17 (há migrações posteriores, ex.: V18 — ADR-008).
+        assertThat(flyway("17").migrate().migrationsExecuted).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT MAX(version::int) FROM flyway_schema_history WHERE success",
                 Integer.class)).isEqualTo(17);
 
@@ -134,7 +135,8 @@ class FlywayV17StaffCredentialsIT {
     @Order(4)
     @DisplayName("nenhuma migração pendente depois da V17 (validate limpo)")
     void validateIsClean() {
-        flyway(null).validate();
-        assertThat(flyway(null).info().pending()).isEmpty();
+        // Alvo V17: migrações posteriores (ex.: V18 — ADR-008) ficam acima do alvo, não pendentes.
+        flyway("17").validate();
+        assertThat(flyway("17").info().pending()).isEmpty();
     }
 }

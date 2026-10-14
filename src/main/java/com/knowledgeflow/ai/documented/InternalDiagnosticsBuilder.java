@@ -83,7 +83,7 @@ public class InternalDiagnosticsBuilder {
                 sourceSignals(safeSources.size(), hasSources, hasOfficialOrLegal, hasStrongOrAdequate,
                         hasOnlyWeak, hasOnlyDerivative),
                 riskSignals(aggregatedRiskLevel, governance != null ? governance : FoundationGovernance.notAssessed()),
-                freshnessSignals(decision, hasOutdated, hasUncertainFreshness),
+                freshnessSignals(decision, hasOutdated, hasUncertainFreshness, freshnessNotes(safeSources)),
                 diversitySignals(hasMaterialDiversity, hasSameCore, hasMixedOrUnclear, lacksMaterialDiversity),
                 projectionSignals(),
                 hiddenForExternal(),
@@ -140,6 +140,20 @@ public class InternalDiagnosticsBuilder {
         return List.copyOf(signals);
     }
 
+    /** Motivo governado da actualidade de cada fonte usada (ADR-008), das notas internas da evidência. */
+    private static List<String> freshnessNotes(List<SourceEvidence> sources) {
+        List<String> notes = new ArrayList<>();
+        for (SourceEvidence s : sources) {
+            if (s.notesInternal() == null) continue;
+            for (String n : s.notesInternal()) {
+                if (n != null && n.startsWith("freshness:")) {
+                    notes.add("fonte " + (s.sourceId() != null ? s.sourceId() : s.title()) + " " + n);
+                }
+            }
+        }
+        return notes;
+    }
+
     // --- sinais de risco ---
 
     private List<String> riskSignals(KnowledgeRiskLevel aggregatedRiskLevel, FoundationGovernance governance) {
@@ -180,11 +194,13 @@ public class InternalDiagnosticsBuilder {
     // --- sinais de actualidade ---
 
     private List<String> freshnessSignals(
-            AnswerDecision decision, boolean hasOutdated, boolean hasUncertainFreshness) {
+            AnswerDecision decision, boolean hasOutdated, boolean hasUncertainFreshness, List<String> freshnessNotes) {
         List<String> signals = new ArrayList<>();
         signals.add("overallFreshnessStatus=" + decision.overallFreshnessStatus());
+        signals.add("agregação: pior estado das fontes usadas (ADR-008)");
+        signals.addAll(freshnessNotes);
         if (hasOutdated) {
-            signals.add("fonte desactualizada assinalada por marcador textual");
+            signals.add("fonte desactualizada assinalada por marcador textual ou validTo expirado");
         }
         if (hasUncertainFreshness) {
             signals.add("actualidade incerta em pelo menos uma fonte");

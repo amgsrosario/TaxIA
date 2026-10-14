@@ -132,10 +132,8 @@ public class SourceAssessmentService {
      * de revogação/caducidade/substituição. Nunca usa data isolada nem chama a web (regra 12).
      */
     public FreshnessStatus assessFreshnessStatus(AnswerSource source) {
-        String text = textOf(source);
-        if (containsAny(text, "revogado", "revogada", "caducado", "caducada",
-                "substituído", "substituida", "substituído por", "desactualizado",
-                "desatualizado", "sem efeito")) {
+        // Mesmos marcadores da política governada (ADR-008), sem acentos.
+        if (source != null && SourceFreshnessPolicy.hasOutdatedMarker(source.title(), source.reference())) {
             return FreshnessStatus.OUTDATED;
         }
         return FreshnessStatus.UNCERTAIN;

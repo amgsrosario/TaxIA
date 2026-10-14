@@ -50,8 +50,8 @@ class M4BRiskPropagationTest {
     private KnowledgeQuestionAnswerRepository repository;
     private final List<Row> rows = new ArrayList<>();
     private FoundationGovernanceResolver resolver;
-    private final DocumentedTaxiaAnswerMapper mapper = new DocumentedTaxiaAnswerMapper(
-            new SourceAssessmentService(), new AnswerDecisionService(), new InternalDiagnosticsBuilder());
+    // Fontes verificadas (CURRENT, ADR-008): estes testes isolam o risco M4B da actualidade.
+    private final DocumentedTaxiaAnswerMapper mapper = FreshnessFixtures.mapper();
     private final AnswerProjectionService projection = new AnswerProjectionService();
 
     @BeforeEach
@@ -264,7 +264,9 @@ class M4BRiskPropagationTest {
         GroundedAIResponse grounded = new GroundedAIResponse(CONCLUSIVE, AnswerSupportStatus.SUPPORTED, "Contexto suficiente.",
                 sources, List.of(), List.of(), false, null, true, false, null, 0, "stub", "stub", 0, 0, 0L, foundations(ids));
         return mapper.fromGroundedResponse("Pergunta?", grounded,
-                sources.stream().map(ResolvedAnswerSource::fallback).toList(), resolver.resolve(ORG, grounded.foundations()));
+                sources.stream().map(s -> ResolvedAnswerSource.curated(s, FreshnessFixtures.verifiedLegislation(
+                        UUID.randomUUID(), "Código do IRC — Artigo 52.º", "CIRC, art. 52.º", null))).toList(),
+                resolver.resolve(ORG, grounded.foundations()));
     }
 
     @Test
@@ -458,7 +460,7 @@ class M4BRiskPropagationTest {
                 .map(id -> new AnswerSource("Caso " + id, "Caso " + id, 0.95, id)).toList();
         GroundedAIResponse grounded = supported(sources, foundations(ids));
         List<ResolvedAnswerSource> curated = sources.stream().map(s -> ResolvedAnswerSource.curated(s,
-                new ResolvedAnswerSource.CuratedSource(UUID.randomUUID(), "LEGISLATION",
+                FreshnessFixtures.verifiedLegislation(UUID.randomUUID(),
                         "Código do IVA — Artigo 36.º — Prazo de emissão e formalidades das faturas",
                         "CIVA, art. 36.º, n.os 1 e 2",
                         "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/civa_rep/Pages/iva36.aspx")))

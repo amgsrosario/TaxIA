@@ -96,13 +96,18 @@ class DocumentedAnswerCriticalScenariosTest {
 
         @Test
         void supportedWithLegalSource_isCleanConsultaDocumentada_andProjectsProfessionally() {
+            // ADR-008: só uma fonte legal com verificação humana estruturada recente (CURRENT) sustenta
+            // uma consulta documentada limpa.
             var source = new AnswerSource("Código do IRS — Artigo 41.º", "CIRS, art. 41.º", 0.95);
-            DocumentedTaxiaAnswer answer = mapper.fromGroundedResponse(
+            DocumentedTaxiaAnswer answer = FreshnessFixtures.mapper().fromGroundedResponse(
                     "Como se determinam os rendimentos prediais?",
                     grounded("Os rendimentos prediais...", AnswerSupportStatus.SUPPORTED,
-                            List.of(source), false));
+                            List.of(source), false),
+                    List.of(ResolvedAnswerSource.curated(source, FreshnessFixtures.verifiedLegislation(
+                            java.util.UUID.randomUUID(), "Código do IRS — Artigo 41.º", "CIRS, art. 41.º", null))),
+                    FoundationGovernance.notAssessed());
 
-            // Decisão limpa: fonte legal forte, sem sinais de fraqueza documental.
+            // Decisão limpa: fonte legal forte e actual, sem sinais de fraqueza documental.
             assertThat(answer.answerType()).isEqualTo(AnswerType.CONSULTA_DOCUMENTADA);
             assertThat(answer.parecerRequirement()).isEqualTo(ParecerRequirement.NONE);
 
@@ -126,18 +131,19 @@ class DocumentedAnswerCriticalScenariosTest {
     // ── Cenário 2 — Fonte forte mas actualidade incerta → prudência adequada ──
 
     @Test
-    @DisplayName("Cenário 2 — actualidade incerta preserva tipo mas assinala prudência")
-    void strongSourceUncertainFreshness_keepsConsultaDocumentada_butFlagsPrudence() {
-        // O assessor usa FreshnessStatus.UNCERTAIN por defeito (não inventa CURRENT).
+    @DisplayName("Cenário 2 — actualidade incerta: no máximo com limitações e parecer sugerido (ADR-008)")
+    void strongSourceUncertainFreshness_isLimited_andSuggestsParecer() {
+        // Sem verificação humana estruturada a fonte é UNCERTAIN (nunca se inventa CURRENT).
         var source = new AnswerSource("Código do IVA — Artigo 18.º", "CIVA, art. 18.º", 0.9);
         DocumentedTaxiaAnswer answer = mapper.fromGroundedResponse(
                 "Qual a taxa aplicável?",
                 grounded("A taxa...", AnswerSupportStatus.SUPPORTED, List.of(source), false));
 
         assertThat(answer.freshnessStatus()).isEqualTo(FreshnessStatus.UNCERTAIN);
-        // D6 preserva a consulta documentada limpa (a incerteza de actualidade, por si só,
-        // não a rebaixa), mas a prudência aparece nas limitações e no resumo de fontes.
-        assertThat(answer.answerType()).isEqualTo(AnswerType.CONSULTA_DOCUMENTADA);
+        // ADR-008 (fecha a tensão C8/D10): UNCERTAIN nunca sustenta consulta conclusiva.
+        assertThat(answer.answerType()).isEqualTo(AnswerType.CONSULTA_DOCUMENTADA_COM_LIMITACOES);
+        assertThat(answer.parecerRequirement()).isEqualTo(ParecerRequirement.SUGGESTED);
+        assertThat(answer.nextSteps()).anyMatch(s -> s.contains("Confirmar a legislação"));
         assertThat(answer.limitations())
                 .anyMatch(l -> l.toLowerCase().contains("actualidade"));
         assertThat(answer.sourceSummary().toLowerCase()).contains("actualidade incerta");

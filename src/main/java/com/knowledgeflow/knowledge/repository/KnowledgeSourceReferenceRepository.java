@@ -20,7 +20,9 @@ public interface KnowledgeSourceReferenceRepository extends JpaRepository<Knowle
      */
     @Query("""
             select new com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRow(
-                s.questionAnswer.id, s.id, s.sourceType, s.title, s.legalReference, s.url, s.createdAt)
+                s.questionAnswer.id, s.id, s.sourceType, s.title, s.legalReference, s.url, s.createdAt,
+                s.validTo, s.verifiedAt, s.verifiedBy, s.consolidatedVersionConfirmed, s.stableMatter,
+                s.stableMatterReason, s.stableMatterMarkedBy, s.validFrom)
             from KnowledgeSourceReference s
             where s.questionAnswer.id in :questionAnswerIds
             """)
