@@ -179,3 +179,50 @@ A escolha dos temas é decisão humana.
 7. Gate C8: verificação humana das fontes no backoffice. Nunca CURRENT automático.
 8. E2E real por script com a sessão do António: casos novos e regressão do corpus e dos
    residuais.
+
+## 8. Decisões do gate editorial (António, 2026-10-14)
+
+- **D1 — AT-FAQ-0959:** corrigir a fonte do CIVA art. 19.º para `civa_rep` e revalidar; **não publicar**.
+- **D2 — âmbito de 0959:** rejeitado aceitar o enquadramento errado mitigado por HIGH. Antes de publicar
+  é preciso uma distinção governada entre acto isolado e actividade regular.
+- **D3 — AT-FAQ-4624:** alinhar a conclusão com a FAQ oficial (não se aplica a al. g); mecanismo regra);
+  alteração material, com revalidação; **não publicar**.
+- **D4 — C9-A:** extensão governada do âmbito (ADR-004), com nota de decisão antes de qualquer
+  alteração material ao ADR.
+- **D5 — WAVE 1-B:** redacção governada de B1 (IRS, prazo da declaração anual), B2 (IRC, Modelo 22),
+  B4 (IVA, declaração periódica), B6 (CPPT, reclamação graciosa) e B7 (IRS cat. B, faturas/recibos).
+  B3 e B5 adiados.
+- **D6:** reconfirmação C8 das AT-FAQ publicadas incluída nesta missão.
+- **D8:** nenhuma publicação nova até C9-A, revalidações, gate de conteúdo e gate C8.
+
+## 9. C9-A — estado (2026-10-14): cenário de opções
+
+Exclusões novas, a extensão natural do ADR-004, não chegam. Medido em simulação só de leitura:
+
+- "Em que condições posso deduzir o IVA suportado?" → 0959 com 0.8853, sem sinal de actividade
+  regular;
+- "Quando se aplica a inversão do sujeito passivo com fornecedores não residentes?" → 4624 com 0.8858,
+  sem sinal sobre o adquirente.
+
+Uma exclusão só actua quando a pergunta contém o sinal contrário. Para resolver é preciso **contexto
+obrigatório**, que o ADR-004 §1 recusou ("não há appliesTo positivo").
+
+Opções:
+
+- A: só exclusões;
+- B: contexto obrigatório;
+- C: A + B;
+- D: solução editorial sem código;
+- E: clarificação.
+
+Recomendação: B. Aguarda decisão humana; nenhum código foi alterado.
+
+## 10. Achados das fontes das AT-FAQ publicadas (gate C8)
+
+- **AT-FAQ-5930:** o CIRS art. 41.º, n.º 6, nega qualquer dedução na sublocação, e a Q&A (que não o
+  trata) serve o residual "subarrendamento" (0.8826). Recomenda-se não verificar as fontes antes de
+  decidir uma nova versão ou uma exclusão. O n.º 8 (Lei n.º 56/2023) também não é tratado.
+- **AT-FAQ-2721:** a afirmação "com uma única liquidação" e a referência a "regularização posterior"
+  não constam da FAQ nem do art. 135.º-D lidos; a fonte diz que, sem declaração no prazo, o AIMI incide
+  sobre cada cônjuge. Fica para uma versão futura.
+- **AT-FAQ-5795:** coerente com a FAQ e as normas.
