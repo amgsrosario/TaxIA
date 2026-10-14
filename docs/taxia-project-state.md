@@ -3,7 +3,7 @@
 Documento de passagem: permite retomar o projecto sem depender de conversas anteriores.
 Confirmar sempre no código, nas migrações e nos ADR (ver [AGENTS.md](../AGENTS.md)).
 
-Última actualização: 2026-10-07 (SEC-PILOT-CREDENTIALS-HARDENING-ROLLOUT).
+Última actualização: 2026-10-14 (C8 activada no piloto; C9 — expansão do corpus, WAVE 1 em gate editorial).
 
 ## Base e entregas recentes
 
@@ -15,9 +15,14 @@ Confirmar sempre no código, nas migrações e nos ADR (ver [AGENTS.md](../AGENT
 | M4-SCOPE-V2 | #11 | Exclusões de aplicabilidade governadas (V16, [ADR-004](adr/ADR-004-applicability-metadata-governed-exclusions.md)) |
 | GOV-PUBLISHED-CONTENT-INTEGRITY | #12 (merged, `324c1f9`) | Integridade pós-validação e versões ([ADR-005](adr/ADR-005-published-content-integrity.md)) |
 | SEC-PILOT-CREDENTIALS-HARDENING | #15 (merged, `f841335`); rollout no piloto concluído em 2026-10-07 | Credenciais e sessões staff (V17, [ADR-006](adr/ADR-006-staff-credentials-session-invalidation.md)) |
+| Proxy LAN do frontend | #17 | Pedidos à API pelo proxy do Vite em modo LAN |
+| Grounding (M4-GROUNDING) | #18, #19, #20 | Normalização de referências legais, equivalência textual de afirmações, prazos ordinais, qualificadores, instrumentos legais e obrigações negadas |
+| M4B | #21 | Propagação de risco e validação humana pelos fundamentos usados ([ADR-007](adr/ADR-007-risk-propagation-and-human-validation.md)) |
+| BNI Markdown | #22 | Resposta em Markdown seguro no ecrã Perguntar |
+| C8 | #23 (merged, `934c5f0`); activada no piloto em 2026-10-14 | Actualidade das fontes por verificação humana estruturada (V18, [ADR-008](adr/ADR-008-source-freshness-verification.md)) |
 
-Migrações: V1–V17. A V17 (`users.token_version`, `users.must_change_password`) está aplicada no
-piloto desde 2026-10-07 (SEC-PILOT-CREDENTIALS-HARDENING-ROLLOUT).
+Migrações: V1–V18. A V17 (`users.token_version`, `users.must_change_password`) está aplicada no
+piloto desde 2026-10-07; a V18 (verificação de actualidade das fontes) desde 2026-10-14.
 
 ## Pipeline de grounding vigente
 
@@ -39,12 +44,16 @@ justificaram descida).
 
 ## Piloto
 
-- Base `knowledgeflow_pilot` em **V17**:
+- Base `knowledgeflow_pilot` em **V18**:
   - a V16 foi aplicada em 2026-10-02 pela API do Flyway com as migrações de `main`, depois de validar os checksums V1–V15;
   - a V17 foi aplicada em 2026-10-07 pelo Flyway normal no arranque do backend a partir de `main` `f841335`;
-  - nenhuma das duas alterou conteúdo.
-- 21 Q&A no total, 4 publicadas e VALIDATED, 4 embeddings (um por publicada):
-  AT-FAQ-2721, AT-FAQ-5795, AT-FAQ-5930 e CIVA-CONSERVACAO-10A-001_v2.
+  - a V18 foi aplicada em 2026-10-14 pelo Flyway normal no arranque do backend (launcher do piloto) a partir de `main` `934c5f0`;
+  - nenhuma das três alterou conteúdo.
+- 23 Q&A no total, 6 publicadas e VALIDATED, 6 embeddings (um por publicada), 33 fontes:
+  AT-FAQ-2721, AT-FAQ-5795, AT-FAQ-5930, CIVA-CONSERVACAO-10A-001_v2 e, desde 2026-10-12, o pack
+  curado G1 `CIRC-CONSERVACAO-10A-001` e G2 `CIVA-FATURA-PRAZO-EMISSAO-001` (criados e validados pelo
+  António no backoffice e publicados por ele pela API governada, com gates humanos de conteúdo e de
+  publicação).
 - Exclusões de aplicabilidade (ADR-004), definidas pelo António no backoffice em 2026-10-06, todas
   com âmbito marcado como revisto:
 
@@ -54,6 +63,8 @@ justificaram descida).
   | AT-FAQ-5795 | RETENCAO_OBRIGATORIA (PENSAO_ESTRANGEIRA avaliada e **não** acrescentada) |
   | AT-FAQ-5930 | INQUILINO, HABITACAO_PROPRIA |
   | CIVA-CONSERVACAO-10A-001_v2 | nenhuma (âmbito revisto) |
+  | CIRC-CONSERVACAO-10A-001 (G1) | nenhuma (âmbito revisto) |
+  | CIVA-FATURA-PRAZO-EMISSAO-001 (G2) | nenhuma (âmbito revisto) |
 
 - **Regularização CIVA concluída** (ADR-005): nova versão `CIVA-CONSERVACAO-10A-001_v2`
   (`6e5d958f-…`, `previous_version_id` = `ba231677-…`), conteúdo idêntico, com a fonte
@@ -73,6 +84,8 @@ justificaram descida).
   `knowledgeflow_pilot_pre_credentials_rollout_2026-10-07.dump` (V16, antes do rollout; sha256 `ae49689f…`) e
   `knowledgeflow_pilot_post_credentials_rollout_2026-10-07.dump` (V17, depois do rollout; sha256 `7c2d2f01…`).
   Os dois de 2026-10-07 têm permissões 600.
+  Depois: `knowledgeflow_pilot_pre_g1g2_2026-10-12T163724.dump`, `knowledgeflow_pilot_post_g1g2_2026-10-12T175128.dump`
+  e `knowledgeflow_pilot_pre_c8_2026-10-14T160913.dump` (V17, antes da V18; 600).
 - **Operação:**
   - `scripts/run-dev.*` não define a base. Para o piloto é preciso `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:15432/knowledgeflow_pilot`; sem isso, o backend liga-se a `knowledgeflow`, onde o admin do piloto não existe.
   - Desde o ADR-006 também é obrigatório `KNOWLEDGEFLOW_JWT_SECRET`.
@@ -134,14 +147,31 @@ Auditoria, `updated_at`, texto servido e embeddings cruzados para as 4 Q&A publi
     as fontes actuais, validar humanamente e publicar substituindo a versão anterior (ADR-005).
     **Concluída em 2026-10-06** (ver secção Piloto).
 
-## Actualidade das fontes (C8, ADR-008) — em PR, merge bloqueado até autorização pós-BNI
+## Actualidade das fontes (C8, ADR-008) — concluída e operacional em piloto (2026-10-14)
 
 - Actualidade calculada por fonte a partir de verificação humana estruturada (V18). Janelas: 90/60
   dias CURRENT e 365/180 dias para matéria estável. `validTo` expirado → OUTDATED. Agregação pelo
   pior estado; UNCERTAIN → no máximo "com limitações" + SUGGESTED.
-- Ao activar, todas as respostas do piloto ficam limitadas até ao backfill humano
-  ([plano](c8-freshness-backfill-plan.md)): G1, G2 e CIVA v2 primeiro; as AT-FAQ exigem
-  verificação nova.
+- Activação (2026-10-14): backup pré-C8; V18 aplicada no arranque; contagens e embeddings
+  inalterados. Estado transitório comprovado: com todas as fontes UNCERTAIN, as respostas saíram
+  "com limitações" + SUGGESTED com limitação de actualidade explícita.
+- Backfill humano ([plano](c8-freshness-backfill-plan.md)): o António reconfirmou nas fontes
+  oficiais e registou no backoffice, com versão consolidada confirmada, as 5 fontes de legislação de
+  G1 (CIRC art. 125.º; DL 28/2019 art. 19.º), G2 (CIVA art. 36.º; art. 7.º) e
+  `CIVA-CONSERVACAO-10A-001_v2` (CIVA art. 52.º). Um evento `KNOWLEDGE_QA_SOURCE_VERIFIED` por
+  fonte (auditoria 111 → 116). Nenhuma matéria estável.
+- Estado: G1, G2 e CIVA conservação v2 com fontes **CURRENT até 2027-01-12** (revalidar antes
+  dessa data). AT-FAQ-5930 / 2721 / 5795 continuam **UNCERTAIN** (exigem verificação nova; as notas
+  antigas não contam como verificação) e respondem sempre "com limitações".
+- E2E pós-backfill: G1 e G2 consulta documentada + SUGGESTED (M4B, `requiresHumanValidation`),
+  CIVA conservação consulta documentada, AT-FAQ-5930 "com limitações" + SUGGESTED; sem regressão
+  de grounding, M4B ou âmbito.
+
+## Próximo eixo: expansão do corpus (C9)
+
+O gargalo deixou de ser o núcleo técnico e passou a ser a dimensão, a qualidade e a governação do
+corpus. Inventário, classificação e gate editorial da WAVE 1:
+[c9-corpus-expansion-wave1.md](c9-corpus-expansion-wave1.md).
 
 ## Follow-ups abertos
 
