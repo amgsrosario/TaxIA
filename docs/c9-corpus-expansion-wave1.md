@@ -226,3 +226,28 @@ Recomendação: B. Aguarda decisão humana; nenhum código foi alterado.
   não constam da FAQ nem do art. 135.º-D lidos; a fonte diz que, sem declaração no prazo, o AIMI incide
   sobre cada cônjuge. Fica para uma versão futura.
 - **AT-FAQ-5795:** coerente com a FAQ e as normas.
+
+## 11. Decisões do segundo gate e estado (2026-10-14)
+
+- **C9-A aprovada** (contexto obrigatório). Implementada na branch `feat/c9-a-required-context`:
+  ADR-009, V19, marcadores `SUBLOCACAO`, `ACTO_ISOLADO`, `FORNECEDOR_NAO_RESIDENTE` e
+  `ADQUIRENTE_NAO_RESIDENTE`. Merge humano.
+- Uso editorial depois do merge:
+  - 0959 → REQUIRES `ACTO_ISOLADO`;
+  - 4624 → REQUIRES `FORNECEDOR_NAO_RESIDENTE` + `ADQUIRENTE_NAO_RESIDENTE`;
+  - 5930 → EXCLUDES `SUBLOCACAO`.
+- **WAVE 1-B** com conteúdo aprovado:
+  - B1, B4 e B7 como propostos;
+  - B2 com MEDIUM e `requiresHumanValidation=true`;
+  - B6 reformulado para a regra geral (CPPT arts. 70.º e 102.º; canónica 0.8860).
+
+  B3 e B5 adiados. Criação no piloto só com autorização de escrita; publicação só depois dos gates.
+- **AT-FAQ:**
+  - 5795 autorizada para o gate C8;
+  - 2721 e 5930 só depois de novas versões (ADR-005), já propostas: 2721 sem afirmações sem fonte;
+    5930 com os n.os 6 a 9 do CIRS art. 41.º.
+  - A exclusão `HABITACAO_PROPRIA` da 5930 colide com o n.º 8; fica para decisão humana.
+- Limitações registadas para o futuro:
+  - recall de termos coloquiais ("Modelo 22", "recibos verdes"): aliases ou query expansion governada;
+  - perguntas ambíguas IRS/IRC: clarificação;
+  - divórcio/AIMI ainda sem marcador.
