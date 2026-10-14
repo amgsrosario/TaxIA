@@ -27,12 +27,12 @@ public interface KnowledgeQaApplicabilityExclusionRepository
             @Param("qaId") UUID qaId, @Param("marker") String marker);
 
     /**
-     * Marcadores efectivos (incluindo remoções pendentes) das Q&amp;A pedidas, numa só query, para o
+     * Regras efectivas — exclusões e contextos obrigatórios, incluindo remoções pendentes — das Q&amp;A pedidas, numa só query, para o
      * gate de âmbito. Os ids vêm do RAG, já restrito à organização do pedido.
      */
     @Query("""
             select new com.knowledgeflow.knowledge.repository.KnowledgeQaExclusionMarkerRow(
-                e.questionAnswer.id, e.marker)
+                e.questionAnswer.id, e.marker, e.kind)
             from KnowledgeQaApplicabilityExclusion e
             where e.questionAnswer.id in :qaIds
             """)

@@ -7,6 +7,7 @@ import com.knowledgeflow.common.error.BusinessException;
 import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityExclusion;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.entity.KnowledgeSourceReference;
+import com.knowledgeflow.knowledge.enums.ApplicabilityRuleKind;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.governance.CurationChanges;
@@ -254,14 +255,19 @@ public class KnowledgeQuestionAnswerPublicationService {
             sourceRepository.save(copy);
         }
 
-        // As exclusões de aplicabilidade (ADR-004) passam para a nova versão — nunca se alarga o
+        // As exclusões de aplicabilidade (ADR-004) e os contextos obrigatórios (ADR-009) passam para a nova versão — nunca se alarga o
         // âmbito em silêncio. Pedidos de remoção pendentes não passam: a exclusão fica efectiva.
         // A marca "âmbito revisto" não passa: a nova versão pede nova revisão.
         List<String> inherited = new ArrayList<>();
         for (KnowledgeQaApplicabilityExclusion exclusion : exclusionRepository.findByKnowledgeQaId(previousId)) {
+            // Tipo desconhecido: falha (rollback) em vez de o reescrever — nunca alargar em silêncio.
+            ApplicabilityRuleKind kind = ApplicabilityRuleKind.fromCode(exclusion.getKind())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Unknown applicability rule kind on " + previousId + ": " + exclusion.getKind()));
             exclusionRepository.save(new KnowledgeQaApplicabilityExclusion(
-                    newVersion, exclusion.getMarker(), exclusion.getNote(), exclusion.getCreatedBy()));
-            inherited.add(exclusion.getMarker());
+                    newVersion, exclusion.getMarker(), kind, exclusion.getNote(), exclusion.getCreatedBy()));
+            inherited.add(kind == ApplicabilityRuleKind.REQUIRES
+                    ? exclusion.getMarker() + "(REQUIRES)" : exclusion.getMarker());
         }
 
         auditService.record(organizationId, actingUserId,

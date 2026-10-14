@@ -4,6 +4,9 @@
 
 Accepted (M4-SCOPE-V2, 2026-10-02).
 
+O §1 ("não há `appliesTo` positivo") é alterado pelo [ADR-009](ADR-009-required-applicability-context.md)
+(contexto obrigatório, 2026-10-14). O resto mantém-se.
+
 ## Context
 
 O grounding do TaxIA filtra candidatos por relevância vectorial (`minimum-relevance-score`

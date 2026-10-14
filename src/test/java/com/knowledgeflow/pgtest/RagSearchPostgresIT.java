@@ -448,7 +448,7 @@ class RagSearchPostgresIT {
         Integer failCount = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM flyway_schema_history WHERE success = false",
                 Integer.class);
-        assertThat(maxRank).isEqualTo(18);
+        assertThat(maxRank).isEqualTo(19);
         assertThat(failCount).isZero();
     }
 

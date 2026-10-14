@@ -85,6 +85,17 @@ desconhecido na BD rejeita o candidato (fail-closed). Uma exclusão cuja remoç�
 numa Q&A publicada ou VALIDATED continua efectiva até aprovação humana. Perguntas multi-matéria e
 ambíguas continuam fora de âmbito (follow-ups separados).
 
+**Contexto obrigatório (ADR-009, no mesmo gate).** Uma Q&A de situação específica pode declarar
+marcadores que a pergunta tem de indicar (por exemplo, acto isolado; fornecedor e adquirente não
+residentes). Se a pergunta não indicar todos, o candidato é rejeitado
+(`APPLICABILITY_CONTEXT_MISSING`); sem outros candidatos, a resposta é resposta-limite. É a única
+regra em que o silêncio da pergunta rejeita, e só existe quando a Q&A a declara. Para o contexto obrigatório só contam
+ocorrências afirmadas (acto isolado e sublocação deixam de contar se a pergunta tiver qualquer negação);
+para as exclusões conta a presença. A governação é a
+das exclusões: acrescentar é imediato; retirar numa Q&A publicada ou VALIDATED fica pendente até
+aprovação humana. O vocabulário passou a incluir sublocação, acto isolado, fornecedor não residente
+e adquirente não residente (versão 2026-10-14.2).
+
 **Integridade do conteúdo servido (ADR-005).** O RAG lê o texto da Q&A em tempo de pergunta;
 por isso a versão publicada está congelada para alterações materiais, que passam por uma nova
 versão não publicada e não indexada. Só depois de validada é que a nova versão substitui a

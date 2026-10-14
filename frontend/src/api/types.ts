@@ -157,10 +157,17 @@ export interface KnowledgeQaDetail {
 
 // ── Âmbito de aplicação (M4-SCOPE-V2, ADR-004) ─────────────────────────────
 
-/** Exclusão: situação que a Q&A declara não cobrir. removalPending = remoção a aguardar validação. */
+/** EXCLUDES: a Q&A não cobre a situação. REQUIRES: só se aplica se a pergunta a indicar (ADR-009). */
+export type ApplicabilityRuleKind = "EXCLUDES" | "REQUIRES";
+
+/**
+ * Regra de aplicabilidade: exclusão ou contexto obrigatório (kind). removalPending = remoção a
+ * aguardar validação.
+ */
 export interface ApplicabilityExclusion {
   marker: string;
   label: string | null;
+  kind: ApplicabilityRuleKind;
   note: string | null;
   createdAt: string;
   createdBy: string | null;
@@ -172,6 +179,8 @@ export interface ApplicabilityExclusion {
 export interface ApplicabilityMarkerOption {
   code: string;
   label: string;
+  /** Pode ser contexto obrigatório (ADR-009). */
+  requirable: boolean;
 }
 
 /** GET /{id}/applicability — só admin. */

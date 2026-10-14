@@ -1,5 +1,6 @@
 import type {
   ApiErrorBody,
+  ApplicabilityRuleKind,
   AuthUser,
   CurationUpdateRequest,
   DemoAskResponse,
@@ -261,8 +262,9 @@ export function addApplicabilityExclusion(
   id: string,
   marker: string,
   note: string | null,
+  kind: ApplicabilityRuleKind = "EXCLUDES",
 ): Promise<KnowledgeQaApplicability> {
-  return request<KnowledgeQaApplicability>("POST", `${applicabilityPath(id)}/exclusions`, { marker, note });
+  return request<KnowledgeQaApplicability>("POST", `${applicabilityPath(id)}/exclusions`, { marker, note, kind });
 }
 
 /** Não publicada: remove. Publicada: só pede a remoção (continua efectiva até aprovação). */

@@ -14,6 +14,7 @@ import com.knowledgeflow.knowledge.dto.KnowledgeQaApplicabilityResponse.DerivedS
 import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityExclusion;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.enums.ApplicabilityMarker;
+import com.knowledgeflow.knowledge.enums.ApplicabilityRuleKind;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
@@ -27,7 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * Exclusões de aplicabilidade governadas (M4-SCOPE-V2, ADR-004).
+ * Regras de aplicabilidade governadas (M4-SCOPE-V2, ADR-004): exclusões e, desde o ADR-009, contextos
+ * obrigatórios. Ambos estreitam o âmbito, por isso seguem a mesma governação.
  *
  * <ul>
  *   <li>Adicionar estreita o âmbito: efectivo de imediato, mesmo em Q&amp;A publicada, sem nova
@@ -76,19 +78,26 @@ public class KnowledgeQaApplicabilityService {
             UUID organizationId, UUID actingUserId, String actor, UUID qaId, ApplicabilityExclusionRequest request) {
         KnowledgeQuestionAnswer qa = requireOwnedForUpdate(organizationId, qaId);
         ApplicabilityMarker marker = requireMarker(request == null ? null : request.marker());
+        ApplicabilityRuleKind kind = requireKind(request.kind());
+        if (kind == ApplicabilityRuleKind.REQUIRES && !marker.requirable()) {
+            throw new BusinessException(ApiErrorCode.VALIDATION_ERROR,
+                    "Marker %s cannot be used as required context".formatted(marker.name()));
+        }
         String note = normalizeNote(request.note());
         if (exclusionRepository.findByKnowledgeQaIdAndMarker(qaId, marker.name()).isPresent()) {
             throw new BusinessException(ApiErrorCode.CONFLICT,
-                    "Exclusion %s already exists for this entry".formatted(marker.name()));
+                    "Applicability rule %s already exists for this entry".formatted(marker.name()));
         }
         try {
-            exclusionRepository.saveAndFlush(new KnowledgeQaApplicabilityExclusion(qa, marker.name(), note, actor));
+            exclusionRepository.saveAndFlush(
+                    new KnowledgeQaApplicabilityExclusion(qa, marker.name(), kind, note, actor));
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(ApiErrorCode.CONFLICT,
-                    "Exclusion %s already exists for this entry".formatted(marker.name()));
+                    "Applicability rule %s already exists for this entry".formatted(marker.name()));
         }
         clearReview(qa);
-        audit(organizationId, actingUserId, qa, "ADDED", marker.name(), actor, note == null ? null : "note=" + quoted(note));
+        audit(organizationId, actingUserId, qa, "ADDED", marker.name(), actor,
+                kindDetail(kind.name(), note == null ? null : "note=" + quoted(note)));
         return response(qa);
     }
 
@@ -110,14 +119,15 @@ public class KnowledgeQaApplicabilityService {
         if (removalNeedsValidation(qa)) {
             exclusion.requestRemoval(actor);
             exclusionRepository.save(exclusion);
-            audit(organizationId, actingUserId, qa, "REMOVAL_REQUESTED", exclusion.getMarker(), actor, null);
+            audit(organizationId, actingUserId, qa, "REMOVAL_REQUESTED", exclusion.getMarker(), actor,
+                    kindDetail(exclusion.getKind(), null));
             return response(qa);
         }
         exclusionRepository.delete(exclusion);
         exclusionRepository.flush();
         clearReview(qa);
         audit(organizationId, actingUserId, qa, "REMOVED", exclusion.getMarker(), actor,
-                "curationStatus=" + qa.getCurationStatus());
+                kindDetail(exclusion.getKind(), "curationStatus=" + qa.getCurationStatus()));
         return response(qa);
     }
 
@@ -132,7 +142,7 @@ public class KnowledgeQaApplicabilityService {
         exclusionRepository.flush();
         clearReview(qa);
         audit(organizationId, actingUserId, qa, "REMOVAL_APPROVED", exclusion.getMarker(), reviewerName.trim(),
-                "requestedBy=" + exclusion.getRemovalRequestedBy());
+                kindDetail(exclusion.getKind(), "requestedBy=" + exclusion.getRemovalRequestedBy()));
         return response(qa);
     }
 
@@ -144,7 +154,8 @@ public class KnowledgeQaApplicabilityService {
         KnowledgeQaApplicabilityExclusion exclusion = requirePending(requireExclusion(qaId, markerCode));
         exclusion.cancelRemovalRequest();
         exclusionRepository.save(exclusion);
-        audit(organizationId, actingUserId, qa, "REMOVAL_CANCELLED", exclusion.getMarker(), actor, null);
+        audit(organizationId, actingUserId, qa, "REMOVAL_CANCELLED", exclusion.getMarker(), actor,
+                kindDetail(exclusion.getKind(), null));
         return response(qa);
     }
 
@@ -156,9 +167,13 @@ public class KnowledgeQaApplicabilityService {
         KnowledgeQuestionAnswer qa = requireOwnedForUpdate(organizationId, qaId);
         qa.markApplicabilityReviewed(reviewerName.trim());
         qaRepository.save(qa);
-        List<String> markers = exclusionRepository.findByKnowledgeQaId(qaId).stream()
+        List<KnowledgeQaApplicabilityExclusion> rules = exclusionRepository.findByKnowledgeQaId(qaId);
+        List<String> markers = rules.stream().filter(r -> !isRequired(r.getKind()))
                 .map(KnowledgeQaApplicabilityExclusion::getMarker).toList();
-        audit(organizationId, actingUserId, qa, "REVIEWED", null, reviewerName.trim(), "exclusions=" + markers);
+        List<String> required = rules.stream().filter(r -> isRequired(r.getKind()))
+                .map(KnowledgeQaApplicabilityExclusion::getMarker).toList();
+        audit(organizationId, actingUserId, qa, "REVIEWED", null, reviewerName.trim(),
+                "exclusions=" + markers + (required.isEmpty() ? "" : " requiredContext=" + required));
         return response(qa);
     }
 
@@ -208,7 +223,7 @@ public class KnowledgeQaApplicabilityService {
 
     public static List<ApplicabilityMarkerOption> vocabulary() {
         return Arrays.stream(ApplicabilityMarker.values())
-                .map(m -> new ApplicabilityMarkerOption(m.name(), m.label())).toList();
+                .map(m -> new ApplicabilityMarkerOption(m.name(), m.label(), m.requirable())).toList();
     }
 
     private void audit(UUID organizationId, UUID actingUserId, KnowledgeQuestionAnswer qa, String event,
@@ -220,6 +235,27 @@ public class KnowledgeQaApplicabilityService {
         if (detail != null) metadata.append(" ").append(detail);
         auditService.record(organizationId, actingUserId, AuditAction.KNOWLEDGE_QA_APPLICABILITY_UPDATED,
                 ENTITY, qa.getId(), metadata.toString());
+    }
+
+    /** Tipo pedido; omisso = exclusão (compatível com os clientes anteriores ao ADR-009). */
+    private static ApplicabilityRuleKind requireKind(String code) {
+        if (code == null || code.isBlank()) {
+            return ApplicabilityRuleKind.EXCLUDES;
+        }
+        return ApplicabilityRuleKind.fromCode(code.trim()).orElseThrow(() -> new BusinessException(
+                ApiErrorCode.VALIDATION_ERROR, "Unknown applicability rule kind: " + code.trim()));
+    }
+
+    private static boolean isRequired(String kind) {
+        return ApplicabilityRuleKind.REQUIRES.name().equals(kind);
+    }
+
+    /** Metadata de auditoria: o tipo só aparece para contexto obrigatório (as exclusões mantêm o formato). */
+    private static String kindDetail(String kind, String detail) {
+        if (!isRequired(kind)) {
+            return detail;
+        }
+        return detail == null ? "kind=" + kind : "kind=" + kind + " " + detail;
     }
 
     private static ApplicabilityMarker requireMarker(String code) {

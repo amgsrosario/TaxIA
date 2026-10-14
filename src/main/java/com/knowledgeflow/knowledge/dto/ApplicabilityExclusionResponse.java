@@ -5,12 +5,14 @@ import com.knowledgeflow.knowledge.enums.ApplicabilityMarker;
 import java.time.OffsetDateTime;
 
 /**
- * Exclusão de aplicabilidade (só admin/INTERNAL). {@code removalPending}: a remoção foi pedida numa
+ * Regra de aplicabilidade (só admin/INTERNAL): exclusão ou contexto obrigatório ({@code kind}, ADR-009).
+ * {@code removalPending}: a remoção foi pedida numa
  * Q&amp;A publicada e aguarda validação humana — a exclusão continua efectiva.
  */
 public record ApplicabilityExclusionResponse(
         String marker,
         String label,
+        String kind,
         String note,
         OffsetDateTime createdAt,
         String createdBy,
@@ -22,6 +24,7 @@ public record ApplicabilityExclusionResponse(
         return new ApplicabilityExclusionResponse(
                 e.getMarker(),
                 ApplicabilityMarker.fromCode(e.getMarker()).map(ApplicabilityMarker::label).orElse(null),
+                e.getKind(),
                 e.getNote(),
                 e.getCreatedAt(),
                 e.getCreatedBy(),

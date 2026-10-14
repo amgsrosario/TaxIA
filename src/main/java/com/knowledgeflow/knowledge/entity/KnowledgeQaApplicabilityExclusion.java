@@ -9,14 +9,15 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import com.knowledgeflow.knowledge.enums.ApplicabilityRuleKind;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 /**
- * Exclusão de aplicabilidade de uma Q&amp;A (M4-SCOPE-V2, ADR-004). Enquanto a linha existir, a
- * exclusão é efectiva no gate — incluindo quando a sua remoção foi pedida e aguarda validação
+ * Regra de aplicabilidade de uma Q&amp;A (M4-SCOPE-V2, ADR-004): exclusão ou, desde o ADR-009, contexto
+ * obrigatório ({@link #getKind()}). Enquanto a linha existir, a regra é efectiva no gate — incluindo quando a sua remoção foi pedida e aguarda validação
  * humana ({@link #isRemovalPending()}).
  *
  * <p>O marcador é guardado como código (texto) e não como enum JPA: um código desconhecido na BD
@@ -39,6 +40,13 @@ public class KnowledgeQaApplicabilityExclusion {
     @Column(nullable = false, length = 60)
     private String marker;
 
+    /**
+     * Tipo de regra (ADR-009): {@code EXCLUDES} ou {@code REQUIRES}. Guardado como código, como o
+     * marcador: um valor desconhecido é tratado pelo gate como dado inválido.
+     */
+    @Column(nullable = false, length = 20)
+    private String kind = ApplicabilityRuleKind.EXCLUDES.name();
+
     @Column(length = 500)
     private String note;
 
@@ -58,8 +66,14 @@ public class KnowledgeQaApplicabilityExclusion {
 
     public KnowledgeQaApplicabilityExclusion(
             KnowledgeQuestionAnswer questionAnswer, String marker, String note, String createdBy) {
+        this(questionAnswer, marker, ApplicabilityRuleKind.EXCLUDES, note, createdBy);
+    }
+
+    public KnowledgeQaApplicabilityExclusion(KnowledgeQuestionAnswer questionAnswer, String marker,
+            ApplicabilityRuleKind kind, String note, String createdBy) {
         this.questionAnswer = questionAnswer;
         this.marker = marker;
+        this.kind = kind.name();
         this.note = note;
         this.createdBy = createdBy;
     }
@@ -88,6 +102,7 @@ public class KnowledgeQaApplicabilityExclusion {
     public UUID getId() { return id; }
     public KnowledgeQuestionAnswer getQuestionAnswer() { return questionAnswer; }
     public String getMarker() { return marker; }
+    public String getKind() { return kind; }
     public String getNote() { return note; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public String getCreatedBy() { return createdBy; }

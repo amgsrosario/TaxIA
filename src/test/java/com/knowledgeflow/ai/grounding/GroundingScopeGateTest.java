@@ -137,7 +137,7 @@ class GroundingScopeGateTest {
     void excludedCandidate_neverReachesPromptProviderOrSources() {
         when(qaRepository.findScopeRowsByIdIn(any())).thenReturn(corpus());
         when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
-                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_5930, "INQUILINO")));
+                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_5930, "INQUILINO", "EXCLUDES")));
 
         GroundedAIResponse result = service.process("Como inquilino, posso deduzir no IRS as obras que paguei?",
                 null, List.of(qa("5930", 0.8872, QA_5930)));
@@ -152,7 +152,7 @@ class GroundingScopeGateTest {
     void exclusionOfOneCandidate_keepsTheOthers_andThePromptOnlyHasThem() {
         when(qaRepository.findScopeRowsByIdIn(any())).thenReturn(corpus());
         when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
-                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_2721, "CALCULO")));
+                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_2721, "CALCULO", "EXCLUDES")));
         when(aiService.complete(any())).thenReturn(answer("Resposta."));
 
         GroundedAIResponse result = service.process(
