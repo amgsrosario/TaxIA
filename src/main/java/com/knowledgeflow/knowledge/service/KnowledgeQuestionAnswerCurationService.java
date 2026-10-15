@@ -15,7 +15,7 @@ import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
 import com.knowledgeflow.knowledge.governance.CurationChanges;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
 import java.net.URI;
@@ -34,18 +34,18 @@ public class KnowledgeQuestionAnswerCurationService {
 
     private final KnowledgeQuestionAnswerRepository qaRepository;
     private final KnowledgeSourceReferenceRepository sourceRepository;
-    private final KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
+    private final KnowledgeQaApplicabilityRuleRepository ruleRepository;
     private final AuditService auditService;
 
     public KnowledgeQuestionAnswerCurationService(
             KnowledgeQuestionAnswerRepository qaRepository,
             KnowledgeSourceReferenceRepository sourceRepository,
-            KnowledgeQaApplicabilityExclusionRepository exclusionRepository,
+            KnowledgeQaApplicabilityRuleRepository ruleRepository,
             AuditService auditService,
             com.knowledgeflow.ai.documented.SourceFreshnessPolicy sourceFreshnessPolicy) {
         this.qaRepository = qaRepository;
         this.sourceRepository = sourceRepository;
-        this.exclusionRepository = exclusionRepository;
+        this.ruleRepository = ruleRepository;
         this.auditService = auditService;
         this.sourceFreshnessPolicy = sourceFreshnessPolicy;
     }
@@ -352,7 +352,7 @@ public class KnowledgeQuestionAnswerCurationService {
                 .map(KnowledgeQuestionAnswer::getId).findFirst().orElse(null);
         boolean previousPublished = qa.getPreviousVersionId() != null
                 && qaRepository.findById(qa.getPreviousVersionId()).map(KnowledgeQuestionAnswer::isPublished).orElse(false);
-        return KnowledgeQaDetailResponse.from(qa, sources, exclusionRepository.findByKnowledgeQaId(qa.getId()),
+        return KnowledgeQaDetailResponse.from(qa, sources, ruleRepository.findByKnowledgeQaId(qa.getId()),
                 draftId, previousPublished, sourceFreshnessPolicy);
     }
 

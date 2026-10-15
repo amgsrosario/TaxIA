@@ -25,7 +25,10 @@ public enum ApplicabilityMarker {
     SUBLOCACAO("Sublocação / subarrendamento", true),
     ACTO_ISOLADO("Acto isolado", true),
     FORNECEDOR_NAO_RESIDENTE("Fornecedor / prestador não residente", true),
-    ADQUIRENTE_NAO_RESIDENTE("Adquirente / cliente não residente", true);
+    ADQUIRENTE_NAO_RESIDENTE("Adquirente / cliente não residente", true),
+    // C9-A, defesa híbrida (só exclusão): perguntas mistas ou contraditórias
+    ACTIVIDADE_REGULAR("Actividade regular / aberta"),
+    ADQUIRENTE_RESIDENTE("Adquirente / cliente residente em Portugal");
 
     private final String label;
     /**

@@ -2,8 +2,8 @@ package com.knowledgeflow.ai.grounding.scope;
 
 import com.knowledgeflow.knowledge.enums.ApplicabilityMarker;
 import com.knowledgeflow.knowledge.enums.ApplicabilityRuleKind;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaExclusionMarkerRow;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQaScopeRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import java.util.Collection;
@@ -30,15 +30,15 @@ public class CandidateScopeLoader {
     private static final Logger log = LoggerFactory.getLogger(CandidateScopeLoader.class);
 
     private final KnowledgeQuestionAnswerRepository repository;
-    private final KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
+    private final KnowledgeQaApplicabilityRuleRepository ruleRepository;
     private final FiscalScopeClassifier classifier;
 
     public CandidateScopeLoader(
             KnowledgeQuestionAnswerRepository repository,
-            KnowledgeQaApplicabilityExclusionRepository exclusionRepository,
+            KnowledgeQaApplicabilityRuleRepository ruleRepository,
             FiscalScopeClassifier classifier) {
         this.repository = repository;
-        this.exclusionRepository = exclusionRepository;
+        this.ruleRepository = ruleRepository;
         this.classifier = classifier;
     }
 
@@ -55,7 +55,7 @@ public class CandidateScopeLoader {
         Map<UUID, Set<ApplicabilityMarker>> exclusions = new HashMap<>();
         Map<UUID, Set<ApplicabilityMarker>> required = new HashMap<>();
         Set<UUID> invalid = new HashSet<>();
-        for (KnowledgeQaExclusionMarkerRow row : exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(qaIds)) {
+        for (KnowledgeQaApplicabilityRuleRow row : ruleRepository.findRuleRowsByKnowledgeQaIdIn(qaIds)) {
             Optional<ApplicabilityMarker> marker = ApplicabilityMarker.fromCode(row.marker());
             Optional<ApplicabilityRuleKind> kind = ApplicabilityRuleKind.fromCode(row.kind());
             if (marker.isEmpty() || kind.isEmpty()) {

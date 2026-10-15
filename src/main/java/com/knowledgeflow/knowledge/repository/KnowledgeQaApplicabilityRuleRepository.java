@@ -1,6 +1,6 @@
 package com.knowledgeflow.knowledge.repository;
 
-import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityExclusion;
+import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityRule;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -9,21 +9,21 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface KnowledgeQaApplicabilityExclusionRepository
-        extends JpaRepository<KnowledgeQaApplicabilityExclusion, UUID> {
+public interface KnowledgeQaApplicabilityRuleRepository
+        extends JpaRepository<KnowledgeQaApplicabilityRule, UUID> {
 
     @Query("""
-            select e from KnowledgeQaApplicabilityExclusion e
+            select e from KnowledgeQaApplicabilityRule e
             where e.questionAnswer.id = :qaId
             order by e.createdAt, e.marker
             """)
-    List<KnowledgeQaApplicabilityExclusion> findByKnowledgeQaId(@Param("qaId") UUID qaId);
+    List<KnowledgeQaApplicabilityRule> findByKnowledgeQaId(@Param("qaId") UUID qaId);
 
     @Query("""
-            select e from KnowledgeQaApplicabilityExclusion e
+            select e from KnowledgeQaApplicabilityRule e
             where e.questionAnswer.id = :qaId and e.marker = :marker
             """)
-    Optional<KnowledgeQaApplicabilityExclusion> findByKnowledgeQaIdAndMarker(
+    Optional<KnowledgeQaApplicabilityRule> findByKnowledgeQaIdAndMarker(
             @Param("qaId") UUID qaId, @Param("marker") String marker);
 
     /**
@@ -31,10 +31,10 @@ public interface KnowledgeQaApplicabilityExclusionRepository
      * gate de âmbito. Os ids vêm do RAG, já restrito à organização do pedido.
      */
     @Query("""
-            select new com.knowledgeflow.knowledge.repository.KnowledgeQaExclusionMarkerRow(
+            select new com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRow(
                 e.questionAnswer.id, e.marker, e.kind)
-            from KnowledgeQaApplicabilityExclusion e
+            from KnowledgeQaApplicabilityRule e
             where e.questionAnswer.id in :qaIds
             """)
-    List<KnowledgeQaExclusionMarkerRow> findMarkerRowsByKnowledgeQaIdIn(@Param("qaIds") Collection<UUID> qaIds);
+    List<KnowledgeQaApplicabilityRuleRow> findRuleRowsByKnowledgeQaIdIn(@Param("qaIds") Collection<UUID> qaIds);
 }

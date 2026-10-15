@@ -1,7 +1,9 @@
 package com.knowledgeflow.ai.grounding.scope;
 
+import static com.knowledgeflow.knowledge.enums.ApplicabilityMarker.ACTIVIDADE_REGULAR;
 import static com.knowledgeflow.knowledge.enums.ApplicabilityMarker.ACTO_ISOLADO;
 import static com.knowledgeflow.knowledge.enums.ApplicabilityMarker.ADQUIRENTE_NAO_RESIDENTE;
+import static com.knowledgeflow.knowledge.enums.ApplicabilityMarker.ADQUIRENTE_RESIDENTE;
 import static com.knowledgeflow.knowledge.enums.ApplicabilityMarker.FORNECEDOR_NAO_RESIDENTE;
 import static com.knowledgeflow.knowledge.enums.ApplicabilityMarker.SUBLOCACAO;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -242,5 +244,55 @@ class RequiredContextMarkerDetectorTest {
     void nonResidentIsAQualityNotANegation() {
         assertThat(detect("Um sujeito passivo não residente fez um acto isolado em Portugal. Pode deduzir o IVA?"))
                 .contains(ACTO_ISOLADO);
+    }
+
+    // ---- defesa híbrida (só exclusão): ACTIVIDADE_REGULAR e ADQUIRENTE_RESIDENTE --------------
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "Tenho actividade aberta. Posso deduzir o IVA?",
+            "Tenho atividade regular e fiz uma venda.",
+            "Exerço uma actividade habitual de consultoria.",
+            "Estou colectado como trabalhador independente.",
+            "Não, tenho actividade habitual."})
+    void regularActivityDetected(String question) {
+        assertThat(present(question)).contains(ACTIVIDADE_REGULAR);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "Não tenho actividade aberta; fiz um acto isolado.",
+            "Sem actividade aberta, posso passar um acto isolado?",
+            "Não estou colectado. Posso passar acto isolado?",
+            "Deixei de ter actividade aberta.",
+            "Que IVA posso deduzir na minha actividade?",
+            "O imposto colectado foi superior ao devido."})
+    void regularActivityNotDetected(String question) {
+        assertThat(present(question)).doesNotContain(ACTIVIDADE_REGULAR);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "Ambos não residentes, mas o cliente é uma empresa portuguesa.",
+            "O adquirente tem estabelecimento estável em Portugal.",
+            "O cliente é residente em Portugal.",
+            "Vendo a um cliente português.",
+            "Uma empresa portuguesa compra serviços a um fornecedor não residente.",
+            "O adquirente tem sede em Portugal."})
+    void residentAcquirerDetected(String question) {
+        assertThat(present(question)).contains(ADQUIRENTE_RESIDENTE);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "A operação localiza-se em Portugal.",
+            "O fornecedor é português e vende a uma empresa estrangeira.",
+            "O cliente não é português.",
+            "O cliente é não residente.",
+            "O adquirente não tem estabelecimento estável em Portugal.",
+            "Duas empresas estrangeiras fazem uma venda localizada em Portugal.",
+            "Uma empresa portuguesa vende a um cliente estrangeiro."})
+    void residentAcquirerNotDetected(String question) {
+        assertThat(present(question)).doesNotContain(ADQUIRENTE_RESIDENTE);
     }
 }

@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  addApplicabilityExclusion,
+  addApplicabilityRule,
   ApiError,
   approveApplicabilityRemoval,
   cancelApplicabilityRemoval,
   getApplicability,
   markApplicabilityReviewed,
-  removeApplicabilityExclusion,
+  removeApplicabilityRule,
 } from "../api/client";
-import type { ApplicabilityExclusion, ApplicabilityRuleKind, KnowledgeQaApplicability } from "../api/types";
+import type { ApplicabilityRule, ApplicabilityRuleKind, KnowledgeQaApplicability } from "../api/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 const MAX_NOTE = 500;
@@ -44,7 +44,7 @@ export function QaApplicabilityPanel({
   const [marker, setMarker] = useState("");
   const [note, setNote] = useState("");
   const [kind, setKind] = useState<ApplicabilityRuleKind>("EXCLUDES");
-  const [toApprove, setToApprove] = useState<ApplicabilityExclusion | null>(null);
+  const [toApprove, setToApprove] = useState<ApplicabilityRule | null>(null);
 
   const load = useCallback(() => {
     getApplicability(qaId)
@@ -85,15 +85,15 @@ export function QaApplicabilityPanel({
     );
   }
 
-  const used = new Set(state.exclusions.map((e) => e.marker));
+  const used = new Set(state.rules.map((e) => e.marker));
   const available = state.vocabulary.filter((m) => !used.has(m.code) && (kind === "EXCLUDES" || m.requirable));
   /** O formulário fica visível enquanto houver marcadores livres, para se poder trocar o tipo. */
   const anyFree = state.vocabulary.some((m) => !used.has(m.code));
   const scope = state.derivedScope;
   const list = (values: string[]) => (values.length ? values.join(", ") : "—");
-  const exclusions = state.exclusions.filter((e) => e.kind !== "REQUIRES");
-  const required = state.exclusions.filter((e) => e.kind === "REQUIRES");
-  const renderRule = (e: ApplicabilityExclusion) => (
+  const exclusionRules = state.rules.filter((e) => e.kind !== "REQUIRES");
+  const required = state.rules.filter((e) => e.kind === "REQUIRES");
+  const renderRule = (e: ApplicabilityRule) => (
     <li key={e.marker}>
       <strong>{e.label ?? e.marker}</strong>
       {e.note && <> — {e.note}</>}
@@ -120,9 +120,9 @@ export function QaApplicabilityPanel({
             disabled={busy}
             onClick={() =>
               run(
-                () => removeApplicabilityExclusion(qaId, e.marker),
+                () => removeApplicabilityRule(qaId, e.marker),
                 (result) =>
-                  result.exclusions.some((x) => x.marker === e.marker && x.removalPending)
+                  result.rules.some((x) => x.marker === e.marker && x.removalPending)
                     ? "Remoção pedida: a regra continua efectiva até validação humana."
                     : "Regra removida.",
               )
@@ -156,10 +156,10 @@ export function QaApplicabilityPanel({
       </div>
 
       <h3 style={{ marginTop: 18 }}>Não se aplica a</h3>
-      {exclusions.length === 0 ? (
+      {exclusionRules.length === 0 ? (
         <p className="muted">Sem exclusões declaradas.</p>
       ) : (
-        <ul>{exclusions.map(renderRule)}</ul>
+        <ul>{exclusionRules.map(renderRule)}</ul>
       )}
 
       <h3 style={{ marginTop: 18 }}>Só se aplica quando a pergunta indica</h3>
@@ -218,7 +218,7 @@ export function QaApplicabilityPanel({
             disabled={busy || !marker}
             onClick={() =>
               run(async () => {
-                const result = await addApplicabilityExclusion(qaId, marker, note.trim() || null, kind);
+                const result = await addApplicabilityRule(qaId, marker, note.trim() || null, kind);
                 setMarker("");
                 setNote("");
                 setKind("EXCLUDES");

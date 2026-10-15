@@ -24,10 +24,10 @@ import org.hibernate.annotations.OnDeleteAction;
  * é tratado pelo gate como dado inválido (candidato rejeitado), em vez de impedir o carregamento.
  */
 @Entity
-@Table(name = "knowledge_qa_applicability_exclusions",
-        uniqueConstraints = @UniqueConstraint(name = "ux_kqa_applicability_marker",
+@Table(name = "knowledge_qa_applicability_rules",
+        uniqueConstraints = @UniqueConstraint(name = "ux_kqa_applicability_rule_marker",
                 columnNames = {"knowledge_qa_id", "marker"}))
-public class KnowledgeQaApplicabilityExclusion {
+public class KnowledgeQaApplicabilityRule {
 
     @Id
     private UUID id;
@@ -61,15 +61,15 @@ public class KnowledgeQaApplicabilityExclusion {
     @Column(length = 255)
     private String removalRequestedBy;
 
-    protected KnowledgeQaApplicabilityExclusion() {
+    protected KnowledgeQaApplicabilityRule() {
     }
 
-    public KnowledgeQaApplicabilityExclusion(
+    public KnowledgeQaApplicabilityRule(
             KnowledgeQuestionAnswer questionAnswer, String marker, String note, String createdBy) {
         this(questionAnswer, marker, ApplicabilityRuleKind.EXCLUDES, note, createdBy);
     }
 
-    public KnowledgeQaApplicabilityExclusion(KnowledgeQuestionAnswer questionAnswer, String marker,
+    public KnowledgeQaApplicabilityRule(KnowledgeQuestionAnswer questionAnswer, String marker,
             ApplicabilityRuleKind kind, String note, String createdBy) {
         this.questionAnswer = questionAnswer;
         this.marker = marker;
@@ -84,7 +84,7 @@ public class KnowledgeQaApplicabilityExclusion {
         createdAt = OffsetDateTime.now();
     }
 
-    /** Pede a remoção: a exclusão continua efectiva até à aprovação humana. */
+    /** Pede a remoção: a regra continua efectiva até à aprovação humana. */
     public void requestRemoval(String requestedBy) {
         this.removalRequestedBy = requestedBy;
         this.removalRequestedAt = OffsetDateTime.now();

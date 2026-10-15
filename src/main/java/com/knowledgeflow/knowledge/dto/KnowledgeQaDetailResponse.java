@@ -1,6 +1,6 @@
 package com.knowledgeflow.knowledge.dto;
 
-import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityExclusion;
+import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityRule;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.entity.KnowledgeSourceReference;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
@@ -46,16 +46,23 @@ public record KnowledgeQaDetailResponse(
         List<SourceReferenceResponse> sources,
         OffsetDateTime applicabilityReviewedAt,
         String applicabilityReviewedBy,
-        List<ApplicabilityExclusionResponse> applicabilityExclusions,
+        /** Regras de aplicabilidade (exclusões e contexto obrigatório, ADR-009). */
+        List<ApplicabilityRuleResponse> applicabilityRules,
         /** Versão em preparação derivada desta (não publicada), se existir (ADR-005). */
         UUID draftVersionId,
         /** A versão de que esta deriva (previousVersionId) está publicada (ADR-005). */
         boolean previousVersionPublished
 ) {
+    /** Alias legado de {@link #applicabilityRules()} (pré-ADR-009); mesma lista. */
+    @com.fasterxml.jackson.annotation.JsonProperty("applicabilityExclusions")
+    public List<ApplicabilityRuleResponse> applicabilityExclusions() {
+        return applicabilityRules;
+    }
+
     public static KnowledgeQaDetailResponse from(
             KnowledgeQuestionAnswer qa,
             List<KnowledgeSourceReference> sources,
-            List<KnowledgeQaApplicabilityExclusion> exclusions,
+            List<KnowledgeQaApplicabilityRule> exclusions,
             UUID draftVersionId,
             boolean previousVersionPublished) {
         return from(qa, sources, exclusions, draftVersionId, previousVersionPublished,
@@ -66,7 +73,7 @@ public record KnowledgeQaDetailResponse(
     public static KnowledgeQaDetailResponse from(
             KnowledgeQuestionAnswer qa,
             List<KnowledgeSourceReference> sources,
-            List<KnowledgeQaApplicabilityExclusion> exclusions,
+            List<KnowledgeQaApplicabilityRule> exclusions,
             UUID draftVersionId,
             boolean previousVersionPublished,
             com.knowledgeflow.ai.documented.SourceFreshnessPolicy freshnessPolicy) {
@@ -101,7 +108,7 @@ public record KnowledgeQaDetailResponse(
                 sources.stream().map(src -> SourceReferenceResponse.from(src, freshnessPolicy)).toList(),
                 qa.getApplicabilityReviewedAt(),
                 qa.getApplicabilityReviewedBy(),
-                exclusions.stream().map(ApplicabilityExclusionResponse::from).toList(),
+                exclusions.stream().map(ApplicabilityRuleResponse::from).toList(),
                 draftVersionId,
                 previousVersionPublished);
     }

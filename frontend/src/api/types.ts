@@ -148,7 +148,8 @@ export interface KnowledgeQaDetail {
   sources: SourceReference[];
   applicabilityReviewedAt: string | null;
   applicabilityReviewedBy: string | null;
-  applicabilityExclusions: ApplicabilityExclusion[];
+  /** Regras de aplicabilidade (exclusões e contexto obrigatório, ADR-009). */
+  applicabilityRules: ApplicabilityRule[];
   /** Versão em preparação (não publicada) derivada desta, se existir (ADR-005). */
   draftVersionId: string | null;
   /** A versão anterior (previousVersionId) está publicada. */
@@ -164,7 +165,7 @@ export type ApplicabilityRuleKind = "EXCLUDES" | "REQUIRES";
  * Regra de aplicabilidade: exclusão ou contexto obrigatório (kind). removalPending = remoção a
  * aguardar validação.
  */
-export interface ApplicabilityExclusion {
+export interface ApplicabilityRule {
   marker: string;
   label: string | null;
   kind: ApplicabilityRuleKind;
@@ -192,7 +193,8 @@ export interface KnowledgeQaApplicability {
   applicabilityReviewedAt: string | null;
   applicabilityReviewedBy: string | null;
   derivedScope: { taxDomains: string[]; incomeCategories: string[]; operations: string[] };
-  exclusions: ApplicabilityExclusion[];
+  /** Regras de aplicabilidade (exclusões e contexto obrigatório, ADR-009). */
+  rules: ApplicabilityRule[];
   vocabulary: ApplicabilityMarkerOption[];
 }
 

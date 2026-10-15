@@ -8,8 +8,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaExclusionMarkerRow;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQaScopeRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.rag.RagSearchService.RetrievedCase;
@@ -35,14 +35,14 @@ class FiscalScopeFilterTest {
     private static final UUID QA_RENT = UUID.fromString("00000000-0000-0000-0000-000000005930");
 
     @Mock private KnowledgeQuestionAnswerRepository repository;
-    @Mock private KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
+    @Mock private KnowledgeQaApplicabilityRuleRepository ruleRepository;
 
     private FiscalScopeFilter filter;
 
     @BeforeEach
     void setUp() {
         FiscalScopeClassifier classifier = new FiscalScopeClassifier();
-        filter = new FiscalScopeFilter(new CandidateScopeLoader(repository, exclusionRepository, classifier),
+        filter = new FiscalScopeFilter(new CandidateScopeLoader(repository, ruleRepository, classifier),
                 classifier, new ApplicabilityMarkerDetector(), new ScopeCompatibilityGate(), new ScopeGateProperties(true));
     }
 
@@ -111,7 +111,7 @@ class FiscalScopeFilterTest {
                 throw new IllegalStateException("boom");
             }
         };
-        FiscalScopeFilter failing = new FiscalScopeFilter(new CandidateScopeLoader(repository, exclusionRepository, broken),
+        FiscalScopeFilter failing = new FiscalScopeFilter(new CandidateScopeLoader(repository, ruleRepository, broken),
                 broken, new ApplicabilityMarkerDetector(), new ScopeCompatibilityGate(), new ScopeGateProperties(true));
 
         assertThat(failing.filter("Pergunta?", List.of(qa("5795", QA_PENSION)))).isEmpty();
@@ -139,7 +139,7 @@ class FiscalScopeFilterTest {
         List<RetrievedCase> candidates = List.of(qa("5795", QA_PENSION));
 
         assertThat(FiscalScopeFilter.disabled().filter("Qual a taxa de IRC?", candidates)).isSameAs(candidates);
-        assertThat(new FiscalScopeFilter(new CandidateScopeLoader(repository, exclusionRepository, new FiscalScopeClassifier()),
+        assertThat(new FiscalScopeFilter(new CandidateScopeLoader(repository, ruleRepository, new FiscalScopeClassifier()),
                 new FiscalScopeClassifier(), new ApplicabilityMarkerDetector(), new ScopeCompatibilityGate(),
                 new ScopeGateProperties(false))
                 .filter("Qual a taxa de IRC?", candidates)).isSameAs(candidates);
@@ -170,8 +170,8 @@ class FiscalScopeFilterTest {
     @Test
     void effectiveExclusion_rejectsOnlyWhenTheQuestionCarriesTheMarker() {
         when(repository.findScopeRowsByIdIn(any())).thenReturn(List.of(rentRow()));
-        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
-                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_RENT, "INQUILINO", "EXCLUDES")));
+        when(ruleRepository.findRuleRowsByKnowledgeQaIdIn(any()))
+                .thenReturn(List.of(new KnowledgeQaApplicabilityRuleRow(QA_RENT, "INQUILINO", "EXCLUDES")));
 
         assertThat(filter.filter("Como inquilino, posso deduzir as obras?", List.of(qa("5930", QA_RENT)))).isEmpty();
         assertThat(filter.filter("Sou senhorio; que despesas deduzo às rendas?", List.of(qa("5930", QA_RENT))))
@@ -181,8 +181,8 @@ class FiscalScopeFilterTest {
     @Test
     void unknownMarkerInDatabase_isFailClosedForThatCandidateOnly() {
         when(repository.findScopeRowsByIdIn(any())).thenReturn(List.of(rentRow(), pensionRow()));
-        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
-                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_RENT, "MARCADOR_REMOVIDO", "EXCLUDES")));
+        when(ruleRepository.findRuleRowsByKnowledgeQaIdIn(any()))
+                .thenReturn(List.of(new KnowledgeQaApplicabilityRuleRow(QA_RENT, "MARCADOR_REMOVIDO", "EXCLUDES")));
 
         assertThat(filter.filter("E os prazos?", List.of(qa("5930", QA_RENT), qa("5795", QA_PENSION))))
                 .extracting(RetrievedCase::title).containsExactly("5795");
@@ -190,7 +190,7 @@ class FiscalScopeFilterTest {
 
     @Test
     void exclusionLoadingFailure_isFailClosed() {
-        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
+        when(ruleRepository.findRuleRowsByKnowledgeQaIdIn(any()))
                 .thenThrow(new DataAccessResourceFailureException("down"));
 
         assertThat(filter.filter("E os prazos?", List.of(qa("5930", QA_RENT)))).isEmpty();
@@ -201,19 +201,19 @@ class FiscalScopeFilterTest {
         when(repository.findScopeRowsByIdIn(any())).thenReturn(List.of(pensionRow(), vatRow(), rentRow()));
 
         filter.filter("Pergunta?", List.of(qa("A", QA_VAT), qa("B", QA_PENSION), qa("C", QA_RENT)));
-        verify(exclusionRepository, times(1)).findMarkerRowsByKnowledgeQaIdIn(Set.of(QA_VAT, QA_PENSION, QA_RENT));
+        verify(ruleRepository, times(1)).findRuleRowsByKnowledgeQaIdIn(Set.of(QA_VAT, QA_PENSION, QA_RENT));
 
         RetrievedCase document = new RetrievedCase("Documento", "?", "Texto.", 0.95, SourceKind.DOCUMENT, null);
         filter.filter("Sou inquilino?", List.of(document));
         filter.filter("Sou inquilino?", List.of());
-        verify(exclusionRepository, times(1)).findMarkerRowsByKnowledgeQaIdIn(any());
+        verify(ruleRepository, times(1)).findRuleRowsByKnowledgeQaIdIn(any());
     }
 
     @Test
     void logs_neverContainTheQuestion_evenWithMarkers(CapturedOutput output) {
         when(repository.findScopeRowsByIdIn(any())).thenReturn(List.of(rentRow()));
-        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
-                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_RENT, "INQUILINO", "EXCLUDES")));
+        when(ruleRepository.findRuleRowsByKnowledgeQaIdIn(any()))
+                .thenReturn(List.of(new KnowledgeQaApplicabilityRuleRow(QA_RENT, "INQUILINO", "EXCLUDES")));
 
         filter.filter("Sou inquilino da Dona Confidencial; posso deduzir obras?", List.of(qa("5930", QA_RENT)));
 
@@ -240,8 +240,8 @@ class FiscalScopeFilterTest {
     @Test
     void requiredContext_rejectsGenericQuestions_keepsSpecificOnes(CapturedOutput output) {
         when(repository.findScopeRowsByIdIn(any())).thenReturn(List.of(isolatedActRow()));
-        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
-                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_ISOLATED, "ACTO_ISOLADO", "REQUIRES")));
+        when(ruleRepository.findRuleRowsByKnowledgeQaIdIn(any()))
+                .thenReturn(List.of(new KnowledgeQaApplicabilityRuleRow(QA_ISOLATED, "ACTO_ISOLADO", "REQUIRES")));
 
         assertThat(filter.filter("Em que condições posso deduzir o IVA suportado?", List.of(qa("0959", QA_ISOLATED))))
                 .isEmpty();
@@ -255,9 +255,9 @@ class FiscalScopeFilterTest {
     @Test
     void requiredContext_needsAllDeclaredMarkers() {
         when(repository.findScopeRowsByIdIn(any())).thenReturn(List.of(nonResidentsRow()));
-        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any())).thenReturn(List.of(
-                new KnowledgeQaExclusionMarkerRow(QA_NON_RESIDENTS, "FORNECEDOR_NAO_RESIDENTE", "REQUIRES"),
-                new KnowledgeQaExclusionMarkerRow(QA_NON_RESIDENTS, "ADQUIRENTE_NAO_RESIDENTE", "REQUIRES")));
+        when(ruleRepository.findRuleRowsByKnowledgeQaIdIn(any())).thenReturn(List.of(
+                new KnowledgeQaApplicabilityRuleRow(QA_NON_RESIDENTS, "FORNECEDOR_NAO_RESIDENTE", "REQUIRES"),
+                new KnowledgeQaApplicabilityRuleRow(QA_NON_RESIDENTS, "ADQUIRENTE_NAO_RESIDENTE", "REQUIRES")));
         List<RetrievedCase> candidate = List.of(qa("4624", QA_NON_RESIDENTS));
 
         assertThat(filter.filter("Quando se aplica a inversão do sujeito passivo com fornecedores não residentes?", candidate))
@@ -271,9 +271,9 @@ class FiscalScopeFilterTest {
     @Test
     void exclusionAndRequiredContext_combine() {
         when(repository.findScopeRowsByIdIn(any())).thenReturn(List.of(rentRow()));
-        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any())).thenReturn(List.of(
-                new KnowledgeQaExclusionMarkerRow(QA_RENT, "SUBLOCACAO", "REQUIRES"),
-                new KnowledgeQaExclusionMarkerRow(QA_RENT, "INQUILINO", "EXCLUDES")));
+        when(ruleRepository.findRuleRowsByKnowledgeQaIdIn(any())).thenReturn(List.of(
+                new KnowledgeQaApplicabilityRuleRow(QA_RENT, "SUBLOCACAO", "REQUIRES"),
+                new KnowledgeQaApplicabilityRuleRow(QA_RENT, "INQUILINO", "EXCLUDES")));
         List<RetrievedCase> candidate = List.of(qa("subarrendamento", QA_RENT));
 
         assertThat(filter.filter("Na sublocação, que despesas posso deduzir às rendas?", candidate)).hasSize(1);
@@ -284,8 +284,8 @@ class FiscalScopeFilterTest {
     @Test
     void unknownRuleKindInDatabase_isFailClosedForThatCandidateOnly() {
         when(repository.findScopeRowsByIdIn(any())).thenReturn(List.of(rentRow(), pensionRow()));
-        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
-                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_RENT, "SUBLOCACAO", "PREFERS")));
+        when(ruleRepository.findRuleRowsByKnowledgeQaIdIn(any()))
+                .thenReturn(List.of(new KnowledgeQaApplicabilityRuleRow(QA_RENT, "SUBLOCACAO", "PREFERS")));
 
         assertThat(filter.filter("E os prazos?", List.of(qa("5930", QA_RENT), qa("5795", QA_PENSION))))
                 .extracting(RetrievedCase::title).containsExactly("5795");

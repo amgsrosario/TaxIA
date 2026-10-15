@@ -17,8 +17,8 @@ import com.knowledgeflow.ai.grounding.scope.FiscalScopeFilter;
 import com.knowledgeflow.ai.grounding.scope.ScopeCompatibilityGate;
 import com.knowledgeflow.ai.grounding.scope.ScopeGateProperties;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaExclusionMarkerRow;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQaScopeRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
@@ -51,7 +51,7 @@ class GroundingScopeGateTest {
 
     @Mock private AIService aiService;
     @Mock private KnowledgeQuestionAnswerRepository qaRepository;
-    @Mock private KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
+    @Mock private KnowledgeQaApplicabilityRuleRepository ruleRepository;
     @Mock private KnowledgeSourceReferenceRepository sourceRepository;
 
     private GroundingService service;
@@ -60,7 +60,7 @@ class GroundingScopeGateTest {
     void setUp() {
         FiscalScopeClassifier classifier = new FiscalScopeClassifier();
         FiscalScopeFilter filter = new FiscalScopeFilter(
-                new CandidateScopeLoader(qaRepository, exclusionRepository, classifier), classifier, new ApplicabilityMarkerDetector(), new ScopeCompatibilityGate(), new ScopeGateProperties(true));
+                new CandidateScopeLoader(qaRepository, ruleRepository, classifier), classifier, new ApplicabilityMarkerDetector(), new ScopeCompatibilityGate(), new ScopeGateProperties(true));
         service = new GroundingService(new ContextSufficiencyEvaluator(PROPS), new AnswerGroundingValidator(PROPS),
                 new SafeResponseFactory(), aiService, PROPS, filter);
     }
@@ -136,8 +136,8 @@ class GroundingScopeGateTest {
     @Test
     void excludedCandidate_neverReachesPromptProviderOrSources() {
         when(qaRepository.findScopeRowsByIdIn(any())).thenReturn(corpus());
-        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
-                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_5930, "INQUILINO", "EXCLUDES")));
+        when(ruleRepository.findRuleRowsByKnowledgeQaIdIn(any()))
+                .thenReturn(List.of(new KnowledgeQaApplicabilityRuleRow(QA_5930, "INQUILINO", "EXCLUDES")));
 
         GroundedAIResponse result = service.process("Como inquilino, posso deduzir no IRS as obras que paguei?",
                 null, List.of(qa("5930", 0.8872, QA_5930)));
@@ -151,8 +151,8 @@ class GroundingScopeGateTest {
     @Test
     void exclusionOfOneCandidate_keepsTheOthers_andThePromptOnlyHasThem() {
         when(qaRepository.findScopeRowsByIdIn(any())).thenReturn(corpus());
-        when(exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(any()))
-                .thenReturn(List.of(new KnowledgeQaExclusionMarkerRow(QA_2721, "CALCULO", "EXCLUDES")));
+        when(ruleRepository.findRuleRowsByKnowledgeQaIdIn(any()))
+                .thenReturn(List.of(new KnowledgeQaApplicabilityRuleRow(QA_2721, "CALCULO", "EXCLUDES")));
         when(aiService.complete(any())).thenReturn(answer("Resposta."));
 
         GroundedAIResponse result = service.process(
@@ -172,7 +172,7 @@ class GroundingScopeGateTest {
                 null, List.of(qa("5795", 0.8695, QA_5795)));
 
         assertThat(result.supportStatus()).isEqualTo(AnswerSupportStatus.INSUFFICIENT_CONTEXT);
-        verifyNoInteractions(qaRepository, exclusionRepository, aiService);
+        verifyNoInteractions(qaRepository, ruleRepository, aiService);
     }
 
     private static List<KnowledgeQaScopeRow> corpus() {

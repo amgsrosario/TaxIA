@@ -2,11 +2,13 @@ package com.knowledgeflow.ai.grounding.scope;
 
 import com.knowledgeflow.ai.grounding.scope.FiscalScope.FiscalOperation;
 import com.knowledgeflow.knowledge.enums.ApplicabilityMarker;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
@@ -24,7 +26,7 @@ import org.springframework.stereotype.Component;
 public class ApplicabilityMarkerDetector {
 
     /** Versão do vocabulário de detecção — sobe sempre que os padrões mudam. */
-    public static final String VOCABULARY_VERSION = "2026-10-14.2";
+    public static final String VOCABULARY_VERSION = "2026-10-15.1";
 
     /** Sujeitos de uma operação que podem ser qualificados como não residentes. */
     private static final String ENTITY = "(?:sujeitos? passivos?|empresas?|entidades?|sociedades?)";
@@ -50,6 +52,17 @@ public class ApplicabilityMarkerDetector {
      */
     private static final Pattern NEGATION_WORD = Pattern.compile(
             "\\b(?:nao(?! residentes?\\b)|nunca|jamais|sem|nenhum\\w*|deix\\w* de|proib\\w*|imped\\w*|recus\\w*|fora de questao)\\b");
+
+    /**
+     * Marcadores de exclusão cuja menção negada não conta ("nao tenho actividade aberta", "sem
+     * actividade", "nao estou colectado"): a negação descreve precisamente o caso oposto.
+     */
+    private static final Set<ApplicabilityMarker> LOCALLY_NEGATABLE = EnumSet.of(ApplicabilityMarker.ACTIVIDADE_REGULAR);
+    /** Fronteiras de oração (inclui a vírgula: "Nao, tenho actividade regular"). */
+    private static final Pattern CLAUSE = Pattern.compile("[.;:!?,]+");
+    private static final int LOCAL_NEGATION_TOKENS = 3;
+    /** Papel de quem adquire. */
+    private static final String ACQUIRER = "(?:adquirente|cliente|destinatario|comprador)(?:e?s)?";
 
     /** Verbos de quem fornece, na 3.ª pessoa ("presta", "vendem"); "prestamos"/"efectua aquisicoes" não contam. */
     private static final String SUPPLY_VERB = "(?:presta|prestam|vende|vendem|fornece|fornecem|transmite|transmitem)";
@@ -124,6 +137,21 @@ public class ApplicabilityMarkerDetector {
                         + ENTITY + "(?: tambem)? " + NON_RESIDENT
                         // "por um sujeito passivo nao residente a outro sujeito passivo nao residente"
                         + "|por (?:um|uma) " + ENTITY + " " + NON_RESIDENT + " a outr[oa]s? " + ENTITY + " " + NON_RESIDENT));
+        // Defesa híbrida (só exclusão, C9-A): actividade regular de quem pergunta.
+        patterns.put(ApplicabilityMarker.ACTIVIDADE_REGULAR, word(
+                "(?:actividade|atividade)s? (?:aberta|regular|habitual|registada|declarada)s?"
+                        + "|exercicio habitual"
+                        + "|(?:tenho|temos|exerco|exercemos) (?:uma |a )?(?:actividade|atividade)"
+                        + "|(?:sou|estou|somos|estamos|fiquei|ficamos) (?:colectad|coletad)\\w*"));
+        // Defesa híbrida (só exclusão, C9-A): o adquirente é residente em Portugal. Pelo papel
+        // ("cliente portugues", "o adquirente tem estabelecimento estavel em Portugal", "o cliente e uma
+        // empresa portuguesa") ou por "empresa portuguesa compra". "Portugal" sozinho não conta.
+        patterns.put(ApplicabilityMarker.ADQUIRENTE_RESIDENTE, word(
+                ACQUIRER + LINK + " (?:residentes?(?: em portugal| no territorio nacional)?|portugues(?:a|es|as)?)"
+                        + "|" + ACQUIRER + " (?:tem|tinha|possui|dispoe de) (?:sede|(?:um |uma )?estabelecimento estavel"
+                        + "|domicilio)(?: \\w+){0,2}? em portugal"
+                        + "|" + ACQUIRER + LINK + " (?:uma |um )?" + ENTITY + " (?:portugues(?:a|es|as)?|residentes? em portugal)"
+                        + "|" + ENTITY + " portugues(?:a|es|as)? (?:que )?(?:compra|compram|adquire|adquirem|contrata|contratam)"));
         PATTERNS = Collections.unmodifiableMap(patterns);
     }
 
@@ -135,7 +163,10 @@ public class ApplicabilityMarkerDetector {
         String normalized = FiscalScopeClassifier.normalize(question);
         Set<ApplicabilityMarker> markers = EnumSet.noneOf(ApplicabilityMarker.class);
         PATTERNS.forEach((marker, pattern) -> {
-            if (pattern.matcher(normalized).find()) {
+            boolean found = LOCALLY_NEGATABLE.contains(marker)
+                    ? hasLocallyAffirmedOccurrence(pattern, question)
+                    : pattern.matcher(normalized).find();
+            if (found) {
                 markers.add(marker);
             }
         });
@@ -159,6 +190,27 @@ public class ApplicabilityMarkerDetector {
             affirmed.removeAll(NEGATABLE);
         }
         return affirmed;
+    }
+
+    /**
+     * Alguma ocorrência sem negação nas {@link #LOCAL_NEGATION_TOKENS} palavras anteriores da mesma
+     * oração. Para exclusões: na dúvida (negada) não dispara e fica o comportamento anterior.
+     */
+    private static boolean hasLocallyAffirmedOccurrence(Pattern pattern, String question) {
+        for (String clause : CLAUSE.split(question == null ? "" : question)) {
+            String normalized = FiscalScopeClassifier.normalize(clause);
+            Matcher matcher = pattern.matcher(normalized);
+            while (matcher.find()) {
+                String before = normalized.substring(0, matcher.start()).trim();
+                String[] tokens = before.isEmpty() ? new String[0] : before.split(" ");
+                String window = String.join(" ",
+                        Arrays.copyOfRange(tokens, Math.max(0, tokens.length - LOCAL_NEGATION_TOKENS), tokens.length));
+                if (!NEGATION_WORD.matcher(window).find()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static Pattern word(String alternatives) {

@@ -6,17 +6,17 @@ import com.knowledgeflow.audit.enums.AuditAction;
 import com.knowledgeflow.audit.service.AuditService;
 import com.knowledgeflow.common.error.ApiErrorCode;
 import com.knowledgeflow.common.error.BusinessException;
-import com.knowledgeflow.knowledge.dto.ApplicabilityExclusionRequest;
-import com.knowledgeflow.knowledge.dto.ApplicabilityExclusionResponse;
+import com.knowledgeflow.knowledge.dto.ApplicabilityRuleRequest;
+import com.knowledgeflow.knowledge.dto.ApplicabilityRuleResponse;
 import com.knowledgeflow.knowledge.dto.ApplicabilityMarkerOption;
 import com.knowledgeflow.knowledge.dto.KnowledgeQaApplicabilityResponse;
 import com.knowledgeflow.knowledge.dto.KnowledgeQaApplicabilityResponse.DerivedScope;
-import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityExclusion;
+import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityRule;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.enums.ApplicabilityMarker;
 import com.knowledgeflow.knowledge.enums.ApplicabilityRuleKind;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import java.util.Arrays;
 import java.util.List;
@@ -37,12 +37,12 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *   <li>Remover numa Q&amp;A que não pode ser publicada sem nova validação (não publicada e não
  *       VALIDATED): efectivo de imediato.</li>
  *   <li>Remover numa Q&amp;A publicada — ou VALIDATED, que pode ser (re)publicada sem nova
- *       validação — alarga o âmbito: fica apenas pedido; a exclusão continua efectiva até um humano
- *       aprovar a remoção ({@link #approveRemoval}). Uma exclusão com remoção pendente só sai por
+ *       validação — alarga o âmbito: fica apenas pedido; a regra continua efectiva até um humano
+ *       aprovar a remoção ({@link #approveRemoval}). Uma regra com remoção pendente só sai por
  *       aprovação ou fica por cancelamento. Nunca há remoção efectiva silenciosa.</li>
  * </ul>
  * Cada operação é transaccional, com lock de escrita na Q&amp;A (serializa com a publicação), e
- * auditada com {@code KNOWLEDGE_QA_APPLICABILITY_UPDATED}. Mudanças efectivas de exclusões
+ * auditada com {@code KNOWLEDGE_QA_APPLICABILITY_UPDATED}. Mudanças efectivas de regras
  * repõem o âmbito como "não revisto".
  */
 @Service
@@ -53,17 +53,17 @@ public class KnowledgeQaApplicabilityService {
     private static final String ENTITY = "KnowledgeQuestionAnswer";
 
     private final KnowledgeQuestionAnswerRepository qaRepository;
-    private final KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
+    private final KnowledgeQaApplicabilityRuleRepository ruleRepository;
     private final FiscalScopeClassifier classifier;
     private final AuditService auditService;
 
     public KnowledgeQaApplicabilityService(
             KnowledgeQuestionAnswerRepository qaRepository,
-            KnowledgeQaApplicabilityExclusionRepository exclusionRepository,
+            KnowledgeQaApplicabilityRuleRepository ruleRepository,
             FiscalScopeClassifier classifier,
             AuditService auditService) {
         this.qaRepository = qaRepository;
-        this.exclusionRepository = exclusionRepository;
+        this.ruleRepository = ruleRepository;
         this.classifier = classifier;
         this.auditService = auditService;
     }
@@ -74,8 +74,8 @@ public class KnowledgeQaApplicabilityService {
     }
 
     @Transactional
-    public KnowledgeQaApplicabilityResponse addExclusion(
-            UUID organizationId, UUID actingUserId, String actor, UUID qaId, ApplicabilityExclusionRequest request) {
+    public KnowledgeQaApplicabilityResponse addRule(
+            UUID organizationId, UUID actingUserId, String actor, UUID qaId, ApplicabilityRuleRequest request) {
         KnowledgeQuestionAnswer qa = requireOwnedForUpdate(organizationId, qaId);
         ApplicabilityMarker marker = requireMarker(request == null ? null : request.marker());
         ApplicabilityRuleKind kind = requireKind(request.kind());
@@ -84,13 +84,13 @@ public class KnowledgeQaApplicabilityService {
                     "Marker %s cannot be used as required context".formatted(marker.name()));
         }
         String note = normalizeNote(request.note());
-        if (exclusionRepository.findByKnowledgeQaIdAndMarker(qaId, marker.name()).isPresent()) {
+        if (ruleRepository.findByKnowledgeQaIdAndMarker(qaId, marker.name()).isPresent()) {
             throw new BusinessException(ApiErrorCode.CONFLICT,
                     "Applicability rule %s already exists for this entry".formatted(marker.name()));
         }
         try {
-            exclusionRepository.saveAndFlush(
-                    new KnowledgeQaApplicabilityExclusion(qa, marker.name(), kind, note, actor));
+            ruleRepository.saveAndFlush(
+                    new KnowledgeQaApplicabilityRule(qa, marker.name(), kind, note, actor));
         } catch (DataIntegrityViolationException e) {
             throw new BusinessException(ApiErrorCode.CONFLICT,
                     "Applicability rule %s already exists for this entry".formatted(marker.name()));
@@ -102,64 +102,64 @@ public class KnowledgeQaApplicabilityService {
     }
 
     /**
-     * Pede ou executa a remoção. Q&amp;A publicada ou VALIDATED: só regista o pedido (a exclusão
+     * Pede ou executa a remoção. Q&amp;A publicada ou VALIDATED: só regista o pedido (a regra
      * continua efectiva). Restantes: remove de imediato. Uma remoção já pendente não pode ser
      * contornada por este caminho (409): aprova-se ou cancela-se.
      */
     @Transactional
-    public KnowledgeQaApplicabilityResponse removeExclusion(
+    public KnowledgeQaApplicabilityResponse removeRule(
             UUID organizationId, UUID actingUserId, String actor, UUID qaId, String markerCode) {
         KnowledgeQuestionAnswer qa = requireOwnedForUpdate(organizationId, qaId);
-        KnowledgeQaApplicabilityExclusion exclusion = requireExclusion(qaId, markerCode);
-        if (exclusion.isRemovalPending()) {
+        KnowledgeQaApplicabilityRule rule = requireRule(qaId, markerCode);
+        if (rule.isRemovalPending()) {
             throw new BusinessException(ApiErrorCode.INVALID_STATE_TRANSITION,
                     "Removal of %s is already pending human validation — approve or cancel it"
-                            .formatted(exclusion.getMarker()));
+                            .formatted(rule.getMarker()));
         }
         if (removalNeedsValidation(qa)) {
-            exclusion.requestRemoval(actor);
-            exclusionRepository.save(exclusion);
-            audit(organizationId, actingUserId, qa, "REMOVAL_REQUESTED", exclusion.getMarker(), actor,
-                    kindDetail(exclusion.getKind(), null));
+            rule.requestRemoval(actor);
+            ruleRepository.save(rule);
+            audit(organizationId, actingUserId, qa, "REMOVAL_REQUESTED", rule.getMarker(), actor,
+                    kindDetail(rule.getKind(), null));
             return response(qa);
         }
-        exclusionRepository.delete(exclusion);
-        exclusionRepository.flush();
+        ruleRepository.delete(rule);
+        ruleRepository.flush();
         clearReview(qa);
-        audit(organizationId, actingUserId, qa, "REMOVED", exclusion.getMarker(), actor,
-                kindDetail(exclusion.getKind(), "curationStatus=" + qa.getCurationStatus()));
+        audit(organizationId, actingUserId, qa, "REMOVED", rule.getMarker(), actor,
+                kindDetail(rule.getKind(), "curationStatus=" + qa.getCurationStatus()));
         return response(qa);
     }
 
-    /** Validação humana de uma remoção pendente: só então a exclusão deixa de ser efectiva. */
+    /** Validação humana de uma remoção pendente: só então a regra deixa de ser efectiva. */
     @Transactional
     public KnowledgeQaApplicabilityResponse approveRemoval(
             UUID organizationId, UUID actingUserId, String reviewerName, UUID qaId, String markerCode) {
         requireReviewer(reviewerName);
         KnowledgeQuestionAnswer qa = requireOwnedForUpdate(organizationId, qaId);
-        KnowledgeQaApplicabilityExclusion exclusion = requirePending(requireExclusion(qaId, markerCode));
-        exclusionRepository.delete(exclusion);
-        exclusionRepository.flush();
+        KnowledgeQaApplicabilityRule rule = requirePending(requireRule(qaId, markerCode));
+        ruleRepository.delete(rule);
+        ruleRepository.flush();
         clearReview(qa);
-        audit(organizationId, actingUserId, qa, "REMOVAL_APPROVED", exclusion.getMarker(), reviewerName.trim(),
-                kindDetail(exclusion.getKind(), "requestedBy=" + exclusion.getRemovalRequestedBy()));
+        audit(organizationId, actingUserId, qa, "REMOVAL_APPROVED", rule.getMarker(), reviewerName.trim(),
+                kindDetail(rule.getKind(), "requestedBy=" + rule.getRemovalRequestedBy()));
         return response(qa);
     }
 
-    /** Desiste de um pedido de remoção pendente; a exclusão mantém-se. */
+    /** Desiste de um pedido de remoção pendente; a regra mantém-se. */
     @Transactional
     public KnowledgeQaApplicabilityResponse cancelRemoval(
             UUID organizationId, UUID actingUserId, String actor, UUID qaId, String markerCode) {
         KnowledgeQuestionAnswer qa = requireOwnedForUpdate(organizationId, qaId);
-        KnowledgeQaApplicabilityExclusion exclusion = requirePending(requireExclusion(qaId, markerCode));
-        exclusion.cancelRemovalRequest();
-        exclusionRepository.save(exclusion);
-        audit(organizationId, actingUserId, qa, "REMOVAL_CANCELLED", exclusion.getMarker(), actor,
-                kindDetail(exclusion.getKind(), null));
+        KnowledgeQaApplicabilityRule rule = requirePending(requireRule(qaId, markerCode));
+        rule.cancelRemovalRequest();
+        ruleRepository.save(rule);
+        audit(organizationId, actingUserId, qa, "REMOVAL_CANCELLED", rule.getMarker(), actor,
+                kindDetail(rule.getKind(), null));
         return response(qa);
     }
 
-    /** "Âmbito revisto": regista quem e quando, com ou sem exclusões. */
+    /** "Âmbito revisto": regista quem e quando, com ou sem regras. */
     @Transactional
     public KnowledgeQaApplicabilityResponse markReviewed(
             UUID organizationId, UUID actingUserId, String reviewerName, UUID qaId) {
@@ -167,11 +167,11 @@ public class KnowledgeQaApplicabilityService {
         KnowledgeQuestionAnswer qa = requireOwnedForUpdate(organizationId, qaId);
         qa.markApplicabilityReviewed(reviewerName.trim());
         qaRepository.save(qa);
-        List<KnowledgeQaApplicabilityExclusion> rules = exclusionRepository.findByKnowledgeQaId(qaId);
+        List<KnowledgeQaApplicabilityRule> rules = ruleRepository.findByKnowledgeQaId(qaId);
         List<String> markers = rules.stream().filter(r -> !isRequired(r.getKind()))
-                .map(KnowledgeQaApplicabilityExclusion::getMarker).toList();
+                .map(KnowledgeQaApplicabilityRule::getMarker).toList();
         List<String> required = rules.stream().filter(r -> isRequired(r.getKind()))
-                .map(KnowledgeQaApplicabilityExclusion::getMarker).toList();
+                .map(KnowledgeQaApplicabilityRule::getMarker).toList();
         audit(organizationId, actingUserId, qa, "REVIEWED", null, reviewerName.trim(),
                 "exclusions=" + markers + (required.isEmpty() ? "" : " requiredContext=" + required));
         return response(qa);
@@ -194,13 +194,13 @@ public class KnowledgeQaApplicabilityService {
                 qa.getApplicabilityReviewedAt(),
                 qa.getApplicabilityReviewedBy(),
                 derived,
-                exclusionRepository.findByKnowledgeQaId(qa.getId()).stream()
-                        .map(ApplicabilityExclusionResponse::from).toList(),
+                ruleRepository.findByKnowledgeQaId(qa.getId()).stream()
+                        .map(ApplicabilityRuleResponse::from).toList(),
                 vocabulary());
     }
 
     /**
-     * Retirar uma exclusão alarga o âmbito. Só é imediato quando a Q&amp;A não pode chegar ao RAG
+     * Retirar uma regra (exclusão ou contexto obrigatório) alarga o âmbito. Só é imediato quando a Q&amp;A não pode chegar ao RAG
      * sem nova validação humana (não publicada e não VALIDATED); caso contrário fica pendente.
      */
     private static boolean removalNeedsValidation(KnowledgeQuestionAnswer qa) {
@@ -286,18 +286,18 @@ public class KnowledgeQaApplicabilityService {
         }
     }
 
-    private KnowledgeQaApplicabilityExclusion requireExclusion(UUID qaId, String markerCode) {
-        return exclusionRepository.findByKnowledgeQaIdAndMarker(qaId, markerCode == null ? "" : markerCode.trim())
+    private KnowledgeQaApplicabilityRule requireRule(UUID qaId, String markerCode) {
+        return ruleRepository.findByKnowledgeQaIdAndMarker(qaId, markerCode == null ? "" : markerCode.trim())
                 .orElseThrow(() -> new BusinessException(ApiErrorCode.NOT_FOUND,
-                        "Applicability exclusion not found: " + markerCode));
+                        "Applicability rule not found: " + markerCode));
     }
 
-    private static KnowledgeQaApplicabilityExclusion requirePending(KnowledgeQaApplicabilityExclusion exclusion) {
-        if (!exclusion.isRemovalPending()) {
+    private static KnowledgeQaApplicabilityRule requirePending(KnowledgeQaApplicabilityRule rule) {
+        if (!rule.isRemovalPending()) {
             throw new BusinessException(ApiErrorCode.INVALID_STATE_TRANSITION,
-                    "No pending removal for exclusion " + exclusion.getMarker());
+                    "No pending removal for applicability rule " + rule.getMarker());
         }
-        return exclusion;
+        return rule;
     }
 
     private KnowledgeQuestionAnswer requireOwned(UUID organizationId, UUID id) {

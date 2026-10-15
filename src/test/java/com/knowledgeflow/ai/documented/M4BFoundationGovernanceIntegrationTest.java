@@ -5,11 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.knowledgeflow.ai.grounding.GroundedAIResponse;
 import com.knowledgeflow.ai.grounding.GroundingFoundation;
 import com.knowledgeflow.ai.grounding.GroundingService;
-import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityExclusion;
+import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityRule;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeQaGovernanceRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.organizations.entity.Organization;
@@ -40,7 +40,7 @@ class M4BFoundationGovernanceIntegrationTest {
     @Autowired private DataSource dataSource;
     @Autowired private OrganizationRepository organizationRepository;
     @Autowired private KnowledgeQuestionAnswerRepository qaRepository;
-    @Autowired private KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
+    @Autowired private KnowledgeQaApplicabilityRuleRepository ruleRepository;
     @Autowired private GroundingService groundingService;
     @Autowired private FoundationGovernanceResolver resolver;
     @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
@@ -95,7 +95,7 @@ class M4BFoundationGovernanceIntegrationTest {
     void highRejectedByApplicability_doesNotContaminate() {
         KnowledgeQuestionAnswer landlord = curated("M4B-5", "Que despesas pode o senhorio deduzir às rendas?",
                 KnowledgeTopic.IRS, KnowledgeRiskLevel.HIGH, true);
-        exclusionRepository.save(new KnowledgeQaApplicabilityExclusion(landlord, "INQUILINO", "Só senhorio.", "curador"));
+        ruleRepository.save(new KnowledgeQaApplicabilityRule(landlord, "INQUILINO", "Só senhorio.", "curador"));
         KnowledgeQuestionAnswer general = curated("M4B-6", "Que despesas são dedutíveis no IRS?",
                 KnowledgeTopic.IRS, KnowledgeRiskLevel.LOW, false);
 
