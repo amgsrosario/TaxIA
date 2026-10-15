@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
 public class ApplicabilityMarkerDetector {
 
     /** Versão do vocabulário de detecção — sobe sempre que os padrões mudam. */
-    public static final String VOCABULARY_VERSION = "2026-10-15.2";
+    public static final String VOCABULARY_VERSION = "2026-10-15.3";
 
     /** Sujeitos de uma operação que podem ser qualificados como não residentes. */
     private static final String ENTITY = "(?:sujeitos? passivos?|empresas?|entidades?|sociedades?)";
@@ -88,12 +88,24 @@ public class ApplicabilityMarkerDetector {
      */
     private static final Pattern SUPPLIER_RESIDENT_HERE =
             Pattern.compile("\\b(?:" + SUPPLIER + QUALIFIER + "(?: (?:e|for|seja|sendo))? " + RESIDENT_HERE + ")\\b");
-    /** Fornecedor e adquirente nomeados juntos com residência/sede em Portugal ("ambos com sede em Portugal"). */
+    /** Fornecedor e adquirente nomeados juntos, em qualquer ordem ("o fornecedor e o cliente"). */
     private static final String BOTH_ROLES =
-            "(?:" + SUPPLIER + QUALIFIER + " e (?:o |a )?" + ACQUIRER + "|" + ACQUIRER + QUALIFIER + " e (?:o |a )?" + SUPPLIER + ")"
+            "(?:" + SUPPLIER + QUALIFIER + " e (?:os |as |o |a )?" + ACQUIRER + "|" + ACQUIRER + QUALIFIER + " e (?:os |as |o |a )?" + SUPPLIER + ")"
             + QUALIFIER;
-    private static final Pattern BOTH_RESIDENT_HERE = Pattern.compile("\\b(?:" + BOTH_ROLES
-            + "(?: (?:sao|estao|tem|possuem|ambos|ambas))* (?:ambos |ambas )?" + RESIDENT_HERE + ")\\b");
+    /**
+     * Predicado colectivo inequívoco depois dos dois papéis ("sao", "sao ambos", "ambos"). Sem ele, uma
+     * qualificação singular ("o fornecedor e o cliente nao residente") fica só no papel que a
+     * antecede. Limitado a duas palavras: nunca uma repetição ilimitada (sem risco de pilha).
+     */
+    private static final String COLLECTIVE_PREDICATE =
+            "(?: (?:sao|estao|forem|sejam|ficam|serao)(?: (?:ambos|ambas|tambem|igualmente))?| (?:ambos|ambas))";
+    /** Verbo plural de posse aplicado aos dois papéis ("tem ambos sede…"). */
+    private static final String COLLECTIVE_HAVE = " (?:tem|possuem|tinham)(?: (?:ambos|ambas))? (?:a |uma |um )?";
+    /** Os dois papéis com residência/sede em Portugal, por predicado colectivo. */
+    private static final String BOTH_RESIDENT = BOTH_ROLES
+            + "(?:" + COLLECTIVE_PREDICATE + " " + RESIDENT_HERE
+            + "|" + COLLECTIVE_HAVE + "(?:sede|residencia|domicilio|estabelecimento estavel)(?: \\w+){0,2}? em portugal)";
+    private static final Pattern BOTH_RESIDENT_HERE = Pattern.compile("\\b(?:" + BOTH_RESIDENT + ")\\b");
     /**
      * Negação da cópula ou da posse ("nao sao residentes", "nem o fornecedor nem…", "nao tem sede"):
      * para o contexto obrigatório anula os marcadores de não residência. "nao residente" é uma
@@ -115,10 +127,14 @@ public class ApplicabilityMarkerDetector {
             + "|forneco|fornecemos|fornece|fornecem|forneci|forneceu|forneceram"
             + "|transmito|transmitimos|transmite|transmitem|transmiti|transmitiu|transmitiram)";
     /**
-     * Os dois papéis, nomeados, são não residentes ("fornecedor e adquirente sao ambos nao residentes").
-     * Formas colectivas sem papéis ("ambos", "dois clientes", "duas empresas") não contam.
+     * Os dois papéis, nomeados, são não residentes por predicado colectivo ("fornecedor e adquirente
+     * sao ambos nao residentes", "ambos nao residentes", "tem sede fora de Portugal"). Formas
+     * colectivas sem papéis ("ambos", "dois clientes", "duas empresas") e qualificações singulares
+     * depois do segundo papel ("o fornecedor e o cliente nao residente") não contam para os dois.
      */
-    private static final String BOTH_NON_RESIDENT = BOTH_ROLES + LINK + " " + NON_RESIDENT;
+    private static final String BOTH_NON_RESIDENT = BOTH_ROLES
+            + "(?:" + COLLECTIVE_PREDICATE + " " + NON_RESIDENT
+            + "|" + COLLECTIVE_HAVE + "sede (?:fora de portugal|no estrangeiro))";
 
     private static final Map<ApplicabilityMarker, Pattern> PATTERNS;
 
@@ -189,7 +205,7 @@ public class ApplicabilityMarkerDetector {
         // empresa portuguesa") ou por "empresa portuguesa compra". "Portugal" sozinho não conta.
         patterns.put(ApplicabilityMarker.ADQUIRENTE_RESIDENTE, word(
                 ACQUIRER + QUALIFIER + LINK + " " + RESIDENT_HERE
-                        + "|" + BOTH_ROLES + "(?: (?:sao|estao|tem|possuem|ambos|ambas))* (?:ambos |ambas )?" + RESIDENT_HERE
+                        + "|" + BOTH_RESIDENT
                         + "|" + ACQUIRER + LINK + " (?:uma |um )?" + ENTITY + " (?:portugues(?:a|es|as)?|residentes? em portugal)"
                         + "|" + ENTITY + " portugues(?:a|es|as)? (?:que )?(?:compra|compram|adquire|adquirem|contrata|contratam)"));
         PATTERNS = Collections.unmodifiableMap(patterns);

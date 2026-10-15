@@ -331,8 +331,11 @@ class RequiredContextMarkerDetectorTest {
                 Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE), Set.of());
         expect("O comprador e o vendedor são ambos não residentes.",
                 Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE), Set.of());
+        // F1-R: "sem sede em Portugal" logo a seguir ao segundo papel não tem predicado colectivo → só o cliente
         expect("Fornecedor e cliente sem sede em Portugal.",
-                Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE), Set.of(ADQUIRENTE_RESIDENTE));
+                Set.of(ADQUIRENTE_NAO_RESIDENTE), Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_RESIDENTE));
+        expect("Fornecedor e cliente têm ambos sede fora de Portugal.",
+                Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE), Set.of());
         expect("O fornecedor tem sede fora de Portugal e o cliente é não residente.",
                 Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE), Set.of());
     }
@@ -381,5 +384,66 @@ class RequiredContextMarkerDetectorTest {
         // "Portugal" sozinho continua insuficiente
         expect("A operação localiza-se em Portugal.", Set.of(),
                 Set.of(ADQUIRENTE_RESIDENTE, FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE));
+    }
+
+    // ---- re-revisão independente: F1-R (contaminação entre papéis) e F3 (pilha) ---------------
+
+    @Test
+    void f1r_singularQualificationIsNotPropagatedToBothRoles() {
+        // 1, 2
+        expect("O fornecedor estrangeiro e o cliente não residente. Há inversão do sujeito passivo?",
+                Set.of(ADQUIRENTE_NAO_RESIDENTE), Set.of(FORNECEDOR_NAO_RESIDENTE));
+        expect("O cliente estrangeiro e o fornecedor não residente. Há inversão do sujeito passivo?",
+                Set.of(FORNECEDOR_NAO_RESIDENTE), Set.of(ADQUIRENTE_NAO_RESIDENTE));
+        // 3, 4 (e sem artigo; plural; outros papéis)
+        expect("O fornecedor e o cliente não residente.", Set.of(ADQUIRENTE_NAO_RESIDENTE), Set.of(FORNECEDOR_NAO_RESIDENTE));
+        expect("O cliente e o fornecedor não residente.", Set.of(FORNECEDOR_NAO_RESIDENTE), Set.of(ADQUIRENTE_NAO_RESIDENTE));
+        expect("Fornecedor e cliente não residente.", Set.of(ADQUIRENTE_NAO_RESIDENTE), Set.of(FORNECEDOR_NAO_RESIDENTE));
+        expect("O prestador e o adquirente não residente.", Set.of(ADQUIRENTE_NAO_RESIDENTE), Set.of(FORNECEDOR_NAO_RESIDENTE));
+        expect("O comprador e o vendedor não residente.", Set.of(FORNECEDOR_NAO_RESIDENTE), Set.of(ADQUIRENTE_NAO_RESIDENTE));
+        expect("O fornecedor português e o cliente não residente.",
+                Set.of(ADQUIRENTE_NAO_RESIDENTE), Set.of(FORNECEDOR_NAO_RESIDENTE));
+    }
+
+    @Test
+    void f1r_explicitCollectiveOrPerRoleQualificationSatisfiesBoth() {
+        // 5, 6, 7 (e variantes)
+        Set<ApplicabilityMarker> both = Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE);
+        for (String q : java.util.List.of(
+                "O fornecedor não residente e o cliente não residente.",
+                "O fornecedor e o cliente são não residentes.",
+                "O fornecedor e o cliente são ambos não residentes.",
+                "O cliente e o fornecedor são ambos não residentes.",
+                "O fornecedor e o cliente, ambos não residentes, fazem uma venda em Portugal.",
+                "Os fornecedores e os clientes são não residentes.",
+                "FORNECEDOR E ADQUIRENTE SÃO AMBOS NÃO RESIDENTES.")) {
+            expect(q, both, Set.of());
+        }
+    }
+
+    @Test
+    @org.junit.jupiter.api.Timeout(value = 20, unit = java.util.concurrent.TimeUnit.SECONDS)
+    void f3_collectivePatternsSurviveAdversarialRepetition() {
+        // 8: a entrada exacta da re-revisão
+        String f3 = "fornecedor e cliente" + " ambos".repeat(20_000) + " sede em portugal";
+        assertThat(present(f3)).doesNotContain(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE);
+        assertThat(detect(f3)).doesNotContain(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE);
+        // 9: 100k–200k caracteres perto dos padrões colectivos e de papel
+        String[] inputs = {
+                "fornecedor e cliente sao" + " ambos".repeat(30_000) + " nao residentes",
+                "o fornecedor e o cliente " + "tem ".repeat(40_000) + "sede em portugal",
+                "cliente " + "e ".repeat(60_000) + "nao residente",
+                "o fornecedor estrangeiro " + "estrangeiro ".repeat(15_000) + "e o cliente nao residente",
+                "fornecedor e cliente " + "ambos sao estao ".repeat(10_000) + "residentes em portugal"};
+        for (String input : inputs) {
+            assertThat(input.length()).isBetween(100_000, 220_000);
+            Set<ApplicabilityMarker> markers = present(input);
+            detect(input);
+            assertThat(markers).doesNotContain(FORNECEDOR_NAO_RESIDENTE);
+        }
+        // Repetição de papéis que termina num predicado colectivo legítimo: termina e reconhece os dois.
+        String roles = "fornecedor e cliente e fornecedor e cliente ".repeat(4_000) + "sao nao residentes";
+        assertThat(roles.length()).isBetween(100_000, 220_000);
+        assertThat(present(roles)).contains(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE);
     }
 }

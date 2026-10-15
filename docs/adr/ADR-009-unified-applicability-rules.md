@@ -94,7 +94,7 @@ ainda não estava aplicada em nenhum ambiente persistente.
   levam `kind=REQUIRES`. A herança regista `rules=[...]`.
 - Fail-safe: um marcador ou tipo desconhecido na BD rejeita o candidato (`TECHNICAL_FAILURE`).
 
-### 5. Vocabulário e defesa híbrida (versão de detecção `2026-10-15.2`)
+### 5. Vocabulário e defesa híbrida (versão de detecção `2026-10-15.3`)
 
 Só casos observados no piloto.
 
@@ -134,10 +134,11 @@ Papéis:
   não residente.
 - Não residência só com prova explícita ligada ao papel: "não residente", "sem sede/residência em
   Portugal", "sede fora de Portugal". "Estrangeiro" sozinho não prova não residência. Formas
-  colectivas ("ambos", "dois clientes", "duas empresas") só contam com os dois papéis nomeados
-  ("fornecedor e adquirente são ambos não residentes"). A residência ou sede em Portugal de um papel
+  colectivas ("ambos", "dois clientes", "duas empresas") só contam com os dois papéis nomeados e um
+  predicado colectivo ("fornecedor e adquirente são ambos não residentes"); uma qualificação singular
+  depois do segundo papel ("o fornecedor e o cliente não residente") fica só nesse papel. A residência ou sede em Portugal de um papel
   anula a não residência desse papel. No contexto obrigatório, "nem" e "não é/são/tem" anulam a não
-  residência (correcções da revisão independente, F1/F2).
+  residência (correcções da revisão independente, F1/F2/F1-R).
 - `ADQUIRENTE_RESIDENTE` exige o papel do adquirente ("cliente português", "o adquirente tem sede
   ou estabelecimento estável em Portugal", "empresa portuguesa compra"). "Portugal" sozinho não
   conta.
