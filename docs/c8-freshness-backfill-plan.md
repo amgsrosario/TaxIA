@@ -1,8 +1,9 @@
 # C8 — Plano de backfill pós-BNI (ADR-008)
 
-> **Não executado.** Plano para depois do BNI, com autorização humana. Nada foi escrito na
-> `knowledgeflow_pilot`. O texto livre das notas **não** é convertido automaticamente em
-> verificação estruturada.
+> **Executado em 2026-10-14 (prioridade 1).** As 5 fontes de G1, G2 e
+> `CIVA-CONSERVACAO-10A-001_v2` foram reconfirmadas e registadas pelo António no backoffice
+> (CURRENT até 2027-01-12). A prioridade 2 (AT-FAQ) **não** foi executada. O texto livre das notas
+> **não** foi convertido em verificação estruturada. Estado: [taxia-project-state.md](taxia-project-state.md).
 
 ## Pré-condições
 
