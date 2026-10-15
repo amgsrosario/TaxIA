@@ -2,7 +2,7 @@ package com.knowledgeflow.knowledge.controller;
 
 import com.knowledgeflow.common.error.ApiErrorCode;
 import com.knowledgeflow.common.error.BusinessException;
-import com.knowledgeflow.knowledge.dto.ApplicabilityExclusionRequest;
+import com.knowledgeflow.knowledge.dto.ApplicabilityRuleRequest;
 import com.knowledgeflow.knowledge.dto.BenchmarkDraftCase;
 import com.knowledgeflow.knowledge.dto.ImportReport;
 import com.knowledgeflow.knowledge.dto.KnowledgeQaApplicabilityResponse;
@@ -261,7 +261,9 @@ public class AdminKnowledgeQaController {
     }
 
     // -------------------------------------------------------------------------
-    // Applicability exclusions (M4-SCOPE-V2, ADR-004)
+    // Applicability rules (M4-SCOPE-V2, ADR-004; ADR-009): exclusions and required context.
+    // Canonical paths: /applicability/rules/... The /applicability/exclusions/... paths are legacy
+    // aliases (pre-ADR-009 clients) mapped to the same operations; same body, same governance.
     // -------------------------------------------------------------------------
 
     @GetMapping("/{id}/applicability")
@@ -270,29 +272,33 @@ public class AdminKnowledgeQaController {
         return applicabilityService.get(user.organizationId(), id);
     }
 
-    /** Adds an exclusion: narrows the scope, effective immediately (also on published entries). */
-    @PostMapping("/{id}/applicability/exclusions")
-    public KnowledgeQaApplicabilityResponse addApplicabilityExclusion(
+    /**
+     * Adds a rule (EXCLUDES by default, or REQUIRES): narrows the scope, effective immediately (also
+     * on published entries).
+     */
+    @PostMapping({"/{id}/applicability/rules", "/{id}/applicability/exclusions"})
+    public KnowledgeQaApplicabilityResponse addApplicabilityRule(
             @PathVariable UUID id,
-            @RequestBody ApplicabilityExclusionRequest request) {
+            @RequestBody ApplicabilityRuleRequest request) {
         AuthenticatedUser user = authContext.getRequiredUser();
-        return applicabilityService.addExclusion(user.organizationId(), user.userId(), user.email(), id, request);
+        return applicabilityService.addRule(user.organizationId(), user.userId(), user.email(), id, request);
     }
 
     /**
-     * Removes an exclusion from an unpublished entry, or only requests the removal on a published
-     * entry (the exclusion stays effective until approve-removal).
+     * Removes a rule from an entry that cannot reach RAG without validation, or only requests the
+     * removal on a published/VALIDATED entry (the rule stays effective until approve-removal).
      */
-    @DeleteMapping("/{id}/applicability/exclusions/{marker}")
-    public KnowledgeQaApplicabilityResponse removeApplicabilityExclusion(
+    @DeleteMapping({"/{id}/applicability/rules/{marker}", "/{id}/applicability/exclusions/{marker}"})
+    public KnowledgeQaApplicabilityResponse removeApplicabilityRule(
             @PathVariable UUID id,
             @PathVariable String marker) {
         AuthenticatedUser user = authContext.getRequiredUser();
-        return applicabilityService.removeExclusion(user.organizationId(), user.userId(), user.email(), id, marker);
+        return applicabilityService.removeRule(user.organizationId(), user.userId(), user.email(), id, marker);
     }
 
-    /** Human validation of a pending removal: only now does the exclusion stop being effective. */
-    @PostMapping("/{id}/applicability/exclusions/{marker}/approve-removal")
+    /** Human validation of a pending removal: only now does the rule stop being effective. */
+    @PostMapping({"/{id}/applicability/rules/{marker}/approve-removal",
+            "/{id}/applicability/exclusions/{marker}/approve-removal"})
     public KnowledgeQaApplicabilityResponse approveApplicabilityRemoval(
             @PathVariable UUID id,
             @PathVariable String marker,
@@ -301,7 +307,8 @@ public class AdminKnowledgeQaController {
         return applicabilityService.approveRemoval(user.organizationId(), user.userId(), reviewerName, id, marker);
     }
 
-    @PostMapping("/{id}/applicability/exclusions/{marker}/cancel-removal")
+    @PostMapping({"/{id}/applicability/rules/{marker}/cancel-removal",
+            "/{id}/applicability/exclusions/{marker}/cancel-removal"})
     public KnowledgeQaApplicabilityResponse cancelApplicabilityRemoval(
             @PathVariable UUID id,
             @PathVariable String marker) {

@@ -1,8 +1,9 @@
 package com.knowledgeflow.ai.grounding.scope;
 
 import com.knowledgeflow.knowledge.enums.ApplicabilityMarker;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaExclusionMarkerRow;
+import com.knowledgeflow.knowledge.enums.ApplicabilityRuleKind;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQaScopeRow;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import java.util.Collection;
@@ -29,21 +30,21 @@ public class CandidateScopeLoader {
     private static final Logger log = LoggerFactory.getLogger(CandidateScopeLoader.class);
 
     private final KnowledgeQuestionAnswerRepository repository;
-    private final KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
+    private final KnowledgeQaApplicabilityRuleRepository ruleRepository;
     private final FiscalScopeClassifier classifier;
 
     public CandidateScopeLoader(
             KnowledgeQuestionAnswerRepository repository,
-            KnowledgeQaApplicabilityExclusionRepository exclusionRepository,
+            KnowledgeQaApplicabilityRuleRepository ruleRepository,
             FiscalScopeClassifier classifier) {
         this.repository = repository;
-        this.exclusionRepository = exclusionRepository;
+        this.ruleRepository = ruleRepository;
         this.classifier = classifier;
     }
 
     /**
      * Âmbito por id de Q&amp;A. Não aparecem no mapa — e o filtro rejeita-os como falha técnica — os
-     * ids sem linha, sem pergunta ou com um marcador de exclusão desconhecido (dado inválido).
+     * ids sem linha, sem pergunta ou com um marcador ou tipo de regra desconhecido (dado inválido).
      */
     @Transactional(readOnly = true)
     public Map<UUID, CandidateScope> load(Collection<UUID> qaIds) {
@@ -52,18 +53,23 @@ public class CandidateScopeLoader {
             return scopes;
         }
         Map<UUID, Set<ApplicabilityMarker>> exclusions = new HashMap<>();
+        Map<UUID, Set<ApplicabilityMarker>> required = new HashMap<>();
         Set<UUID> invalid = new HashSet<>();
-        for (KnowledgeQaExclusionMarkerRow row : exclusionRepository.findMarkerRowsByKnowledgeQaIdIn(qaIds)) {
+        for (KnowledgeQaApplicabilityRuleRow row : ruleRepository.findRuleRowsByKnowledgeQaIdIn(qaIds)) {
             Optional<ApplicabilityMarker> marker = ApplicabilityMarker.fromCode(row.marker());
-            if (marker.isPresent()) {
-                exclusions.computeIfAbsent(row.questionAnswerId(), id -> EnumSet.noneOf(ApplicabilityMarker.class))
-                        .add(marker.get());
-            } else {
+            Optional<ApplicabilityRuleKind> kind = ApplicabilityRuleKind.fromCode(row.kind());
+            if (marker.isEmpty() || kind.isEmpty()) {
                 invalid.add(row.questionAnswerId());
+                continue;
             }
+            Map<UUID, Set<ApplicabilityMarker>> target =
+                    kind.get() == ApplicabilityRuleKind.REQUIRES ? required : exclusions;
+            target.computeIfAbsent(row.questionAnswerId(), id -> EnumSet.noneOf(ApplicabilityMarker.class))
+                    .add(marker.get());
         }
         if (!invalid.isEmpty()) {
-            log.warn("Scope gate: {} Q&A candidate(s) with unknown applicability marker; rejected", invalid.size());
+            log.warn("Scope gate: {} Q&A candidate(s) with unknown applicability marker or rule kind; rejected",
+                    invalid.size());
         }
         for (KnowledgeQaScopeRow row : repository.findScopeRowsByIdIn(qaIds)) {
             if (invalid.contains(row.id())) {
@@ -76,7 +82,8 @@ public class CandidateScopeLoader {
             }
             scopes.put(row.id(), new CandidateScope(
                     classifier.classifyCandidate(row.topic(), row.subtopic(), question),
-                    exclusions.getOrDefault(row.id(), Set.of())));
+                    exclusions.getOrDefault(row.id(), Set.of()),
+                    required.getOrDefault(row.id(), Set.of())));
         }
         return scopes;
     }

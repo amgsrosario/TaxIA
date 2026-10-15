@@ -1,6 +1,7 @@
 package com.knowledgeflow.knowledge.applicability;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -13,7 +14,7 @@ import com.knowledgeflow.ai.grounding.scope.FiscalScopeFilter;
 import com.knowledgeflow.audit.entity.AuditEvent;
 import com.knowledgeflow.audit.enums.AuditAction;
 import com.knowledgeflow.audit.repository.AuditEventRepository;
-import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityExclusion;
+import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityRule;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.entity.KnowledgeSourceReference;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
@@ -21,7 +22,7 @@ import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.enums.KnowledgeSourceType;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
 import com.knowledgeflow.knowledge.rag.KnowledgeQaEmbeddingIndexer;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
 import com.knowledgeflow.knowledge.service.KnowledgeQuestionAnswerPublicationService;
@@ -64,7 +65,7 @@ class KnowledgeQaApplicabilityGovernanceTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private OrganizationRepository organizationRepository;
     @Autowired private KnowledgeQuestionAnswerRepository qaRepository;
-    @Autowired private KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
+    @Autowired private KnowledgeQaApplicabilityRuleRepository ruleRepository;
     @Autowired private KnowledgeSourceReferenceRepository sourceRepository;
     @Autowired private AuditEventRepository auditRepository;
     @Autowired private FiscalScopeFilter scopeFilter;
@@ -124,13 +125,13 @@ class KnowledgeQaApplicabilityGovernanceTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"marker\":\"INQUILINO\",\"note\":\"" + "n".repeat(501) + "\"}"))
                 .andExpect(status().isBadRequest());
-        assertThat(exclusionRepository.findByKnowledgeQaId(draft.getId())).isEmpty();
+        assertThat(ruleRepository.findByKnowledgeQaId(draft.getId())).isEmpty();
 
         add(draft, "INQUILINO");
         mockMvc.perform(post(BASE + "/exclusions", draft.getId()).with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"marker\":\"INQUILINO\"}"))
                 .andExpect(status().isConflict());
-        assertThat(exclusionRepository.findByKnowledgeQaId(draft.getId())).hasSize(1);
+        assertThat(ruleRepository.findByKnowledgeQaId(draft.getId())).hasSize(1);
     }
 
     // ---- remover ------------------------------------------------------------------------------
@@ -145,7 +146,7 @@ class KnowledgeQaApplicabilityGovernanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.exclusions").isEmpty());
 
-        assertThat(exclusionRepository.findByKnowledgeQaId(draft.getId())).isEmpty();
+        assertThat(ruleRepository.findByKnowledgeQaId(draft.getId())).isEmpty();
         assertThat(gateKeeps(draft, TENANT_QUESTION)).isTrue();
         assertThat(lastAudit(draft).getMetadata()).contains("event=REMOVED", "marker=INQUILINO", "published=false",
                 "curationStatus=PENDING_REVIEW");
@@ -179,7 +180,7 @@ class KnowledgeQaApplicabilityGovernanceTest {
         mockMvc.perform(delete(BASE + "/exclusions/{marker}", published.getId(), "INQUILINO").with(admin()))
                 .andExpect(status().isConflict());
 
-        assertThat(exclusionRepository.findByKnowledgeQaId(published.getId())).hasSize(1);
+        assertThat(ruleRepository.findByKnowledgeQaId(published.getId())).hasSize(1);
         assertThat(gateKeeps(published, TENANT_QUESTION)).isFalse();
         assertThat(lastAudit(published).getMetadata()).contains("event=REMOVAL_REQUESTED", "marker=INQUILINO");
 
@@ -219,7 +220,7 @@ class KnowledgeQaApplicabilityGovernanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.exclusions[0].removalPending").value(false));
 
-        assertThat(exclusionRepository.findByKnowledgeQaId(published.getId())).hasSize(1);
+        assertThat(ruleRepository.findByKnowledgeQaId(published.getId())).hasSize(1);
         assertThat(lastAudit(published).getMetadata()).contains("event=REMOVAL_CANCELLED");
         mockMvc.perform(delete(BASE + "/exclusions/{marker}", published.getId(), "INQUILINO").with(admin()))
                 .andExpect(status().isNotFound());
@@ -233,7 +234,7 @@ class KnowledgeQaApplicabilityGovernanceTest {
         mockMvc.perform(get(BASE, published.getId()).with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.applicabilityReviewedAt").doesNotExist())
-                .andExpect(jsonPath("$.vocabulary.length()").value(8));
+                .andExpect(jsonPath("$.vocabulary.length()").value(14));
 
         mockMvc.perform(post(BASE + "/reviewed", published.getId()).param("reviewerName", "Revisor").with(admin()))
                 .andExpect(status().isOk())
@@ -265,7 +266,7 @@ class KnowledgeQaApplicabilityGovernanceTest {
         add(published, "HABITACAO_PROPRIA");
         mockMvc.perform(delete(BASE + "/exclusions/{marker}", published.getId(), "HABITACAO_PROPRIA").with(admin()))
                 .andExpect(status().isOk());
-        assertThat(exclusionRepository.findByKnowledgeQaIdAndMarker(published.getId(), "HABITACAO_PROPRIA")
+        assertThat(ruleRepository.findByKnowledgeQaIdAndMarker(published.getId(), "HABITACAO_PROPRIA")
                 .orElseThrow().isRemovalPending()).isTrue();
         mockMvc.perform(post(BASE + "/reviewed", published.getId()).param("reviewerName", "Revisor").with(admin()));
         sourceRepository.save(new KnowledgeSourceReference(published, KnowledgeSourceType.LEGISLATION, "CIRS, art. 41.º"));
@@ -273,15 +274,172 @@ class KnowledgeQaApplicabilityGovernanceTest {
         KnowledgeQuestionAnswer next = publicationService.createNewVersion(
                 org.getId(), null, "Publicador", published.getId(), "Resposta técnica revista.");
 
-        assertThat(exclusionRepository.findByKnowledgeQaId(next.getId()))
-                .extracting(KnowledgeQaApplicabilityExclusion::getMarker)
+        assertThat(ruleRepository.findByKnowledgeQaId(next.getId()))
+                .extracting(KnowledgeQaApplicabilityRule::getMarker)
                 .containsExactlyInAnyOrder("INQUILINO", "HABITACAO_PROPRIA");
-        assertThat(exclusionRepository.findByKnowledgeQaId(next.getId()))
-                .noneMatch(KnowledgeQaApplicabilityExclusion::isRemovalPending);
+        assertThat(ruleRepository.findByKnowledgeQaId(next.getId()))
+                .noneMatch(KnowledgeQaApplicabilityRule::isRemovalPending);
         assertThat(next.getApplicabilityReviewedAt()).isNull();
         assertThat(auditRepository.findByOrganizationIdAndEntityTypeAndEntityIdOrderByOccurredAtDesc(
                         org.getId(), "KnowledgeQuestionAnswer", next.getId()))
                 .anySatisfy(e -> assertThat(e.getMetadata()).contains("event=INHERITED", "INQUILINO", "HABITACAO_PROPRIA"));
+    }
+
+    // ---- contexto obrigatório (ADR-009) ------------------------------------------------------
+
+    private static final String ISOLATED_ACT_QUESTION =
+            "Num acto isolado, que despesas podem ser deduzidas aos rendimentos prediais?";
+
+    @Test
+    @DisplayName("ADR-009: contexto obrigatório em Q&A publicada é imediato; sem o contexto na pergunta o gate rejeita")
+    void requiredContext_onPublished_isImmediate() throws Exception {
+        assertThat(gateKeeps(published, TENANT_QUESTION.replace("Como inquilino, ", ""))).isTrue();
+
+        mockMvc.perform(post(BASE + "/exclusions", published.getId()).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"marker\":\"ACTO_ISOLADO\",\"kind\":\"REQUIRES\",\"note\":\"Só acto isolado.\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.exclusions[0].marker").value("ACTO_ISOLADO"))
+                .andExpect(jsonPath("$.exclusions[0].kind").value("REQUIRES"))
+                .andExpect(jsonPath("$.exclusions[0].label").value("Acto isolado"));
+
+        KnowledgeQuestionAnswer after = qaRepository.findById(published.getId()).orElseThrow();
+        assertThat(after.isPublished()).isTrue();
+        assertThat(after.getCurationStatus()).isEqualTo(KnowledgeCurationStatus.VALIDATED);
+        assertThat(gateKeeps(published, "Que despesas podem ser deduzidas aos rendimentos prediais?")).isFalse();
+        assertThat(gateKeeps(published, ISOLATED_ACT_QUESTION)).isTrue();
+        assertThat(gateKeeps(published, "Não é um acto isolado; que despesas podem ser deduzidas às rendas?")).isFalse();
+        assertThat(lastAudit(published).getMetadata())
+                .contains("event=ADDED", "marker=ACTO_ISOLADO", "kind=REQUIRES", "published=true");
+        verifyNoInteractions(indexer);
+    }
+
+    @Test
+    @DisplayName("ADR-009: tipo omisso é exclusão (formato de auditoria inalterado); tipo desconhecido → 400")
+    void ruleKind_defaultAndValidation() throws Exception {
+        add(draft, "INQUILINO");
+        assertThat(ruleRepository.findByKnowledgeQaIdAndMarker(draft.getId(), "INQUILINO").orElseThrow().getKind())
+                .isEqualTo("EXCLUDES");
+        assertThat(lastAudit(draft).getMetadata()).doesNotContain("kind=");
+
+        mockMvc.perform(post(BASE + "/exclusions", draft.getId()).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"marker\":\"ACTO_ISOLADO\",\"kind\":\"PREFERS\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+        assertThat(ruleRepository.findByKnowledgeQaIdAndMarker(draft.getId(), "ACTO_ISOLADO")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("ADR-009: só marcadores afinados para precisão podem ser contexto obrigatório; o vocabulário indica-o")
+    void requiredContext_onlyForRequirableMarkers() throws Exception {
+        mockMvc.perform(post(BASE + "/exclusions", draft.getId()).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"marker\":\"INQUILINO\",\"kind\":\"REQUIRES\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+        assertThat(ruleRepository.findByKnowledgeQaId(draft.getId())).isEmpty();
+
+        mockMvc.perform(get(BASE, draft.getId()).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.vocabulary[?(@.code=='INQUILINO')].requirable").value(false))
+                .andExpect(jsonPath("$.vocabulary[?(@.code=='ACTO_ISOLADO')].requirable").value(true));
+    }
+
+    @Test
+    @DisplayName("ADR-009: caminho canónico /rules e alias legado /exclusions são a mesma operação; 'rules' e 'exclusions' na resposta")
+    void canonicalRulesPathsAndLegacyAliases() throws Exception {
+        mockMvc.perform(post(BASE + "/rules", draft.getId()).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"marker\":\"ACTO_ISOLADO\",\"kind\":\"REQUIRES\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rules[0].marker").value("ACTO_ISOLADO"))
+                .andExpect(jsonPath("$.rules[0].kind").value("REQUIRES"))
+                .andExpect(jsonPath("$.exclusions[0].marker").value("ACTO_ISOLADO"));
+        mockMvc.perform(post(BASE + "/exclusions", draft.getId()).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"marker\":\"ACTIVIDADE_REGULAR\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rules.length()").value(2));
+        mockMvc.perform(get("/api/v1/admin/knowledge/qa/{id}", draft.getId()).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.applicabilityRules.length()").value(2))
+                .andExpect(jsonPath("$.applicabilityExclusions.length()").value(2));
+        mockMvc.perform(delete(BASE + "/rules/{marker}", draft.getId(), "ACTO_ISOLADO").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rules.length()").value(1));
+        mockMvc.perform(delete(BASE + "/exclusions/{marker}", draft.getId(), "ACTIVIDADE_REGULAR").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rules").isEmpty());
+    }
+
+    @Test
+    @DisplayName("ADR-009: ACTIVIDADE_REGULAR e ADQUIRENTE_RESIDENTE são só exclusão (REQUIRES → 400)")
+    void hybridDefenceMarkersAreExclusionOnly() throws Exception {
+        for (String marker : List.of("ACTIVIDADE_REGULAR", "ADQUIRENTE_RESIDENTE")) {
+            mockMvc.perform(post(BASE + "/rules", draft.getId()).with(admin())
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"marker\":\"" + marker + "\",\"kind\":\"REQUIRES\"}"))
+                    .andExpect(status().isBadRequest());
+        }
+        assertThat(ruleRepository.findByKnowledgeQaId(draft.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("ADR-009: nova versão com tipo de regra desconhecido falha em vez de o reescrever como exclusão")
+    void newVersion_unknownKind_failsInsteadOfWidening() throws Exception {
+        addRequired(published, "ACTO_ISOLADO");
+        sourceRepository.save(new KnowledgeSourceReference(published, KnowledgeSourceType.LEGISLATION, "CIRS, art. 41.º"));
+        entityManager.flush();
+        entityManager.createNativeQuery("UPDATE knowledge_qa_applicability_rules SET kind = 'PREFERS' WHERE marker = 'ACTO_ISOLADO'")
+                .executeUpdate();
+        entityManager.clear();
+
+        assertThatThrownBy(() -> publicationService.createNewVersion(
+                        org.getId(), null, "Publicador", published.getId(), "Resposta técnica revista."))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("PREFERS");
+    }
+
+    @Test
+    @DisplayName("ADR-009: retirar contexto obrigatório de uma publicada alarga o âmbito → pendente até aprovação humana")
+    void requiredContext_removalOnPublished_needsApproval() throws Exception {
+        addRequired(published, "ACTO_ISOLADO");
+        mockMvc.perform(delete(BASE + "/exclusions/{marker}", published.getId(), "ACTO_ISOLADO").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.exclusions[0].removalPending").value(true));
+        assertThat(gateKeeps(published, "Que despesas podem ser deduzidas aos rendimentos prediais?")).isFalse();
+        assertThat(lastAudit(published).getMetadata()).contains("event=REMOVAL_REQUESTED", "kind=REQUIRES");
+
+        mockMvc.perform(post(BASE + "/exclusions/{marker}/approve-removal", published.getId(), "ACTO_ISOLADO")
+                        .param("reviewerName", "Especialista").with(admin()))
+                .andExpect(status().isOk());
+        assertThat(gateKeeps(published, "Que despesas podem ser deduzidas aos rendimentos prediais?")).isTrue();
+        assertThat(lastAudit(published).getMetadata()).contains("event=REMOVAL_APPROVED", "kind=REQUIRES");
+    }
+
+    @Test
+    @DisplayName("ADR-009: nova versão herda o contexto obrigatório com o tipo")
+    void newVersion_inheritsRequiredContext() throws Exception {
+        add(published, "INQUILINO");
+        addRequired(published, "ACTO_ISOLADO");
+        sourceRepository.save(new KnowledgeSourceReference(published, KnowledgeSourceType.LEGISLATION, "CIRS, art. 41.º"));
+
+        KnowledgeQuestionAnswer next = publicationService.createNewVersion(
+                org.getId(), null, "Publicador", published.getId(), "Resposta técnica revista.");
+
+        assertThat(ruleRepository.findByKnowledgeQaIdAndMarker(next.getId(), "ACTO_ISOLADO").orElseThrow().getKind())
+                .isEqualTo("REQUIRES");
+        assertThat(ruleRepository.findByKnowledgeQaIdAndMarker(next.getId(), "INQUILINO").orElseThrow().getKind())
+                .isEqualTo("EXCLUDES");
+        assertThat(auditRepository.findByOrganizationIdAndEntityTypeAndEntityIdOrderByOccurredAtDesc(
+                        org.getId(), "KnowledgeQuestionAnswer", next.getId()))
+                .anySatisfy(e -> assertThat(e.getMetadata()).contains("event=INHERITED", "ACTO_ISOLADO(REQUIRES)", "INQUILINO"));
+    }
+
+    @Test
+    @DisplayName("ADR-009: exclusão SUBLOCACAO rejeita o subarrendamento e mantém o senhorio")
+    void sublocacaoExclusion() throws Exception {
+        add(published, "SUBLOCACAO");
+        assertThat(gateKeeps(published, "Sou subarrendatário. Que despesas posso deduzir às rendas do subarrendamento?"))
+                .isFalse();
+        assertThat(gateKeeps(published, "Que despesas podem ser deduzidas aos rendimentos prediais obtidos com o arrendamento?"))
+                .isTrue();
     }
 
     @Test
@@ -305,7 +463,7 @@ class KnowledgeQaApplicabilityGovernanceTest {
                                 .authorities(new SimpleGrantedAuthority(StaffAuthorities.STAFF), new SimpleGrantedAuthority("ROLE_USER")))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"marker\":\"INQUILINO\"}"))
                 .andExpect(status().isForbidden());
-        assertThat(exclusionRepository.findByKnowledgeQaId(published.getId())).isEmpty();
+        assertThat(ruleRepository.findByKnowledgeQaId(published.getId())).isEmpty();
     }
 
     @Test
@@ -317,7 +475,7 @@ class KnowledgeQaApplicabilityGovernanceTest {
                 .setParameter("id", draft.getId()).executeUpdate();
         entityManager.clear();
 
-        assertThat(exclusionRepository.findAll())
+        assertThat(ruleRepository.findAll())
                 .extracting(e -> e.getQuestionAnswer().getId()).doesNotContain(draft.getId());
     }
 
@@ -332,6 +490,13 @@ class KnowledgeQaApplicabilityGovernanceTest {
     private void add(KnowledgeQuestionAnswer qa, String marker) throws Exception {
         mockMvc.perform(post(BASE + "/exclusions", qa.getId()).with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"marker\":\"" + marker + "\"}"))
+                .andExpect(status().isOk());
+    }
+
+    private void addRequired(KnowledgeQuestionAnswer qa, String marker) throws Exception {
+        mockMvc.perform(post(BASE + "/exclusions", qa.getId()).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"marker\":\"" + marker + "\",\"kind\":\"REQUIRES\"}"))
                 .andExpect(status().isOk());
     }
 

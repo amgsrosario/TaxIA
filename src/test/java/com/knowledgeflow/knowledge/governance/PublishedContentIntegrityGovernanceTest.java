@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledgeflow.audit.entity.AuditEvent;
 import com.knowledgeflow.audit.enums.AuditAction;
 import com.knowledgeflow.audit.repository.AuditEventRepository;
-import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityExclusion;
+import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityRule;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.entity.KnowledgeSourceReference;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
@@ -28,7 +28,7 @@ import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.enums.KnowledgeSourceType;
 import com.knowledgeflow.knowledge.enums.KnowledgeTopic;
 import com.knowledgeflow.knowledge.rag.KnowledgeQaEmbeddingIndexer;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
 import com.knowledgeflow.organizations.entity.Organization;
@@ -76,7 +76,7 @@ class PublishedContentIntegrityGovernanceTest {
     @Autowired private OrganizationRepository organizationRepository;
     @Autowired private KnowledgeQuestionAnswerRepository qaRepository;
     @Autowired private KnowledgeSourceReferenceRepository sourceRepository;
-    @Autowired private KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
+    @Autowired private KnowledgeQaApplicabilityRuleRepository ruleRepository;
     @Autowired private AuditEventRepository auditRepository;
     @Autowired private EntityManager entityManager;
     @MockBean private KnowledgeQaEmbeddingIndexer indexer;
@@ -316,11 +316,11 @@ class PublishedContentIntegrityGovernanceTest {
     @Test
     @DisplayName("Nova versão: cópia integral (fontes, exclusões), PENDING_REVIEW, não indexada; anterior intacta")
     void newVersion_copiesEverything_andKeepsPreviousPublished() throws Exception {
-        exclusionRepository.save(new KnowledgeQaApplicabilityExclusion(published, "INQUILINO", "Só senhorio.", "curador"));
-        KnowledgeQaApplicabilityExclusion pending =
-                new KnowledgeQaApplicabilityExclusion(published, "HABITACAO_PROPRIA", null, "curador");
+        ruleRepository.save(new KnowledgeQaApplicabilityRule(published, "INQUILINO", "Só senhorio.", "curador"));
+        KnowledgeQaApplicabilityRule pending =
+                new KnowledgeQaApplicabilityRule(published, "HABITACAO_PROPRIA", null, "curador");
         pending.requestRemoval("curador");
-        exclusionRepository.save(pending);
+        ruleRepository.save(pending);
         published.markApplicabilityReviewed("Revisor Âmbito");
         published = qaRepository.saveAndFlush(published);
 
@@ -352,10 +352,10 @@ class PublishedContentIntegrityGovernanceTest {
         assertThat(sourceRepository.findByQuestionAnswerId(newId)).extracting(KnowledgeSourceReference::getId)
                 .doesNotContainAnyElementsOf(sourceRepository.findByQuestionAnswerId(published.getId()).stream()
                         .map(KnowledgeSourceReference::getId).toList());
-        assertThat(exclusionRepository.findByKnowledgeQaId(newId))
-                .extracting(KnowledgeQaApplicabilityExclusion::getMarker)
+        assertThat(ruleRepository.findByKnowledgeQaId(newId))
+                .extracting(KnowledgeQaApplicabilityRule::getMarker)
                 .containsExactlyInAnyOrder("INQUILINO", "HABITACAO_PROPRIA");
-        assertThat(exclusionRepository.findByKnowledgeQaId(newId)).noneMatch(KnowledgeQaApplicabilityExclusion::isRemovalPending);
+        assertThat(ruleRepository.findByKnowledgeQaId(newId)).noneMatch(KnowledgeQaApplicabilityRule::isRemovalPending);
 
         KnowledgeQuestionAnswer previous = reload(published);
         assertThat(previous.isPublished()).isTrue();

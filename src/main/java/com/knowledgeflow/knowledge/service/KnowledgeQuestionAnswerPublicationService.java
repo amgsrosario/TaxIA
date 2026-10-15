@@ -4,14 +4,15 @@ import com.knowledgeflow.audit.enums.AuditAction;
 import com.knowledgeflow.audit.service.AuditService;
 import com.knowledgeflow.common.error.ApiErrorCode;
 import com.knowledgeflow.common.error.BusinessException;
-import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityExclusion;
+import com.knowledgeflow.knowledge.entity.KnowledgeQaApplicabilityRule;
 import com.knowledgeflow.knowledge.entity.KnowledgeQuestionAnswer;
 import com.knowledgeflow.knowledge.entity.KnowledgeSourceReference;
+import com.knowledgeflow.knowledge.enums.ApplicabilityRuleKind;
 import com.knowledgeflow.knowledge.enums.KnowledgeCurationStatus;
 import com.knowledgeflow.knowledge.enums.KnowledgeRiskLevel;
 import com.knowledgeflow.knowledge.governance.CurationChanges;
 import com.knowledgeflow.knowledge.rag.KnowledgeQaEmbeddingIndexer;
-import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityExclusionRepository;
+import com.knowledgeflow.knowledge.repository.KnowledgeQaApplicabilityRuleRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
 import java.time.LocalDate;
@@ -53,7 +54,7 @@ public class KnowledgeQuestionAnswerPublicationService {
 
     private final KnowledgeQuestionAnswerRepository qaRepository;
     private final KnowledgeSourceReferenceRepository sourceRepository;
-    private final KnowledgeQaApplicabilityExclusionRepository exclusionRepository;
+    private final KnowledgeQaApplicabilityRuleRepository ruleRepository;
     private final KnowledgeQaEmbeddingIndexer indexer;
     private final AuditService auditService;
     private final com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics;
@@ -61,13 +62,13 @@ public class KnowledgeQuestionAnswerPublicationService {
     public KnowledgeQuestionAnswerPublicationService(
             KnowledgeQuestionAnswerRepository qaRepository,
             KnowledgeSourceReferenceRepository sourceRepository,
-            KnowledgeQaApplicabilityExclusionRepository exclusionRepository,
+            KnowledgeQaApplicabilityRuleRepository ruleRepository,
             KnowledgeQaEmbeddingIndexer indexer,
             AuditService auditService,
             com.knowledgeflow.common.observability.KnowledgeFlowMetrics metrics) {
         this.qaRepository = qaRepository;
         this.sourceRepository = sourceRepository;
-        this.exclusionRepository = exclusionRepository;
+        this.ruleRepository = ruleRepository;
         this.indexer = indexer;
         this.auditService = auditService;
         this.metrics = metrics;
@@ -254,14 +255,19 @@ public class KnowledgeQuestionAnswerPublicationService {
             sourceRepository.save(copy);
         }
 
-        // As exclusões de aplicabilidade (ADR-004) passam para a nova versão — nunca se alarga o
-        // âmbito em silêncio. Pedidos de remoção pendentes não passam: a exclusão fica efectiva.
+        // As regras de aplicabilidade (exclusões, ADR-004; contextos obrigatórios, ADR-009) passam para a nova versão — nunca se alarga o
+        // âmbito em silêncio. Pedidos de remoção pendentes não passam: a regra fica efectiva.
         // A marca "âmbito revisto" não passa: a nova versão pede nova revisão.
         List<String> inherited = new ArrayList<>();
-        for (KnowledgeQaApplicabilityExclusion exclusion : exclusionRepository.findByKnowledgeQaId(previousId)) {
-            exclusionRepository.save(new KnowledgeQaApplicabilityExclusion(
-                    newVersion, exclusion.getMarker(), exclusion.getNote(), exclusion.getCreatedBy()));
-            inherited.add(exclusion.getMarker());
+        for (KnowledgeQaApplicabilityRule rule : ruleRepository.findByKnowledgeQaId(previousId)) {
+            // Tipo desconhecido: falha (rollback) em vez de o reescrever — nunca alargar em silêncio.
+            ApplicabilityRuleKind kind = ApplicabilityRuleKind.fromCode(rule.getKind())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Unknown applicability rule kind on " + previousId + ": " + rule.getKind()));
+            ruleRepository.save(new KnowledgeQaApplicabilityRule(
+                    newVersion, rule.getMarker(), kind, rule.getNote(), rule.getCreatedBy()));
+            inherited.add(kind == ApplicabilityRuleKind.REQUIRES
+                    ? rule.getMarker() + "(REQUIRES)" : rule.getMarker());
         }
 
         auditService.record(organizationId, actingUserId,
@@ -270,7 +276,7 @@ public class KnowledgeQuestionAnswerPublicationService {
         if (!inherited.isEmpty()) {
             auditService.record(organizationId, actingUserId,
                     AuditAction.KNOWLEDGE_QA_APPLICABILITY_UPDATED, "KnowledgeQuestionAnswer", newVersion.getId(),
-                    "event=INHERITED fromVersion=%s exclusions=%s".formatted(previousId, inherited));
+                    "event=INHERITED fromVersion=%s rules=%s".formatted(previousId, inherited));
         }
 
         log.info("Created new version qaId={} previousId={} (previous stays published)", newVersion.getId(), previousId);

@@ -20,6 +20,9 @@ import org.springframework.stereotype.Component;
  *       {@code OPERATION_MISMATCH}.</li>
  *   <li>Aplicabilidade (M4-SCOPE-V2): a pergunta tem um marcador que a Q&amp;A declara como exclusão
  *       efectiva → {@code APPLICABILITY_EXCLUDED}. Sem marcador ou sem exclusões, nada muda.</li>
+ *   <li>Contexto obrigatório (ADR-009): a Q&amp;A exige um marcador que a pergunta não mostra →
+ *       {@code APPLICABILITY_CONTEXT_MISSING}. É a única regra em que o silêncio da pergunta rejeita:
+ *       só existe quando a Q&amp;A a declara.</li>
  * </ul>
  */
 @Component
@@ -41,14 +44,29 @@ public class ScopeCompatibilityGate {
         return ScopeDecision.allow(ScopeReason.NO_CONTRADICTION);
     }
 
-    /** Contradições v1 primeiro (imposto, categoria, operação); depois as exclusões de aplicabilidade. */
+    /**
+     * Contradições v1 primeiro (imposto, categoria, operação); depois as exclusões de aplicabilidade;
+     * por fim o contexto obrigatório (ADR-009): todos os marcadores exigidos têm de estar na pergunta.
+     */
     public ScopeDecision decide(FiscalScope query, Set<ApplicabilityMarker> queryMarkers, CandidateScope candidate) {
+        return decide(query, queryMarkers, queryMarkers, candidate);
+    }
+
+    /**
+     * Como {@link #decide(FiscalScope, Set, CandidateScope)}, com os marcadores afirmados para o
+     * contexto obrigatório (sem os negados na pergunta) e os presentes para as exclusões.
+     */
+    public ScopeDecision decide(FiscalScope query, Set<ApplicabilityMarker> queryMarkers,
+            Set<ApplicabilityMarker> affirmedMarkers, CandidateScope candidate) {
         ScopeDecision v1 = decide(query, candidate.scope());
         if (!v1.allowed()) {
             return v1;
         }
         if (queryMarkers.stream().anyMatch(candidate.exclusions()::contains)) {
             return ScopeDecision.reject(ScopeReason.APPLICABILITY_EXCLUDED);
+        }
+        if (!affirmedMarkers.containsAll(candidate.requiredContext())) {
+            return ScopeDecision.reject(ScopeReason.APPLICABILITY_CONTEXT_MISSING);
         }
         return v1;
     }

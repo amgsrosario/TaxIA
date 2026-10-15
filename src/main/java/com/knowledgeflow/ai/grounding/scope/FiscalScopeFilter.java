@@ -75,12 +75,14 @@ public class FiscalScopeFilter {
 
         FiscalScope queryScope = null;
         Set<ApplicabilityMarker> queryMarkers = Set.of();
+        Set<ApplicabilityMarker> affirmedMarkers = Set.of();
         Map<UUID, CandidateScope> candidateScopes = Map.of();
         boolean technicalFailure = false;
         if (!qaIds.isEmpty()) {
             try {
                 queryScope = classifier.classify(question);
                 queryMarkers = detector.detect(question, queryScope);
+                affirmedMarkers = detector.detectAffirmed(question, queryScope);
                 candidateScopes = loader.load(qaIds);
             } catch (RuntimeException e) {
                 technicalFailure = true;
@@ -100,7 +102,7 @@ public class FiscalScopeFilter {
             } else if (technicalFailure || candidateScope == null) {
                 decision = ScopeDecision.reject(ScopeReason.TECHNICAL_FAILURE);
             } else {
-                decision = gate.decide(queryScope, queryMarkers, candidateScope);
+                decision = gate.decide(queryScope, queryMarkers, affirmedMarkers, candidateScope);
             }
             counts.merge(decision.reason(), 1, Integer::sum);
             if (log.isDebugEnabled()) {

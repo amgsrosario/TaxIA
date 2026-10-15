@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  addApplicabilityExclusion,
+  addApplicabilityRule,
   ApiError,
   approveApplicabilityRemoval,
   cancelApplicabilityRemoval,
   getApplicability,
   markApplicabilityReviewed,
-  removeApplicabilityExclusion,
+  removeApplicabilityRule,
 } from "../api/client";
-import type { ApplicabilityExclusion, KnowledgeQaApplicability } from "../api/types";
+import type { ApplicabilityRule, ApplicabilityRuleKind, KnowledgeQaApplicability } from "../api/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 const MAX_NOTE = 500;
@@ -17,9 +17,15 @@ function formatDate(value: string | null): string {
   return value ? new Date(value).toLocaleString("pt-PT") : "—";
 }
 
+const KIND_LABELS: Record<ApplicabilityRuleKind, string> = {
+  EXCLUDES: "Exclusão — não se aplica quando a pergunta indica",
+  REQUIRES: "Contexto obrigatório — só se aplica quando a pergunta indica",
+};
+
 /**
- * Âmbito de aplicação (M4-SCOPE-V2, ADR-004): âmbito derivado (só leitura), exclusões governadas
- * ("Não se aplica a") e marca de revisão. Só backoffice admin; nada disto chega a DEMO/EXTERNAL.
+ * Âmbito de aplicação (M4-SCOPE-V2, ADR-004; ADR-009): âmbito derivado (só leitura), exclusões
+ * governadas ("Não se aplica a"), contexto obrigatório ("Só se aplica quando a pergunta indica") e
+ * marca de revisão. Só backoffice admin; nada disto chega a DEMO/EXTERNAL.
  */
 export function QaApplicabilityPanel({
   qaId,
@@ -37,7 +43,8 @@ export function QaApplicabilityPanel({
   const [busy, setBusy] = useState(false);
   const [marker, setMarker] = useState("");
   const [note, setNote] = useState("");
-  const [toApprove, setToApprove] = useState<ApplicabilityExclusion | null>(null);
+  const [kind, setKind] = useState<ApplicabilityRuleKind>("EXCLUDES");
+  const [toApprove, setToApprove] = useState<ApplicabilityRule | null>(null);
 
   const load = useCallback(() => {
     getApplicability(qaId)
@@ -78,10 +85,56 @@ export function QaApplicabilityPanel({
     );
   }
 
-  const used = new Set(state.exclusions.map((e) => e.marker));
-  const available = state.vocabulary.filter((m) => !used.has(m.code));
+  const used = new Set(state.rules.map((e) => e.marker));
+  const available = state.vocabulary.filter((m) => !used.has(m.code) && (kind === "EXCLUDES" || m.requirable));
+  /** O formulário fica visível enquanto houver marcadores livres, para se poder trocar o tipo. */
+  const anyFree = state.vocabulary.some((m) => !used.has(m.code));
   const scope = state.derivedScope;
   const list = (values: string[]) => (values.length ? values.join(", ") : "—");
+  const exclusionRules = state.rules.filter((e) => e.kind !== "REQUIRES");
+  const required = state.rules.filter((e) => e.kind === "REQUIRES");
+  const renderRule = (e: ApplicabilityRule) => (
+    <li key={e.marker}>
+      <strong>{e.label ?? e.marker}</strong>
+      {e.note && <> — {e.note}</>}
+      {e.removalPending ? (
+        <>
+          {" "}
+          <span className="badge status-PENDING_REVIEW">remoção pendente de validação</span>{" "}
+          <button className="secondary" disabled={busy} onClick={() => setToApprove(e)}>
+            Validar remoção
+          </button>{" "}
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() => run(() => cancelApplicabilityRemoval(qaId, e.marker), () => "Pedido de remoção cancelado.")}
+          >
+            Cancelar pedido
+          </button>
+        </>
+      ) : (
+        <>
+          {" "}
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() =>
+              run(
+                () => removeApplicabilityRule(qaId, e.marker),
+                (result) =>
+                  result.rules.some((x) => x.marker === e.marker && x.removalPending)
+                    ? "Remoção pedida: a regra continua efectiva até validação humana."
+                    : "Regra removida.",
+              )
+            }
+          >
+            {state.removalRequiresValidation ? "Pedir remoção" : "Remover"}
+          </button>
+        </>
+      )}
+    </li>
+  );
+
 
   return (
     <div className="card">
@@ -103,64 +156,49 @@ export function QaApplicabilityPanel({
       </div>
 
       <h3 style={{ marginTop: 18 }}>Não se aplica a</h3>
-      {state.exclusions.length === 0 ? (
+      {exclusionRules.length === 0 ? (
         <p className="muted">Sem exclusões declaradas.</p>
       ) : (
-        <ul>
-          {state.exclusions.map((e) => (
-            <li key={e.marker}>
-              <strong>{e.label ?? e.marker}</strong>
-              {e.note && <> — {e.note}</>}
-              {e.removalPending ? (
-                <>
-                  {" "}
-                  <span className="badge status-PENDING_REVIEW">remoção pendente de validação</span>{" "}
-                  <button className="secondary" disabled={busy} onClick={() => setToApprove(e)}>
-                    Validar remoção
-                  </button>{" "}
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() => run(() => cancelApplicabilityRemoval(qaId, e.marker), () => "Pedido de remoção cancelado.")}
-                  >
-                    Cancelar pedido
-                  </button>
-                </>
-              ) : (
-                <>
-                  {" "}
-                  <button
-                    className="secondary"
-                    disabled={busy}
-                    onClick={() =>
-                      run(
-                        () => removeApplicabilityExclusion(qaId, e.marker),
-                        (result) =>
-                          result.exclusions.some((x) => x.marker === e.marker && x.removalPending)
-                            ? "Remoção pedida: a exclusão continua efectiva até validação humana."
-                            : "Exclusão removida.",
-                      )
-                    }
-                  >
-                    {state.removalRequiresValidation ? "Pedir remoção" : "Remover"}
-                  </button>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
+        <ul>{exclusionRules.map(renderRule)}</ul>
+      )}
+
+      <h3 style={{ marginTop: 18 }}>Só se aplica quando a pergunta indica</h3>
+      {required.length === 0 ? (
+        <p className="muted">Sem contexto obrigatório declarado.</p>
+      ) : (
+        <>
+          <ul>{required.map(renderRule)}</ul>
+          <p className="muted">
+            Perguntas que não indiquem todos estes contextos não recebem esta Q&amp;A como fonte (resposta-limite se
+            nada mais restar).
+          </p>
+        </>
       )}
       {state.removalRequiresValidation && (
         <p className="muted">
-          Q&amp;A {state.published ? "publicada" : "validada"}: acrescentar uma exclusão é imediato; retirar uma
-          exclusão alarga o âmbito e só fica efectivo depois de validação humana.
+          Q&amp;A {state.published ? "publicada" : "validada"}: acrescentar uma exclusão ou um contexto obrigatório é
+          imediato; retirá-los alarga o âmbito e só fica efectivo depois de validação humana.
         </p>
       )}
 
-      {available.length > 0 && (
+      {anyFree && (
         <div className="form-grid">
           <div>
-            <label>Acrescentar exclusão</label>
+            <label>Tipo de regra</label>
+            <select
+              value={kind}
+              onChange={(e) => {
+                setKind(e.target.value as ApplicabilityRuleKind);
+                setMarker("");
+              }}
+              disabled={busy}
+            >
+              <option value="EXCLUDES">{KIND_LABELS.EXCLUDES}</option>
+              <option value="REQUIRES">{KIND_LABELS.REQUIRES}</option>
+            </select>
+          </div>
+          <div>
+            <label>Situação</label>
             <select value={marker} onChange={(e) => setMarker(e.target.value)} disabled={busy}>
               <option value="">— escolher —</option>
               {available.map((m) => (
@@ -175,16 +213,21 @@ export function QaApplicabilityPanel({
         </div>
       )}
       <div className="actions-row">
-        {available.length > 0 && (
+        {anyFree && (
           <button
             disabled={busy || !marker}
             onClick={() =>
               run(async () => {
-                const result = await addApplicabilityExclusion(qaId, marker, note.trim() || null);
+                const result = await addApplicabilityRule(qaId, marker, note.trim() || null, kind);
                 setMarker("");
                 setNote("");
+                setKind("EXCLUDES");
                 return result;
-              }, () => "Exclusão acrescentada (efectiva de imediato).")
+              }, () =>
+                kind === "REQUIRES"
+                  ? "Contexto obrigatório acrescentado (efectivo de imediato)."
+                  : "Exclusão acrescentada (efectiva de imediato).",
+              )
             }
           >
             Acrescentar
@@ -201,7 +244,7 @@ export function QaApplicabilityPanel({
 
       {toApprove && (
         <ConfirmDialog
-          title="Validar remoção de exclusão"
+          title={toApprove.kind === "REQUIRES" ? "Validar remoção de contexto obrigatório" : "Validar remoção de exclusão"}
           confirmLabel="Validar remoção"
           danger
           onCancel={() => setToApprove(null)}
@@ -210,13 +253,22 @@ export function QaApplicabilityPanel({
             setToApprove(null);
             run(
               () => approveApplicabilityRemoval(qaId, target.marker, reviewer),
-              () => "Remoção validada: a exclusão deixou de ser aplicada.",
+              () => "Remoção validada: a regra deixou de ser aplicada.",
             );
           }}
         >
           <p>
-            Retirar «{toApprove.label ?? toApprove.marker}» alarga o âmbito desta Q&amp;A: perguntas com esta
-            situação passam a poder recebê-la como fonte.
+            {toApprove.kind === "REQUIRES" ? (
+              <>
+                Retirar «{toApprove.label ?? toApprove.marker}» alarga o âmbito desta Q&amp;A: perguntas sem esta
+                situação passam a poder recebê-la como fonte.
+              </>
+            ) : (
+              <>
+                Retirar «{toApprove.label ?? toApprove.marker}» alarga o âmbito desta Q&amp;A: perguntas com esta
+                situação passam a poder recebê-la como fonte.
+              </>
+            )}
           </p>
           <p className="muted">
             Pedido por {toApprove.removalRequestedBy ?? "—"} · validação registada como {reviewer}.

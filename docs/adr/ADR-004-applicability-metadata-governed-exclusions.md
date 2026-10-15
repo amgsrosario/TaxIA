@@ -4,6 +4,11 @@
 
 Accepted (M4-SCOPE-V2, 2026-10-02).
 
+O §1 ("não há `appliesTo` positivo") é alterado pelo [ADR-009](ADR-009-unified-applicability-rules.md)
+(regras de aplicabilidade unificadas: exclusões e contexto obrigatório, 2026-10-15). A tabela da V16
+passou a chamar-se `knowledge_qa_applicability_rules` (V19). O resto mantém-se; o texto abaixo é o
+registo histórico da decisão de 2026-10-02.
+
 ## Context
 
 O grounding do TaxIA filtra candidatos por relevância vectorial (`minimum-relevance-score`

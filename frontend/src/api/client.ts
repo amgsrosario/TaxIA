@@ -1,5 +1,6 @@
 import type {
   ApiErrorBody,
+  ApplicabilityRuleKind,
   AuthUser,
   CurationUpdateRequest,
   DemoAskResponse,
@@ -257,19 +258,20 @@ export function getApplicability(id: string): Promise<KnowledgeQaApplicability> 
   return request<KnowledgeQaApplicability>("GET", applicabilityPath(id));
 }
 
-export function addApplicabilityExclusion(
+export function addApplicabilityRule(
   id: string,
   marker: string,
   note: string | null,
+  kind: ApplicabilityRuleKind = "EXCLUDES",
 ): Promise<KnowledgeQaApplicability> {
-  return request<KnowledgeQaApplicability>("POST", `${applicabilityPath(id)}/exclusions`, { marker, note });
+  return request<KnowledgeQaApplicability>("POST", `${applicabilityPath(id)}/rules`, { marker, note, kind });
 }
 
 /** Não publicada: remove. Publicada: só pede a remoção (continua efectiva até aprovação). */
-export function removeApplicabilityExclusion(id: string, marker: string): Promise<KnowledgeQaApplicability> {
+export function removeApplicabilityRule(id: string, marker: string): Promise<KnowledgeQaApplicability> {
   return request<KnowledgeQaApplicability>(
     "DELETE",
-    `${applicabilityPath(id)}/exclusions/${encodeURIComponent(marker)}`,
+    `${applicabilityPath(id)}/rules/${encodeURIComponent(marker)}`,
   );
 }
 
@@ -281,14 +283,14 @@ export function approveApplicabilityRemoval(
   const query = new URLSearchParams({ reviewerName });
   return request<KnowledgeQaApplicability>(
     "POST",
-    `${applicabilityPath(id)}/exclusions/${encodeURIComponent(marker)}/approve-removal?${query.toString()}`,
+    `${applicabilityPath(id)}/rules/${encodeURIComponent(marker)}/approve-removal?${query.toString()}`,
   );
 }
 
 export function cancelApplicabilityRemoval(id: string, marker: string): Promise<KnowledgeQaApplicability> {
   return request<KnowledgeQaApplicability>(
     "POST",
-    `${applicabilityPath(id)}/exclusions/${encodeURIComponent(marker)}/cancel-removal`,
+    `${applicabilityPath(id)}/rules/${encodeURIComponent(marker)}/cancel-removal`,
   );
 }
 
