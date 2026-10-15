@@ -234,7 +234,7 @@ class KnowledgeQaApplicabilityGovernanceTest {
         mockMvc.perform(get(BASE, published.getId()).with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.applicabilityReviewedAt").doesNotExist())
-                .andExpect(jsonPath("$.vocabulary.length()").value(14));
+                .andExpect(jsonPath("$.vocabulary.length()").value(17));
 
         mockMvc.perform(post(BASE + "/reviewed", published.getId()).param("reviewerName", "Revisor").with(admin()))
                 .andExpect(status().isOk())

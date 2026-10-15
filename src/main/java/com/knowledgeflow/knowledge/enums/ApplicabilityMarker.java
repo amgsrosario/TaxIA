@@ -28,7 +28,11 @@ public enum ApplicabilityMarker {
     ADQUIRENTE_NAO_RESIDENTE("Adquirente / cliente não residente", true),
     // C9-A, defesa híbrida (só exclusão): perguntas mistas ou contraditórias
     ACTIVIDADE_REGULAR("Actividade regular / aberta"),
-    ADQUIRENTE_RESIDENTE("Adquirente / cliente residente em Portugal");
+    ADQUIRENTE_RESIDENTE("Adquirente / cliente residente em Portugal"),
+    // AT-FAQ-2721_v2 (2026-10-15): contexto AIMI obrigatório; renúncia e estado civil fora de âmbito
+    AIMI("Adicional ao IMI (AIMI)", true),
+    CESSACAO_OPCAO("Renúncia / cessação da opção"),
+    ALTERACAO_ESTADO_CIVIL("Divórcio, separação ou fim da união de facto");
 
     private final String label;
     /**

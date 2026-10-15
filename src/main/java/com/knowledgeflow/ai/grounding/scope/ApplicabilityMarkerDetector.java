@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
 public class ApplicabilityMarkerDetector {
 
     /** Versão do vocabulário de detecção — sobe sempre que os padrões mudam. */
-    public static final String VOCABULARY_VERSION = "2026-10-15.3";
+    public static final String VOCABULARY_VERSION = "2026-10-15.4";
 
     /** Sujeitos de uma operação que podem ser qualificados como não residentes. */
     private static final String ENTITY = "(?:sujeitos? passivos?|empresas?|entidades?|sociedades?)";
@@ -203,6 +203,28 @@ public class ApplicabilityMarkerDetector {
         // Defesa híbrida (só exclusão, C9-A): o adquirente é residente em Portugal. Pelo papel
         // ("cliente portugues", "o adquirente tem estabelecimento estavel em Portugal", "o cliente e uma
         // empresa portuguesa") ou por "empresa portuguesa compra". "Portugal" sozinho não conta.
+        // AIMI pelo nome: "AIMI", "adicional ao/do IMI", "adicional ao imposto municipal sobre imoveis".
+        // Nunca por "tributacao conjunta", "imoveis", "IMI" isolado ou "prazo".
+        patterns.put(ApplicabilityMarker.AIMI, word(
+                "aimi|adicional (?:ao|do) imi|adicional (?:ao|do) imposto municipal sobre (?:os )?imoveis"));
+        // Renúncia ou cessação da opção (só exclusão): "renunciar", "desfazer a opcao", "cancelar/cessar/
+        // revogar/anular/terminar/retirar a opcao", "deixar de optar", "desistir da opcao".
+        patterns.put(ApplicabilityMarker.CESSACAO_OPCAO, word(
+                "renunci\\w*|desfaz\\w*|desfeit[oa]s?"
+                        + "|(?:cancel|cess|revog|anul|termin|retir)\\w* (?:a |da |com a )?opc(?:ao|oes)"
+                        + "|deix\\w* de (?:optar|ter a opcao)|desist\\w* da opcao"));
+        // Alteração do estado civil (só exclusão): divórcio, separação de pessoas, fim da união de facto.
+        // "separacao de bens" (regime de bens), "separadamente" e coisas separadas não contam.
+        patterns.put(ApplicabilityMarker.ALTERACAO_ESTADO_CIVIL, word(
+                "divorci\\w*"
+                        // separação de pessoas, não de coisas: "separei-me", "estamos separados",
+                        // "separacao de facto/judicial"; nunca "separacao de bens" nem "predios separados"
+                        + "|separei|separamo\\w*|separaram(?: se)?|separou se"
+                        + "|(?:sou|somos|estou|estamos|fiquei|ficamos|ficou|ficaram) separad[oa]s?"
+                        + "|separacao (?:de facto|judicial|de pessoas|do casal)|separad[oa]s? (?:de facto|judicialmente)"
+                        + "|(?:fim|cessacao|termo|dissolucao|rutura|ruptura) da uniao de facto"
+                        + "|(?:terminou|acabou|cessou|terminamos|acabamos)(?: \\w+){0,2} uniao de facto"
+                        + "|deix\\w* de viver em uniao de facto"));
         patterns.put(ApplicabilityMarker.ADQUIRENTE_RESIDENTE, word(
                 ACQUIRER + QUALIFIER + LINK + " " + RESIDENT_HERE
                         + "|" + BOTH_RESIDENT

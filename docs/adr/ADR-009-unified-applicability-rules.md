@@ -94,7 +94,7 @@ ainda não estava aplicada em nenhum ambiente persistente.
   levam `kind=REQUIRES`. A herança regista `rules=[...]`.
 - Fail-safe: um marcador ou tipo desconhecido na BD rejeita o candidato (`TECHNICAL_FAILURE`).
 
-### 5. Vocabulário e defesa híbrida (versão de detecção `2026-10-15.3`)
+### 5. Vocabulário e defesa híbrida (versão de detecção `2026-10-15.4`)
 
 Só casos observados no piloto.
 
@@ -106,6 +106,9 @@ Só casos observados no piloto.
 | `SUBLOCACAO` | sim | 5930: EXCLUDES; futura Q&A específica: REQUIRES |
 | `ACTIVIDADE_REGULAR` | **não** (só exclusão) | 0959: EXCLUDES |
 | `ADQUIRENTE_RESIDENTE` | **não** (só exclusão) | 4624: EXCLUDES |
+| `AIMI` | sim | 2721_v2: REQUIRES (o AIMI pelo nome; nunca "tributação conjunta", "IMI" isolado ou "imóveis") |
+| `CESSACAO_OPCAO` | **não** (só exclusão) | 2721_v2: EXCLUDES (renúncia, desfazer, cancelar, cessar ou revogar a opção) |
+| `ALTERACAO_ESTADO_CIVIL` | **não** (só exclusão) | 2721_v2: EXCLUDES (divórcio, separação de pessoas, fim da união de facto; não a "separação de bens") |
 
 Os oito marcadores do ADR-004 continuam só exclusão: foram afinados para evitar rejeições, e num
 contexto obrigatório um falso positivo aceita o caso oposto.
