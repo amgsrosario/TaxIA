@@ -264,3 +264,12 @@ Recomendação: B. Aguarda decisão humana; nenhum código foi alterado.
   Foram 8 eventos de auditoria, todos esperados (138 → 146).
 - Regressão do gate: a única diferença é "Sou subarrendatário…" → 5930 `APPLICABILITY_EXCLUDED`.
 - Estado e próximos gates: [taxia-project-state.md](taxia-project-state.md).
+
+## 13. C8 da AT-FAQ-5795 (2026-10-15)
+
+- As 3 fontes (FAQ 5795; CIRS art. 98.º, n.º 6; art. 99.º-D, n.º 3) foram reconfirmadas pelo António e
+  registadas no backoffice. Nos dois artigos foi confirmada a versão consolidada. Sem matéria
+  estável.
+- CURRENT: FAQ até 2026-12-14 e artigos até 2027-01-13. A actualidade agregada da 5795 é CURRENT até
+  2026-12-14.
+- Auditoria +3 (146 → 149). Nenhuma outra fonte, Q&A ou embedding foi alterado.

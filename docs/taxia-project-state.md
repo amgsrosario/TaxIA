@@ -3,7 +3,7 @@
 Documento de passagem: permite retomar o projecto sem depender de conversas anteriores.
 Confirmar sempre no código, nas migrações e nos ADR (ver [AGENTS.md](../AGENTS.md)).
 
-Última actualização: 2026-10-15 (C9-A merged e activada no piloto: V19, regras de aplicabilidade unificadas; WAVE 1-B e novas versões 2721/5930 em revisão).
+Última actualização: 2026-10-15 (C9-A merged e activada no piloto; C8 da AT-FAQ-5795 concluído; WAVE 1-B e novas versões 2721/5930 em revisão).
 
 ## Base e entregas recentes
 
@@ -167,8 +167,20 @@ Auditoria, `updated_at`, texto servido e embeddings cruzados para as 4 Q&A publi
   `CIVA-CONSERVACAO-10A-001_v2` (CIVA art. 52.º). Um evento `KNOWLEDGE_QA_SOURCE_VERIFIED` por
   fonte (auditoria 111 → 116). Nenhuma matéria estável.
 - Estado: G1, G2 e CIVA conservação v2 com fontes **CURRENT até 2027-01-12** (revalidar antes
-  dessa data). AT-FAQ-5930 / 2721 / 5795 continuam **UNCERTAIN** (exigem verificação nova; as notas
-  antigas não contam como verificação) e respondem sempre "com limitações".
+  dessa data).
+- **C8 da AT-FAQ-5795 concluído (2026-10-15).** O António reconfirmou nas fontes oficiais e registou
+  no backoffice:
+  - a FAQ 5795 (OFFICIAL_FAQ, sem versão consolidada);
+  - o CIRS art. 98.º e o art. 99.º-D (LEGISLATION, versão oficial/consolidada confirmada no DRE).
+
+  Sem matéria estável. Um `KNOWLEDGE_QA_SOURCE_VERIFIED` por fonte (auditoria 146 → 149).
+  - CURRENT: FAQ até **2026-12-14** (60 dias) e artigos até 2027-01-13 (90 dias).
+  - A actualidade agregada da 5795 é CURRENT até **2026-12-14**, limitada pela FAQ.
+  - Texto e embedding inalterados; a versão da linha subiu 6 → 9, porque cada verificação é uma
+    alteração de evidência (ADR-005).
+- AT-FAQ-5930 / 2721 continuam **UNCERTAIN**: aguardam as novas versões, e as notas antigas não
+  contam como verificação. Respondem "com limitações".
+- Fontes verificadas no piloto: **8** (7 com versão consolidada confirmada, 1 FAQ), todas CURRENT.
 - E2E pós-backfill: G1 e G2 consulta documentada + SUGGESTED (M4B, `requiresHumanValidation`),
   CIVA conservação consulta documentada, AT-FAQ-5930 "com limitações" + SUGGESTED; sem regressão
   de grounding, M4B ou âmbito.
@@ -207,14 +219,13 @@ Detalhe: [c9-corpus-expansion-wave1.md](c9-corpus-expansion-wave1.md).
   - `CIRS-CATB-EMISSAO-FATURAS-RECIBOS-001`.
 - **Contagens no piloto (2026-10-15):**
   - Flyway 19 · Q&A 30 · publicadas 6 · embeddings 6 (md5 inalterado, 0 órfãos);
-  - fontes 44 · regras 14 (todas `EXCLUDES`) · auditoria 146.
+  - fontes 44 (8 verificadas e CURRENT) · regras 14 (todas `EXCLUDES`) · auditoria 149 (depois do C8 da
+    5795).
 - **Backups:** `knowledgeflow_pilot_pre_c9_wave1b_2026-10-15T092340.dump` e
   `knowledgeflow_pilot_pre_c9a_activation_2026-10-15T145615.dump` (SHA-256 `4e669656…`, 600).
 - **Próximos gates humanos (nenhum promove publicação por si):**
-  - A. C8 da AT-FAQ-5795:
-    - FAQ 5795 oficial, sem versão consolidada;
-    - CIRS art. 98.º e art. 99.º-D, com versão consolidada confirmada;
-    - sem matéria estável.
+  - A. ~~C8 da AT-FAQ-5795~~ concluído em 2026-10-15. Revalidar a FAQ 5795 até 2026-12-14 e os
+    artigos até 2027-01-13.
   - B. Revisão humana da 2721_v2.
   - C. Revisão humana da 5930_v2, com atenção ao alargamento pela remoção de HABITACAO_PROPRIA.
   - D. Revisão humana dos 5 Q&A da WAVE 1-B: validFrom 2025-07-01 em B4/B7; versão consolidada no
