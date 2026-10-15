@@ -60,10 +60,8 @@ class RequiredContextMarkerDetectorTest {
     @ParameterizedTest
     @ValueSource(strings = {
             "Aplica-se a inversão do sujeito passivo quando fornecedor e adquirente são ambos não residentes e a operação se localiza em Portugal?",
-            "Uma empresa estrangeira presta um serviço localizado em Portugal a outra empresa estrangeira. Quem liquida o IVA?",
-            "Duas empresas estrangeiras fazem uma venda localizada em Portugal. Há inversão do sujeito passivo?",
+            "Uma empresa não residente presta um serviço localizado em Portugal a outra empresa não residente. Quem liquida o IVA?",
             "Prestação de serviços em Portugal por um sujeito passivo não residente a outro sujeito passivo não residente",
-            "Operação entre não residentes localizada em Portugal: quem liquida o IVA?",
             "O fornecedor é não residente e o cliente também é não residente. Há autoliquidação?"})
     void bothNonResidentDetected(String question) {
         assertThat(detect(question)).contains(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE);
@@ -88,7 +86,7 @@ class RequiredContextMarkerDetectorTest {
 
     @Test
     void onlyAcquirerNonResident() {
-        Set<ApplicabilityMarker> markers = detect("Vendo serviços a um cliente estrangeiro. Liquido IVA?");
+        Set<ApplicabilityMarker> markers = detect("Vendo serviços a um cliente não residente. Liquido IVA?");
         assertThat(markers).contains(ADQUIRENTE_NAO_RESIDENTE).doesNotContain(FORNECEDOR_NAO_RESIDENTE);
     }
 
@@ -136,8 +134,8 @@ class RequiredContextMarkerDetectorTest {
 
     @ParameterizedTest
     @ValueSource(strings = {
-            "Uma empresa estrangeira que presta serviços em Portugal a outra empresa estrangeira: há inversão?",
-            "Os transmitentes não residentes vendem a outras empresas estrangeiras em Portugal."})
+            "Uma empresa não residente que presta serviços em Portugal a outra empresa não residente: há inversão?",
+            "Os transmitentes não residentes vendem a outras empresas não residentes em Portugal."})
     void supplierVerbsAndPlurals(String question) {
         assertThat(detect(question)).contains(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE);
     }
@@ -219,8 +217,8 @@ class RequiredContextMarkerDetectorTest {
 
     @Test
     void firstPersonSaleAndSupplierServingUs() {
-        assertThat(detect("Presto serviços a outra empresa estrangeira.")).contains(ADQUIRENTE_NAO_RESIDENTE);
-        assertThat(detect("Uma empresa estrangeira que nos presta serviços em Portugal: autoliquidamos?"))
+        assertThat(detect("Presto serviços a outra empresa não residente.")).contains(ADQUIRENTE_NAO_RESIDENTE);
+        assertThat(detect("Uma empresa não residente que nos presta serviços em Portugal: autoliquidamos?"))
                 .contains(FORNECEDOR_NAO_RESIDENTE);
     }
 
@@ -294,5 +292,94 @@ class RequiredContextMarkerDetectorTest {
             "Uma empresa portuguesa vende a um cliente estrangeiro."})
     void residentAcquirerNotDetected(String question) {
         assertThat(present(question)).doesNotContain(ADQUIRENTE_RESIDENTE);
+    }
+
+    // ---- revisão independente (F1/F2): papéis colectivos e "estrangeiro" -----------------------
+
+    private void expect(String question, Set<ApplicabilityMarker> must, Set<ApplicabilityMarker> mustNot) {
+        Set<ApplicabilityMarker> markers = detect(question);
+        assertThat(markers).as(question).containsAll(must);
+        if (!mustNot.isEmpty()) {
+            assertThat(markers).as(question).doesNotContainAnyElementsOf(mustNot);
+        }
+    }
+
+    @Test
+    void f1_collectiveFormsWithoutBothRolesDoNotSatisfyBoth() {
+        // 3: dois clientes não residentes + fornecedor nacional
+        expect("Os meus dois clientes são ambos não residentes; compro serviços a um fornecedor nacional.",
+                Set.of(), Set.of(FORNECEDOR_NAO_RESIDENTE));
+        // 4: dois fornecedores não residentes + cliente residente
+        expect("Os meus dois fornecedores são ambos não residentes e o cliente é residente em Portugal.",
+                Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_RESIDENTE), Set.of(ADQUIRENTE_NAO_RESIDENTE));
+        // formas colectivas sem papéis
+        for (String q : java.util.List.of("Ambos não residentes. Há inversão?", "Duas empresas não residentes fazem uma venda.",
+                "Ambos os intervenientes são não residentes.", "Operação entre não residentes.",
+                "As duas empresas são ambas não residentes.")) {
+            expect(q, Set.of(), Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE));
+        }
+    }
+
+    @Test
+    void f1_bothRolesNamedSatisfyBoth() {
+        // 1 e 2
+        expect("O fornecedor não residente presta serviços a um adquirente não residente.",
+                Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE), Set.of());
+        expect("Fornecedor e adquirente são ambos não residentes.",
+                Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE), Set.of());
+        expect("O prestador e o cliente são não residentes.",
+                Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE), Set.of());
+        expect("O comprador e o vendedor são ambos não residentes.",
+                Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE), Set.of());
+        expect("Fornecedor e cliente sem sede em Portugal.",
+                Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE), Set.of(ADQUIRENTE_RESIDENTE));
+        expect("O fornecedor tem sede fora de Portugal e o cliente é não residente.",
+                Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE), Set.of());
+    }
+
+    @Test
+    void f2_foreignIsNotProofOfNonResidence() {
+        // 5, 6, 7
+        expect("O fornecedor estrangeiro e o cliente estrangeiro têm ambos sede em Portugal.",
+                Set.of(ADQUIRENTE_RESIDENTE), Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE));
+        expect("O fornecedor estrangeiro tem sede em Portugal.", Set.of(), Set.of(FORNECEDOR_NAO_RESIDENTE));
+        expect("O cliente estrangeiro é residente em Portugal.",
+                Set.of(ADQUIRENTE_RESIDENTE), Set.of(ADQUIRENTE_NAO_RESIDENTE));
+        expect("O fornecedor estrangeiro vende a um cliente estrangeiro.",
+                Set.of(), Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE));
+        expect("O comprador estrangeiro tem sede em Portugal.", Set.of(ADQUIRENTE_RESIDENTE), Set.of(ADQUIRENTE_NAO_RESIDENTE));
+    }
+
+    @Test
+    void negationsOfResidencyAreConservative() {
+        // 8, 9
+        expect("Ambos não são residentes.", Set.of(), Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE));
+        expect("Nem o fornecedor nem o adquirente são não residentes.",
+                Set.of(), Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE));
+        expect("O fornecedor não é não residente e o cliente também não.",
+                Set.of(), Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE));
+    }
+
+    @Test
+    void residenceInPortugalPrevailsPerRole() {
+        // 10, 11, 12
+        expect("Fornecedor e adquirente têm sede em Portugal.",
+                Set.of(ADQUIRENTE_RESIDENTE), Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE));
+        expect("Fornecedor não residente; adquirente com sede em Portugal.",
+                Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_RESIDENTE), Set.of(ADQUIRENTE_NAO_RESIDENTE));
+        expect("Fornecedor com sede em Portugal; adquirente não residente.",
+                Set.of(ADQUIRENTE_NAO_RESIDENTE), Set.of(FORNECEDOR_NAO_RESIDENTE));
+        // secção 4 da missão
+        expect("O fornecedor não residente vende ao adquirente residente.",
+                Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_RESIDENTE), Set.of(ADQUIRENTE_NAO_RESIDENTE));
+        expect("O adquirente não residente compra a fornecedor português.",
+                Set.of(ADQUIRENTE_NAO_RESIDENTE), Set.of(FORNECEDOR_NAO_RESIDENTE));
+        expect("O prestador nacional presta serviços ao cliente não residente.",
+                Set.of(ADQUIRENTE_NAO_RESIDENTE), Set.of(FORNECEDOR_NAO_RESIDENTE));
+        expect("O destinatário tem domicílio em Portugal e o prestador é não residente.",
+                Set.of(FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_RESIDENTE), Set.of(ADQUIRENTE_NAO_RESIDENTE));
+        // "Portugal" sozinho continua insuficiente
+        expect("A operação localiza-se em Portugal.", Set.of(),
+                Set.of(ADQUIRENTE_RESIDENTE, FORNECEDOR_NAO_RESIDENTE, ADQUIRENTE_NAO_RESIDENTE));
     }
 }

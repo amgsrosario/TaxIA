@@ -264,7 +264,7 @@ class FiscalScopeFilterTest {
                 .isEmpty();
         assertThat(filter.filter("Uma empresa portuguesa compra serviços a um fornecedor não residente. Há autoliquidação do IVA?",
                 candidate)).isEmpty();
-        assertThat(filter.filter("Duas empresas estrangeiras fazem uma venda localizada em Portugal. Há inversão do sujeito passivo?",
+        assertThat(filter.filter("Fornecedor e adquirente são ambos não residentes e a venda localiza-se em Portugal. Há inversão do sujeito passivo?",
                 candidate)).hasSize(1);
     }
 

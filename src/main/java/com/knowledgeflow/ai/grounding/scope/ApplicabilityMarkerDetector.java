@@ -26,16 +26,23 @@ import org.springframework.stereotype.Component;
 public class ApplicabilityMarkerDetector {
 
     /** Versão do vocabulário de detecção — sobe sempre que os padrões mudam. */
-    public static final String VOCABULARY_VERSION = "2026-10-15.1";
+    public static final String VOCABULARY_VERSION = "2026-10-15.2";
 
     /** Sujeitos de uma operação que podem ser qualificados como não residentes. */
     private static final String ENTITY = "(?:sujeitos? passivos?|empresas?|entidades?|sociedades?)";
-    private static final String NON_RESIDENT = "(?:nao residentes?|estrangeir\\w*)";
+    /**
+     * Prova explícita de não residência. "estrangeiro" não basta: pode ser origem, nacionalidade ou
+     * grupo, e não exclui sede ou residência em Portugal.
+     */
+    private static final String NON_RESIDENT = "(?:nao residentes?"
+            + "|sem (?:residencia|sede|domicilio|estabelecimento estavel)(?: \\w+){0,2}? em portugal"
+            + "|(?:com|tem|tinha|possui|possuem) (?:a )?sede (?:fora de portugal|no estrangeiro)"
+            + "|estabelecid[oa]s? fora de portugal)";
     /**
      * Ligações curtas entre o sujeito e a qualidade ("o cliente e tambem nao residente"). Limitado a
      * três: uma repetição ilimitada recursa sobre texto arbitrário (StackOverflowError).
      */
-    private static final String LINK = "(?: (?:e|for|seja|sao|sendo|forem|sejam|tambem|igualmente)){0,3}";
+    private static final String LINK = "(?: (?:e|for|seja|sao|sendo|forem|sejam|tambem|igualmente|ambos|ambas)){0,3}";
     /**
      * Marcadores cuja ocorrência pode ser negada na pergunta ("nao e um acto isolado", "o senhorio nao
      * autoriza a sublocacao"). Para exclusões conta a simples presença (na dúvida exclui: falha
@@ -63,6 +70,39 @@ public class ApplicabilityMarkerDetector {
     private static final int LOCAL_NEGATION_TOKENS = 3;
     /** Papel de quem adquire. */
     private static final String ACQUIRER = "(?:adquirente|cliente|destinatario|comprador)(?:e?s)?";
+    /** Papel de quem fornece. */
+    private static final String SUPPLIER = "(?:fornecedor(?:es)?|prestador(?:es)?|vendedor(?:es)?|transmitentes?)";
+    /**
+     * Um qualificativo entre o papel e o predicado ("o cliente estrangeiro tem sede…"), nunca uma
+     * negação nem uma preposição que inverta o sentido ("sem sede", "fora de").
+     */
+    private static final String QUALIFIER = "(?: (?!nao\\b|nem\\b|sem\\b|fora\\b|nunca\\b)\\w+)?";
+    /** Residência ou sede em Portugal, ligada ao papel que a antecede. */
+    private static final String RESIDENT_HERE = "(?:residentes?(?: em portugal| no territorio nacional)?"
+            + "|portugues(?:a|es|as)?|nacional|nacionais"
+            + "|(?:(?:com|tem|tinha|possui|possuem|dispoe de) (?:a |uma |um )?)?"
+            + "(?:sede|residencia|domicilio|estabelecimento estavel)(?: \\w+){0,2}? em portugal)";
+    /**
+     * Residência em Portugal de quem fornece (sinal interno, não é marcador): anula
+     * FORNECEDOR_NAO_RESIDENTE ("fornecedor nacional", "o fornecedor estrangeiro tem sede em Portugal").
+     */
+    private static final Pattern SUPPLIER_RESIDENT_HERE =
+            Pattern.compile("\\b(?:" + SUPPLIER + QUALIFIER + "(?: (?:e|for|seja|sendo))? " + RESIDENT_HERE + ")\\b");
+    /** Fornecedor e adquirente nomeados juntos com residência/sede em Portugal ("ambos com sede em Portugal"). */
+    private static final String BOTH_ROLES =
+            "(?:" + SUPPLIER + QUALIFIER + " e (?:o |a )?" + ACQUIRER + "|" + ACQUIRER + QUALIFIER + " e (?:o |a )?" + SUPPLIER + ")"
+            + QUALIFIER;
+    private static final Pattern BOTH_RESIDENT_HERE = Pattern.compile("\\b(?:" + BOTH_ROLES
+            + "(?: (?:sao|estao|tem|possuem|ambos|ambas))* (?:ambos |ambas )?" + RESIDENT_HERE + ")\\b");
+    /**
+     * Negação da cópula ou da posse ("nao sao residentes", "nem o fornecedor nem…", "nao tem sede"):
+     * para o contexto obrigatório anula os marcadores de não residência. "nao residente" é uma
+     * qualidade e não conta.
+     */
+    private static final Pattern RESIDENCY_NEGATION = Pattern.compile(
+            "\\b(?:nem|nunca|jamais|nao (?:e|sao|era|eram|for|forem|seja|sejam|esta|estao|tem|tinha|possui|possuem))\\b");
+    private static final Set<ApplicabilityMarker> NON_RESIDENCY =
+            EnumSet.of(ApplicabilityMarker.FORNECEDOR_NAO_RESIDENTE, ApplicabilityMarker.ADQUIRENTE_NAO_RESIDENTE);
 
     /** Verbos de quem fornece, na 3.ª pessoa ("presta", "vendem"); "prestamos"/"efectua aquisicoes" não contam. */
     private static final String SUPPLY_VERB = "(?:presta|prestam|vende|vendem|fornece|fornecem|transmite|transmitem)";
@@ -74,10 +114,11 @@ public class ApplicabilityMarkerDetector {
             + "|vendo|vendemos|vende|vendem|vendi|vendeu|venderam"
             + "|forneco|fornecemos|fornece|fornecem|forneci|forneceu|forneceram"
             + "|transmito|transmitimos|transmite|transmitem|transmiti|transmitiu|transmitiram)";
-    /** Os dois lados da operação são não residentes ("ambos nao residentes", "duas empresas estrangeiras"). */
-    private static final String BOTH_NON_RESIDENT =
-            "ambos(?: os)?" + LINK + " " + NON_RESIDENT
-            + "|(?:dois|duas|entre)(?: " + ENTITY + ")? " + NON_RESIDENT;
+    /**
+     * Os dois papéis, nomeados, são não residentes ("fornecedor e adquirente sao ambos nao residentes").
+     * Formas colectivas sem papéis ("ambos", "dois clientes", "duas empresas") não contam.
+     */
+    private static final String BOTH_NON_RESIDENT = BOTH_ROLES + LINK + " " + NON_RESIDENT;
 
     private static final Map<ApplicabilityMarker, Pattern> PATTERNS;
 
@@ -122,7 +163,7 @@ public class ApplicabilityMarkerDetector {
         // "empresa estrangeira a quem prestamos" é o adquirente e não conta.
         patterns.put(ApplicabilityMarker.FORNECEDOR_NAO_RESIDENTE, word(
                 BOTH_NON_RESIDENT
-                        + "|(?:fornecedor(?:es)?|prestador(?:es)?|vendedor(?:es)?|transmitentes?)" + LINK + " " + NON_RESIDENT
+                        + "|" + SUPPLIER + LINK + " " + NON_RESIDENT
                         + "|" + ENTITY + " " + NON_RESIDENT + " (?:que (?:nos |me |lhe |lhes )?)?" + SUPPLY_VERB
                         + "|por (?:um|uma) (?:" + ENTITY + "|fornecedor|prestador) " + NON_RESIDENT));
         // Quem adquire é não residente: pelo papel ("cliente nao residente") ou por "a outra empresa
@@ -131,7 +172,7 @@ public class ApplicabilityMarkerDetector {
         // estrangeira") e não conta.
         patterns.put(ApplicabilityMarker.ADQUIRENTE_NAO_RESIDENTE, word(
                 BOTH_NON_RESIDENT
-                        + "|(?:adquirente|cliente|destinatario|comprador)(?:e?s)?" + LINK + " " + NON_RESIDENT
+                        + "|" + ACQUIRER + LINK + " " + NON_RESIDENT
                         // janela curta e sem atravessar outra oração ("... e eu compro a outra empresa")
                         + "|" + SALE_VERB + "(?: (?!e\\b|mas\\b|tambem\\b|eu\\b|compr|adquir)\\w+){0,6}? a outr[oa]s? "
                         + ENTITY + "(?: tambem)? " + NON_RESIDENT
@@ -147,9 +188,8 @@ public class ApplicabilityMarkerDetector {
         // ("cliente portugues", "o adquirente tem estabelecimento estavel em Portugal", "o cliente e uma
         // empresa portuguesa") ou por "empresa portuguesa compra". "Portugal" sozinho não conta.
         patterns.put(ApplicabilityMarker.ADQUIRENTE_RESIDENTE, word(
-                ACQUIRER + LINK + " (?:residentes?(?: em portugal| no territorio nacional)?|portugues(?:a|es|as)?)"
-                        + "|" + ACQUIRER + " (?:tem|tinha|possui|dispoe de) (?:sede|(?:um |uma )?estabelecimento estavel"
-                        + "|domicilio)(?: \\w+){0,2}? em portugal"
+                ACQUIRER + QUALIFIER + LINK + " " + RESIDENT_HERE
+                        + "|" + BOTH_ROLES + "(?: (?:sao|estao|tem|possuem|ambos|ambas))* (?:ambos |ambas )?" + RESIDENT_HERE
                         + "|" + ACQUIRER + LINK + " (?:uma |um )?" + ENTITY + " (?:portugues(?:a|es|as)?|residentes? em portugal)"
                         + "|" + ENTITY + " portugues(?:a|es|as)? (?:que )?(?:compra|compram|adquire|adquirem|contrata|contratam)"));
         PATTERNS = Collections.unmodifiableMap(patterns);
@@ -173,6 +213,16 @@ public class ApplicabilityMarkerDetector {
         if (queryScope != null && queryScope.operations().contains(FiscalOperation.CALCULO)) {
             markers.add(ApplicabilityMarker.CALCULO);
         }
+        // Residência explícita em Portugal prevalece sobre a não residência do mesmo papel.
+        if (BOTH_RESIDENT_HERE.matcher(normalized).find()) {
+            markers.removeAll(NON_RESIDENCY);
+        }
+        if (SUPPLIER_RESIDENT_HERE.matcher(normalized).find()) {
+            markers.remove(ApplicabilityMarker.FORNECEDOR_NAO_RESIDENTE);
+        }
+        if (markers.contains(ApplicabilityMarker.ADQUIRENTE_RESIDENTE)) {
+            markers.remove(ApplicabilityMarker.ADQUIRENTE_NAO_RESIDENTE);
+        }
         return markers;
     }
 
@@ -185,9 +235,12 @@ public class ApplicabilityMarkerDetector {
      */
     public Set<ApplicabilityMarker> detectAffirmed(String question, FiscalScope queryScope) {
         Set<ApplicabilityMarker> affirmed = detect(question, queryScope);
-        if (affirmed.stream().anyMatch(NEGATABLE::contains)
-                && NEGATION_WORD.matcher(FiscalScopeClassifier.normalize(question)).find()) {
+        String normalized = FiscalScopeClassifier.normalize(question);
+        if (affirmed.stream().anyMatch(NEGATABLE::contains) && NEGATION_WORD.matcher(normalized).find()) {
             affirmed.removeAll(NEGATABLE);
+        }
+        if (affirmed.stream().anyMatch(NON_RESIDENCY::contains) && RESIDENCY_NEGATION.matcher(normalized).find()) {
+            affirmed.removeAll(NON_RESIDENCY);
         }
         return affirmed;
     }

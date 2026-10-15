@@ -83,9 +83,17 @@ class HybridApplicabilityHeldOutTest {
             H  | Compro mercadorias a outra empresa estrangeira. Há inversão do sujeito passivo?                                                 | APPLICABILITY_CONTEXT_MISSING
             I  | Uma empresa estrangeira a quem prestamos serviços em Portugal: há inversão do sujeito passivo?                                   | APPLICABILITY_CONTEXT_MISSING
             J  | Há inversão do sujeito passivo?                                                                                                 | APPLICABILITY_CONTEXT_MISSING
-            K  | Duas empresas estrangeiras fazem uma venda localizada em Portugal. Há inversão do sujeito passivo?                              | ACCEPT
-            L  | Uma empresa estrangeira presta um serviço localizado em Portugal a outra empresa estrangeira. Quem liquida o IVA?               | ACCEPT
-            M  | Ambos não residentes; o cliente não é português nem tem estabelecimento estável em Portugal. Há inversão?                       | ACCEPT
+            K  | Duas empresas estrangeiras fazem uma venda localizada em Portugal. Há inversão do sujeito passivo?                              | APPLICABILITY_CONTEXT_MISSING
+            L  | Uma empresa não residente presta um serviço localizado em Portugal a outra empresa não residente. Quem liquida o IVA?           | ACCEPT
+            M  | Ambos não residentes; o cliente não é português nem tem estabelecimento estável em Portugal. Há inversão?                       | APPLICABILITY_CONTEXT_MISSING
+            F1 | Os meus dois clientes são ambos não residentes; compro serviços a um fornecedor nacional. Há inversão do sujeito passivo?       | APPLICABILITY_CONTEXT_MISSING
+            F2 | O fornecedor estrangeiro e o cliente estrangeiro têm ambos sede em Portugal. Há inversão do sujeito passivo?                    | APPLICABILITY_EXCLUDED
+            P  | O fornecedor não residente presta serviços a um adquirente não residente. Há inversão do sujeito passivo?                       | ACCEPT
+            Q  | Os meus dois fornecedores são ambos não residentes e o cliente é residente em Portugal. Há inversão?                            | APPLICABILITY_EXCLUDED
+            R  | Fornecedor não residente; adquirente com sede em Portugal. Há inversão do sujeito passivo?                                      | APPLICABILITY_EXCLUDED
+            S  | Fornecedor com sede em Portugal; adquirente não residente. Há inversão do sujeito passivo?                                      | APPLICABILITY_CONTEXT_MISSING
+            T  | Nem o fornecedor nem o adquirente são não residentes. Há inversão do sujeito passivo?                                           | APPLICABILITY_CONTEXT_MISSING
+            U  | Ambos não são residentes. Há inversão do sujeito passivo?                                                                       | APPLICABILITY_CONTEXT_MISSING
             N  | O fornecedor estrangeiro vende a um cliente português. Há inversão do sujeito passivo?                                          | APPLICABILITY_EXCLUDED
             """)
     void heldOut4624(String id, String question, String expected) {
