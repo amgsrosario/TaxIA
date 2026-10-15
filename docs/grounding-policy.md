@@ -100,7 +100,7 @@ ambíguas continuam fora de âmbito (follow-ups separados).
   tiver qualquer negação; para as exclusões conta a presença.
 - Governação: a das exclusões. Acrescentar é imediato; retirar numa Q&A publicada ou VALIDATED fica
   pendente até aprovação humana.
-- Vocabulário: versão 2026-10-15.3.
+- Vocabulário: versão 2026-10-15.4.
 
 **Integridade do conteúdo servido (ADR-005).** O RAG lê o texto da Q&A em tempo de pergunta;
 por isso a versão publicada está congelada para alterações materiais, que passam por uma nova
