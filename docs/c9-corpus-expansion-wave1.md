@@ -251,3 +251,16 @@ Recomendação: B. Aguarda decisão humana; nenhum código foi alterado.
   - recall de termos coloquiais ("Modelo 22", "recibos verdes"): aliases ou query expansion governada;
   - perguntas ambíguas IRS/IRC: clarificação;
   - divórcio/AIMI ainda sem marcador.
+
+## 12. C9-A merged e activada no piloto (2026-10-15)
+
+- O PR #24 foi merged (`9e6f06c`). A V19 foi validada numa base descartável e aplicada ao piloto
+  pelo Flyway normal. As 7 exclusões foram preservadas como `EXCLUDES`.
+- O António correu `c9a-activation.sh`, com escritas governadas pela sua sessão:
+  - `EXCLUDES SUBLOCACAO` na AT-FAQ-5930 publicada;
+  - `AT-FAQ-2721_v2` e `AT-FAQ-5930_v2` criadas em `PENDING_REVIEW`;
+  - HABITACAO_PROPRIA retirada da 5930_v2.
+
+  Foram 8 eventos de auditoria, todos esperados (138 → 146).
+- Regressão do gate: a única diferença é "Sou subarrendatário…" → 5930 `APPLICABILITY_EXCLUDED`.
+- Estado e próximos gates: [taxia-project-state.md](taxia-project-state.md).

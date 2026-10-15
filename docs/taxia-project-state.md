@@ -3,7 +3,7 @@
 Documento de passagem: permite retomar o projecto sem depender de conversas anteriores.
 Confirmar sempre no código, nas migrações e nos ADR (ver [AGENTS.md](../AGENTS.md)).
 
-Última actualização: 2026-10-14 (C8 activada no piloto; C9 — expansão do corpus, WAVE 1 em gate editorial).
+Última actualização: 2026-10-15 (C9-A merged e activada no piloto: V19, regras de aplicabilidade unificadas; WAVE 1-B e novas versões 2721/5930 em revisão).
 
 ## Base e entregas recentes
 
@@ -20,14 +20,16 @@ Confirmar sempre no código, nas migrações e nos ADR (ver [AGENTS.md](../AGENT
 | M4B | #21 | Propagação de risco e validação humana pelos fundamentos usados ([ADR-007](adr/ADR-007-risk-propagation-and-human-validation.md)) |
 | BNI Markdown | #22 | Resposta em Markdown seguro no ecrã Perguntar |
 | C8 | #23 (merged, `934c5f0`); activada no piloto em 2026-10-14 | Actualidade das fontes por verificação humana estruturada (V18, [ADR-008](adr/ADR-008-source-freshness-verification.md)) |
+| C9-A | #24 (merged, `9e6f06c`); activada no piloto em 2026-10-15 | Regras de aplicabilidade unificadas: exclusões e contexto obrigatório, defesa híbrida (V19, [ADR-009](adr/ADR-009-unified-applicability-rules.md)) |
 
-Migrações: V1–V18. A V17 (`users.token_version`, `users.must_change_password`) está aplicada no
-piloto desde 2026-10-07; a V18 (verificação de actualidade das fontes) desde 2026-10-14.
+Migrações: V1–V19. No piloto, a V17 (`users.token_version`, `users.must_change_password`) está
+aplicada desde 2026-10-07, a V18 (verificação de actualidade das fontes) desde 2026-10-14 e a V19
+(`knowledge_qa_applicability_rules`, com `kind` EXCLUDES/REQUIRES) desde 2026-10-15.
 
 ## Pipeline de grounding vigente
 
 retrieval (topK 5, e5-base) → relevância ≥ 0.88 → gate de âmbito (contradições v1 + exclusões
-ADR-004) → avaliação de suficiência → prompt / validação / fontes → resposta. Sem candidatos:
+ADR-004 + contexto obrigatório ADR-009) → avaliação de suficiência → prompt / validação / fontes → resposta. Sem candidatos:
 resposta-limite sem chamar o provider. O threshold mantém-se 0.88 (held-outs 2 e 3 não
 justificaram descida).
 
@@ -44,24 +46,28 @@ justificaram descida).
 
 ## Piloto
 
-- Base `knowledgeflow_pilot` em **V18**:
+- Base `knowledgeflow_pilot` em **V19**:
   - a V16 foi aplicada em 2026-10-02 pela API do Flyway com as migrações de `main`, depois de validar os checksums V1–V15;
   - a V17 foi aplicada em 2026-10-07 pelo Flyway normal no arranque do backend a partir de `main` `f841335`;
   - a V18 foi aplicada em 2026-10-14 pelo Flyway normal no arranque do backend (launcher do piloto) a partir de `main` `934c5f0`;
-  - nenhuma das três alterou conteúdo.
+  - a V19 foi aplicada em 2026-10-15 pelo Flyway normal no arranque do backend (launcher do piloto)
+    a partir de `main` `9e6f06c`, depois de validada numa base descartável restaurada do backup;
+  - nenhuma das quatro alterou conteúdo.
 - 23 Q&A no total, 6 publicadas e VALIDATED, 6 embeddings (um por publicada), 33 fontes:
   AT-FAQ-2721, AT-FAQ-5795, AT-FAQ-5930, CIVA-CONSERVACAO-10A-001_v2 e, desde 2026-10-12, o pack
   curado G1 `CIRC-CONSERVACAO-10A-001` e G2 `CIVA-FATURA-PRAZO-EMISSAO-001` (criados e validados pelo
   António no backoffice e publicados por ele pela API governada, com gates humanos de conteúdo e de
   publicação).
-- Exclusões de aplicabilidade (ADR-004), definidas pelo António no backoffice em 2026-10-06, todas
-  com âmbito marcado como revisto:
+- Regras de aplicabilidade: tabela canónica `knowledge_qa_applicability_rules` desde a V19, que
+  renomeou a tabela de exclusões da V16. As 7 exclusões de 2026-10-06 foram preservadas campo a campo
+  como `EXCLUDES`. Exclusões definidas pelo António no backoffice em 2026-10-06, com âmbito marcado
+  como revisto:
 
   | Q&A | Exclusões |
   |---|---|
   | AT-FAQ-2721 | HERANCA_INDIVISA, RECLAMACAO, PAGAMENTO, CALCULO |
   | AT-FAQ-5795 | RETENCAO_OBRIGATORIA (PENSAO_ESTRANGEIRA avaliada e **não** acrescentada) |
-  | AT-FAQ-5930 | INQUILINO, HABITACAO_PROPRIA |
+  | AT-FAQ-5930 | INQUILINO, HABITACAO_PROPRIA; **SUBLOCACAO** desde 2026-10-15 (ver C9) |
   | CIVA-CONSERVACAO-10A-001_v2 | nenhuma (âmbito revisto) |
   | CIRC-CONSERVACAO-10A-001 (G1) | nenhuma (âmbito revisto) |
   | CIVA-FATURA-PRAZO-EMISSAO-001 (G2) | nenhuma (âmbito revisto) |
@@ -167,11 +173,55 @@ Auditoria, `updated_at`, texto servido e embeddings cruzados para as 4 Q&A publi
   CIVA conservação consulta documentada, AT-FAQ-5930 "com limitações" + SUGGESTED; sem regressão
   de grounding, M4B ou âmbito.
 
-## Próximo eixo: expansão do corpus (C9)
+## Expansão do corpus (C9) e C9-A — estado em 2026-10-15
 
-O gargalo deixou de ser o núcleo técnico e passou a ser a dimensão, a qualidade e a governação do
-corpus. Inventário, classificação e gate editorial da WAVE 1:
-[c9-corpus-expansion-wave1.md](c9-corpus-expansion-wave1.md).
+Detalhe: [c9-corpus-expansion-wave1.md](c9-corpus-expansion-wave1.md).
+
+- **C9-A operacional no piloto** (ADR-009):
+  - V19 aplicada;
+  - 7 regras legacy como `EXCLUDES`, 0 `REQUIRES`;
+  - regressão do gate (20 perguntas × 6 publicadas) idêntica à anterior à activação.
+- **AT-FAQ-5930 publicada protegida:** `EXCLUDES SUBLOCACAO`, acrescentada pelo António pela API
+  governada.
+  - Conservador: texto e embedding inalterados, publicação mantida.
+  - A versão da linha subiu 7 → 8, porque as regras fazem parte do que é validado (ADR-005).
+  - A marca "âmbito revisto" foi reposta a "não revisto" (ADR-004).
+  - Efeito medido: "Sou subarrendatário…" passa a ser rejeitada para a 5930 (`APPLICABILITY_EXCLUDED`);
+    as perguntas do senhorio mantêm-se.
+- **Novas versões em `PENDING_REVIEW`** (ADR-005; não validadas, não publicadas, sem embedding; as
+  publicadas continuam a responder):
+  - `AT-FAQ-2721_v2`:
+    - texto aprovado (sem "única liquidação" nem "regularização posterior"; consequência da falta de
+      declaração segundo a FAQ 2721; soma dos VPT e dedução a dobrar; opção válida até renúncia);
+    - herdou HERANCA_INDIVISA, RECLAMACAO, PAGAMENTO e CALCULO.
+  - `AT-FAQ-5930_v2`:
+    - texto aprovado (CIRS art. 41.º, n.os 1 a 9; n.º 1 na redacção da Lei n.º 56/2023; n.º 8 na
+      redacção do DL n.º 57/2024; n.º 6 sem dedução na sublocação);
+    - regras INQUILINO e SUBLOCACAO;
+    - **HABITACAO_PROPRIA retirada só na v2** (decisão expansiva, a confirmar na validação).
+- **WAVE 1-B:** 5 Q&A em `PENDING_REVIEW` desde 2026-10-15, sem embedding, com fontes por verificar:
+  - `IRS-PRAZO-DECLARACAO-ANUAL-001`;
+  - `CIRC-PRAZO-DECLARACAO-PERIODICA-001`;
+  - `CIVA-PRAZO-DECLARACAO-PERIODICA-001`;
+  - `CPPT-PRAZO-RECLAMACAO-GRACIOSA-001`;
+  - `CIRS-CATB-EMISSAO-FATURAS-RECIBOS-001`.
+- **Contagens no piloto (2026-10-15):**
+  - Flyway 19 · Q&A 30 · publicadas 6 · embeddings 6 (md5 inalterado, 0 órfãos);
+  - fontes 44 · regras 14 (todas `EXCLUDES`) · auditoria 146.
+- **Backups:** `knowledgeflow_pilot_pre_c9_wave1b_2026-10-15T092340.dump` e
+  `knowledgeflow_pilot_pre_c9a_activation_2026-10-15T145615.dump` (SHA-256 `4e669656…`, 600).
+- **Próximos gates humanos (nenhum promove publicação por si):**
+  - A. C8 da AT-FAQ-5795:
+    - FAQ 5795 oficial, sem versão consolidada;
+    - CIRS art. 98.º e art. 99.º-D, com versão consolidada confirmada;
+    - sem matéria estável.
+  - B. Revisão humana da 2721_v2.
+  - C. Revisão humana da 5930_v2, com atenção ao alargamento pela remoção de HABITACAO_PROPRIA.
+  - D. Revisão humana dos 5 Q&A da WAVE 1-B: validFrom 2025-07-01 em B4/B7; versão consolidada no
+    DRE para o CIRC art. 120.º e o CPPT antes do C8.
+  - Depois: configurar no backoffice 0959 e 4624 (contexto obrigatório e exclusões, ADR-009 §5);
+    revalidá-las; gate C8; publicação só por decisão humana.
+  - Rever o âmbito da 5930 publicada (marcar "âmbito revisto").
 
 ## Follow-ups abertos
 
