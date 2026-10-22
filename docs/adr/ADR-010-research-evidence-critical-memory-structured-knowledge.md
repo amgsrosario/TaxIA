@@ -47,9 +47,19 @@ Não é um crawler: só se constrói o URL do artigo pedido.
 
 O cliente HTTP é conservador:
 - só GET, sem cookies nem autenticação;
+- **só HTTPS**: o esquema `http` existe apenas num construtor de pacote usado por testes com
+  servidor local, sem configuração que o active em produção;
 - allowlist de hosts aplicada também em cada redirecção;
-- pausa entre pedidos e limite de tamanho;
+- pausa entre pedidos;
 - 403/429/503 são respeitados, nunca contornados.
+
+O corpo da resposta é lido em stream com limite (`max-response-bytes`, 2 MB por omissão):
+- um `Content-Length` acima do limite é recusado sem ler o corpo;
+- uma resposta sem tamanho declarado é interrompida assim que o ultrapassa;
+- todos os corpos, incluindo os de redirecções e erros, são fechados.
+
+Uma resposta recusada dá um passo `FAILED` e o evento de auditoria `RESEARCH_CONSULTATION_REJECTED`.
+Não cria evidência.
 
 A arquitectura admite fontes posteriores (Diário da República, jurisprudência) como novos
 catálogos ou clientes.

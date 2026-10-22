@@ -305,6 +305,30 @@ class InvestigationServiceTest {
     }
 
     @Test
+    @DisplayName("Resposta da fonte recusada por tamanho → passo FAILED auditado, nenhuma evidência, RESPOSTA_LIMITE")
+    void oversizedResponseCreatesNoEvidence() {
+        when(sourceClient.fetch(CIRS_78_URL)).thenReturn(FetchedPage.failed(200, CIRS_78_URL,
+                "Resposta recusada: corpo excede o limite de 2000000 bytes"));
+
+        Trace t = run("Um não residente pode fazer deduções à coleta no IRS?");
+
+        assertThat(t.evidence()).isEmpty();
+        assertThat(t.propositions()).isEmpty();
+        assertThat(t.steps()).anySatisfy(s -> {
+            assertThat(s.getPhase()).isEqualTo(ResearchPhase.CONSULTATION);
+            assertThat(s.getOutcome()).isEqualTo(StepOutcome.FAILED);
+            assertThat(s.getDetail()).contains("excede o limite");
+        });
+        assertThat(t.investigation().getAnswerType()).isEqualTo(AnswerType.RESPOSTA_LIMITE);
+        assertThat(auditEventRepository.findAll()).anySatisfy(a -> {
+            assertThat(a.getAction()).isEqualTo(AuditAction.RESEARCH_CONSULTATION_REJECTED);
+            assertThat(a.getEntityId()).isEqualTo(t.investigation().getId());
+            assertThat(a.getMetadata()).contains("outcome=FAILED").contains("excede o limite");
+        });
+        verify(extractor, never()).extract(anyString(), any());
+    }
+
+    @Test
     @DisplayName("Referência explícita da pergunta é descoberta sem o modelo e confirmada na fonte")
     void explicitReferenceFromQuestion() {
         when(hypothesisProvider.propose(anyString(), any(), anyInt())).thenReturn(List.of());

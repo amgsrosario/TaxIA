@@ -289,7 +289,14 @@ public class InvestigationService {
                         + " (" + page.detail() + ")"));
                 continue;
             }
-            if (outcome != StepOutcome.FETCHED) continue; // bloqueio ou falha técnica: sem conteúdo a avaliar
+            if (outcome != StepOutcome.FETCHED) {
+                // Bloqueio, falha técnica ou resposta recusada (ex.: acima do limite de tamanho):
+                // sem conteúdo a avaliar, nenhuma evidência é criada; fica o passo e a auditoria.
+                auditService.record(run.org(), run.userId, AuditAction.RESEARCH_CONSULTATION_REJECTED,
+                        "RESEARCH_INVESTIGATION", run.id(), "step=%s;outcome=%s;http=%s;detail=%s".formatted(
+                                consultation.getId(), outcome, page.httpStatus(), page.detail()));
+                continue;
+            }
 
             ParsedArticle article = parser.parse(page.body(), ref, retrievedAt.toLocalDate());
             if (!article.confirmed()) {

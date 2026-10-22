@@ -27,8 +27,9 @@ AR2-DEC-KF-2026-10-22 (B1–B3 e Aditamento Operacional). A decisão arquitectur
 2. **Descoberta.** Entram as referências explícitas da pergunta (`artigo 78.º do CIRS`) e até
    3 hipóteses do modelo. As hipóteses do modelo não são evidência. Uma hipótese já desmentida na
    memória crítica é saltada e a recorrência fica registada.
-3. **Consulta.** Página oficial do artigo, obtida read-only e com allowlist. São no máximo
-   4 consultas, com 1,5 s entre pedidos.
+3. **Consulta.** Página oficial do artigo, obtida read-only, só por HTTPS e com allowlist. São no
+   máximo 4 consultas, com 1,5 s entre pedidos. O corpo é lido com limite de 2 MB; acima disso a
+   consulta é recusada (`FAILED`, auditada) e não cria evidência.
 4. **Confirmação.** O bloco oficial tem de conter o cabeçalho do artigo pedido (78 ≠ 78.º-A ≠ 79).
 5. **Evidência.** Guarda-se o texto oficial, o SHA-256, a vigência e a classificação. Fica sempre
    `NOT_PROMOTED`.
