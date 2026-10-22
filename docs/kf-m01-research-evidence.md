@@ -79,20 +79,35 @@ A demonstração com a fonte real:
 
 ## Revisão independente (Codex)
 
+> **Fonte:** síntese executiva da Coordenação Estratégica AR2 (ordem KF-M01/ENC-02, 2026-10-22),
+> fiel aos relatórios do Codex. Não é uma transcrição integral nem um relatório assinado pelo
+> revisor. **Relatórios originais do Codex:** pendentes de arquivo pelo próprio revisor em
+> AR2-Governance `reviews/KF-M01/`.
+
 | Ciclo | Resultado |
 |---|---|
-| 1.ª revisão | `CHANGES_REQUIRED` — CR-01 (MAJOR, limite de memória HTTP), CR-02 (MINOR, só HTTPS), CR-03 (MINOR, espaços finais nos fixtures) |
+| 1.ª revisão | `CHANGES_REQUIRED`: MAJOR, limite do corpo HTTP aplicado depois de materializar a resposta (CR-01); MINOR, HTTP sem TLS aceite (CR-02); MINOR, espaços finais nos fixtures HTML (CR-03) |
 | Correcções | `53d919f` (CR-01, CR-02), `bf53cfd` (CR-03) |
-| 2.ª revisão | **`APPROVED_WITH_RESERVATIONS`** |
+| 2.ª revisão | `APPROVED_WITH_RESERVATIONS`: os três defeitos estão resolvidos. I1–I7 PASS. I8 PARTIAL, por falta de reprodução conclusiva de `ResearchPathPostgresIT`. I9 PARTIAL |
+| Verificação final (2026-10-22, 16h22, HEAD `bf53cfd`, worktree limpo) | `ResearchPathPostgresIT` **PASS**: PostgreSQL descartável, Flyway V1–V20, 1 teste com 0 falhas. Confirma a persistência e a integridade das relações, a evidência não promovida, a memória crítica e o evento `RESEARCH_INVESTIGATION_COMPLETED`, sem escrita em Q&A nem em embeddings. `ResearchLiveOfficialSourceIT` **PASS**: duas consultas HTTPS públicas em base descartável; CIRS 78.º `FETCHED/200`, evidência `ACCEPTED/NOT_PROMOTED`, proposição ancorada e rejeição da proposição sem suporte; CIRS 999.º `NOT_FOUND/404` |
 
-Invariantes registados na conclusão final:
-- **I8: PASS.**
-- **I9: PARTIAL.** A descoberta, a estruturação e a redacção com o modelo real não foram
-  executadas. Os testes e a demonstração com a fonte oficial real usaram respostas fixas no lugar
-  do modelo.
+**Matriz final:**
 
-Relatório completo do Codex, com a matriz I1–I9, CA-08 e CA-10: **POR ANEXAR**. O texto não estava
-disponível ao executor quando este registo foi feito, e nada aqui o reconstrói ou resume.
+| Invariante | Resultado |
+|---|---|
+| I1–I7 | PASS |
+| I8 | PASS |
+| I9 | PARTIAL |
+| CA-09 / D1 | NOT_VERIFIED |
+
+**Conclusão final: `APPROVED_WITH_RESERVATIONS`.** Nenhum finding técnico permanece aberto nas
+correcções CR-01 a CR-03.
+
+**Reserva I9:**
+- **Modelo real:** não houve execução de ponta a ponta com o modelo real. A demonstração com a
+  fonte real usou respostas fixas para a descoberta, a extracção e a redacção.
+- **Correlação da auditoria:** o trace permite reconstruir o percurso, mas não incorpora
+  necessariamente a correlação explícita dos eventos de auditoria.
 
 A aprovação técnica **não** autoriza utilização operacional. Continuam a exigir decisão própria:
 - a aceitação do ADR-010, que se mantém *Proposed*;
