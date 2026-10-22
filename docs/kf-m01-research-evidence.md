@@ -77,6 +77,30 @@ A demonstração com a fonte real:
   usa chave de API. Com o modelo real, o mesmo percurso corre pelo endpoint num ambiente
   descartável.
 
+## Revisão independente (Codex)
+
+| Ciclo | Resultado |
+|---|---|
+| 1.ª revisão | `CHANGES_REQUIRED` — CR-01 (MAJOR, limite de memória HTTP), CR-02 (MINOR, só HTTPS), CR-03 (MINOR, espaços finais nos fixtures) |
+| Correcções | `53d919f` (CR-01, CR-02), `bf53cfd` (CR-03) |
+| 2.ª revisão | **`APPROVED_WITH_RESERVATIONS`** |
+
+Invariantes registados na conclusão final:
+- **I8: PASS.**
+- **I9: PARTIAL.** A descoberta, a estruturação e a redacção com o modelo real não foram
+  executadas. Os testes e a demonstração com a fonte oficial real usaram respostas fixas no lugar
+  do modelo.
+
+Relatório completo do Codex, com a matriz I1–I9, CA-08 e CA-10: **POR ANEXAR**. O texto não estava
+disponível ao executor quando este registo foi feito, e nada aqui o reconstrói ou resume.
+
+A aprovação técnica **não** autoriza utilização operacional. Continuam a exigir decisão própria:
+- a aceitação do ADR-010, que se mantém *Proposed*;
+- o merge;
+- a activação no piloto;
+- a integração no `/ask`;
+- o desbloqueio de B4.
+
 ## Activação no piloto
 
 Não é automática. Exige uma acção humana separada:

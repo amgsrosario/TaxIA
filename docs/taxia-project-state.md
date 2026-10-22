@@ -21,6 +21,7 @@ Confirmar sempre no código, nas migrações e nos ADR (ver [AGENTS.md](../AGENT
 | BNI Markdown | #22 | Resposta em Markdown seguro no ecrã Perguntar |
 | C8 | #23 (merged, `934c5f0`); activada no piloto em 2026-10-14 | Actualidade das fontes por verificação humana estruturada (V18, [ADR-008](adr/ADR-008-source-freshness-verification.md)) |
 | C9-A | #24 (merged, `9e6f06c`); activada no piloto em 2026-10-15 | Regras de aplicabilidade unificadas: exclusões e contexto obrigatório, defesa híbrida (V19, [ADR-009](adr/ADR-009-unified-applicability-rules.md)) |
+| KF-M01 | branch `feat/kf-m01-research-evidence`, PR a abrir; revisão independente `APPROVED_WITH_RESERVATIONS` (2026-10-22); **não activada nem integrada no `/ask`** | Research → Evidence → Critical Memory → Structured Knowledge (V20, [ADR-010](adr/ADR-010-research-evidence-critical-memory-structured-knowledge.md) *Proposed*; [documentação](kf-m01-research-evidence.md)) |
 
 Migrações: V1–V19. No piloto, a V17 (`users.token_version`, `users.must_change_password`) está
 aplicada desde 2026-10-07, a V18 (verificação de actualidade das fontes) desde 2026-10-14 e a V19
