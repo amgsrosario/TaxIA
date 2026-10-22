@@ -41,6 +41,7 @@ Decisões e roadmap:
 - [ADR-002: Separate Assistive and Formal Knowledge Circuits](docs/adr/ADR-002-separate-assistive-and-formal-circuits.md)
 - [ADR-004: Applicability Metadata and Governed Exclusions](docs/adr/ADR-004-applicability-metadata-governed-exclusions.md)
 - [ADR-005: Published Content Integrity](docs/adr/ADR-005-published-content-integrity.md)
+- [ADR-010 (Proposed): Research, Evidence, Critical Memory and Structured Knowledge](docs/adr/ADR-010-research-evidence-critical-memory-structured-knowledge.md) — [KF-M01](docs/kf-m01-research-evidence.md)
 - [Technical Roadmap](docs/roadmap.md)
 - [Estado do projecto / handoff](docs/taxia-project-state.md)
 
@@ -160,6 +161,17 @@ IA assistiva (ADMIN):
 POST /api/v1/admin/ai/ask
 ```
 
+Investigação a partir de pergunta inédita (ADMIN; só com `KNOWLEDGEFLOW_RESEARCH_ENABLED=true`,
+desligada por omissão; KF-M01, ADR-010):
+
+```text
+POST  /api/v1/admin/research/investigations
+GET   /api/v1/admin/research/investigations/{id}
+GET   /api/v1/admin/research/critical-memory?referenceKey=CIRS:78
+GET   /api/v1/admin/research/critical-memory/{id}/history
+PATCH /api/v1/admin/research/critical-memory/{id}/status
+```
+
 Indexação RAG (ADMIN):
 
 ```text
@@ -244,6 +256,8 @@ V12  organization users
 V13  pgvector + knowledge_case_embeddings
 …    (V14–V16: ver docs/taxia-project-state.md)
 V17  users.token_version + users.must_change_password (ADR-006)
+…    (V18–V19: ADR-008, ADR-009)
+V20  research: investigações, evidência não promovida, memória crítica, proposições (ADR-010)
 ```
 
 As migrations antigas não são reescritas. A `V5` converte instalações já existentes sem perder dados.

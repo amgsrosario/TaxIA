@@ -65,6 +65,14 @@ knowledgeflow:
   knowledge:
     import:
       max-rows: ${KNOWLEDGE_IMPORT_MAX_ROWS:1000}
+  research:
+    # KF-M01 / ADR-010: investigação a partir de pergunta inédita (Research → Evidence →
+    # Critical Memory → Structured Knowledge). Desligada por omissão: sem endpoint nem pedidos HTTP.
+    # Saída read-only, sem autenticação, só para a allowlist (Aditamento Operacional §3).
+    enabled: ${KNOWLEDGEFLOW_RESEARCH_ENABLED:false}
+    max-consultations: ${KNOWLEDGEFLOW_RESEARCH_MAX_CONSULTATIONS:4}
+    max-model-hypotheses: ${KNOWLEDGEFLOW_RESEARCH_MAX_MODEL_HYPOTHESES:3}
+    delay-ms: ${KNOWLEDGEFLOW_RESEARCH_DELAY_MS:1500}
   ingestion:
     at-faq:
       # Pilot of automated ingestion of the AT public FAQs (Etapa 10A).
