@@ -1,0 +1,101 @@
+# KF-M01 — Research → Evidence → Critical Memory → Structured Knowledge
+
+Este documento cobre a primeira missão técnica do piloto KnowledgeFlow, executada segundo a
+AR2-DEC-KF-2026-10-22 (B1–B3 e Aditamento Operacional). A decisão arquitectural está no
+[ADR-010](adr/ADR-010-research-evidence-critical-memory-structured-knowledge.md), ainda
+*Proposed*.
+
+## Alinhamento estratégico (AR2-GOV-01)
+
+| KF | CA | Capacidade | Evidência produzida |
+|---|---|---|---|
+| KF-02 | CA-01, CA-02, CA-07 | Investigação a partir de pergunta inédita | Passos de descoberta, consulta e confirmação; consulta real ao Portal das Finanças (demonstração) |
+| KF-01 | CA-03, CA-07, CA-10 | Memória crítica | Entradas ERRONEOUS, REJECTED, SUPERSEDED e CONTRADICTORY, com histórico e recorrência; ausentes do prompt |
+| KF-03 | CA-02, CA-04 | Conhecimento estruturado | Proposições com âncora literal, condições e excepções, relações de conflito |
+| KF-07, KF-08 | CA-08, CA-10 | Regressão e rastreabilidade | Suite completa verde; trace JSON por investigação |
+
+**Não avançam nesta missão:**
+- KF-04 / CA-05: B4 bloqueada;
+- KF-05 / CA-06: cenários;
+- KF-09 / CA-09: prova D1, independente do executor;
+- KF-06: generalismo para além do perímetro inicial.
+
+## Percurso
+
+1. **Corpus.** Mesmo limiar e gate de âmbito do `/ask`. Se há Q&A publicada relevante, não se
+   investiga (`NOT_STARTED`).
+2. **Descoberta.** Entram as referências explícitas da pergunta (`artigo 78.º do CIRS`) e até
+   3 hipóteses do modelo. As hipóteses do modelo não são evidência. Uma hipótese já desmentida na
+   memória crítica é saltada e a recorrência fica registada.
+3. **Consulta.** Página oficial do artigo, obtida read-only e com allowlist. São no máximo
+   4 consultas, com 1,5 s entre pedidos.
+4. **Confirmação.** O bloco oficial tem de conter o cabeçalho do artigo pedido (78 ≠ 78.º-A ≠ 79).
+5. **Evidência.** Guarda-se o texto oficial, o SHA-256, a vigência e a classificação. Fica sempre
+   `NOT_PROMOTED`.
+6. **Conhecimento estruturado.** O modelo propõe proposições, condições, excepções e conflitos. Só
+   ficam `ANCHORED` as que tenham âncora literal e números presentes na evidência.
+7. **Resposta.** Ver a tabela de decisão no ADR-010 §7. A resposta passa sempre pelo
+   `AnswerGroundingValidator`.
+
+## Configuração
+
+```yaml
+knowledgeflow:
+  research:
+    enabled: ${KNOWLEDGEFLOW_RESEARCH_ENABLED:false}   # desligado por omissão
+    max-consultations: 4
+    max-model-hypotheses: 3
+    delay-ms: 1500
+```
+
+A allowlist por omissão é `info.portaldasfinancas.gov.pt`.
+
+## Endpoints (ADMIN; só com `enabled=true`)
+
+```
+POST  /api/v1/admin/research/investigations            {"question": "..."} → trace completo
+GET   /api/v1/admin/research/investigations/{id}       trace: passos, evidência, proposições, relações, memória crítica
+GET   /api/v1/admin/research/critical-memory?referenceKey=CIRS:78
+GET   /api/v1/admin/research/critical-memory/{id}/history
+PATCH /api/v1/admin/research/critical-memory/{id}/status   {"status": "UNDER_REEVALUATION", "reason": "..."}
+```
+
+## Verificação
+
+```
+mvn test                                                     # unitários (H2)
+mvn verify -Ppgtest                                          # inclui FlywayV20ResearchIT e ResearchPathPostgresIT
+mvn verify -Ppgtest -Dit.test=ResearchLiveOfficialSourceIT -Dkfm01.live=true   # demonstração com a fonte real
+```
+
+A demonstração com a fonte real:
+- consulta mesmo o Portal das Finanças, com 2 pedidos read-only;
+- corre numa base PostgreSQL descartável (Testcontainers);
+- grava a rastreabilidade em `target/kf-m01-live-trace.json`;
+- substitui a descoberta, a estruturação e a redacção pelo modelo por respostas fixas, porque não
+  usa chave de API. Com o modelo real, o mesmo percurso corre pelo endpoint num ambiente
+  descartável.
+
+## Activação no piloto
+
+Não é automática. Exige uma acção humana separada:
+- backup da `knowledgeflow_pilot`;
+- aplicação e verificação da V20;
+- plano de rollback;
+- `KNOWLEDGEFLOW_RESEARCH_ENABLED=true` (Aditamento §3).
+
+## Limitações conhecidas
+
+- **Perímetro:** apenas CIRS, CIVA, CIRC e LGT consolidados pela AT. Ficam de fora:
+  - o EBF;
+  - o Diário da República;
+  - a jurisprudência;
+  - as FAQ AT como evidência de investigação.
+- **Vigência:** `CONSOLIDATED_AT_RETRIEVAL` reflecte a consolidação publicada pela AT, sem
+  verificação humana.
+- **Conflitos:** só se detectam os que o modelo indica entre proposições ancoradas. Não há ainda
+  confronto com a memória crítica de outras investigações nem com o corpus publicado.
+- **Factos do caso:** as condições são apresentadas como pressupostos; não se avalia
+  automaticamente se os factos da pergunta as cumprem.
+- **Integração:** o `/ask` não abre investigação. Integrar a investigação na resposta ao utilizador
+  é uma decisão de produto ainda não tomada.
