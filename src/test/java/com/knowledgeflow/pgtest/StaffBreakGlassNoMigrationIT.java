@@ -31,7 +31,7 @@ class StaffBreakGlassNoMigrationIT {
 
     @Container
     static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("pgvector/pgvector:pg16").withDatabaseName("knowledgeflow_pilot");
+            PgContainers.pgvector().withDatabaseName("knowledgeflow_pilot");
 
     private HikariDataSource dataSource;
     private JdbcTemplate jdbc;

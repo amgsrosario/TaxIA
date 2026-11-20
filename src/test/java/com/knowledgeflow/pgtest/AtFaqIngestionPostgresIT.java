@@ -73,7 +73,7 @@ class AtFaqIngestionPostgresIT {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+            PgContainers.pgvector();
 
     // ── Local fixture server (started before Spring so the port is known) ────
 

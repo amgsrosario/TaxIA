@@ -54,7 +54,7 @@ class PgTestApplicationContextIT {
     @Container
     @ServiceConnection
     static PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+            PgContainers.pgvector();
 
     @Autowired
     ApplicationContext context;

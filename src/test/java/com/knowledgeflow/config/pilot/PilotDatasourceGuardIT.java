@@ -3,6 +3,7 @@ package com.knowledgeflow.config.pilot;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.knowledgeflow.pgtest.PgContainers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -24,7 +25,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 class PilotDatasourceGuardIT {
 
     private static PostgreSQLContainer<?> container(String databaseName) {
-        return new PostgreSQLContainer<>("pgvector/pgvector:pg16")
+        return PgContainers.pgvector()
                 .withDatabaseName(databaseName)
                 .withUsername("guard_it")
                 .withPassword("guard_it");

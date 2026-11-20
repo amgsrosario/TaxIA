@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.knowledgeflow.ingestion.atfaq.AtFaqProperties;
 import com.knowledgeflow.ingestion.atfaq.batch.GovernedPilotServiceActors;
+import com.knowledgeflow.pgtest.PgContainers;
 import com.knowledgeflow.rag.EmbeddingClient;
 import com.knowledgeflow.rag.StubEmbeddingService;
 import java.util.Map;
@@ -66,7 +67,7 @@ class PilotProfileSafetyIT {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("pgvector/pgvector:pg16")
+            PgContainers.pgvector()
                     .withDatabaseName("knowledgeflow_pilot");
 
     @Autowired ApplicationContext context;

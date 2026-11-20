@@ -17,6 +17,7 @@ import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository
 import com.knowledgeflow.knowledge.service.KnowledgeQuestionAnswerPublicationService;
 import com.knowledgeflow.organizations.entity.Organization;
 import com.knowledgeflow.organizations.repository.OrganizationRepository;
+import com.knowledgeflow.pgtest.PgContainers;
 import com.knowledgeflow.rag.EmbeddingProperties;
 import com.knowledgeflow.rag.EmbeddingService;
 import com.knowledgeflow.rag.RagSearchService;
@@ -110,7 +111,7 @@ class AtFaqE9cMiniGovernedPilotIT {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+            PgContainers.pgvector();
 
     @Autowired KnowledgeQuestionAnswerRepository qaRepository;
     @Autowired KnowledgeSourceReferenceRepository sourceRepository;

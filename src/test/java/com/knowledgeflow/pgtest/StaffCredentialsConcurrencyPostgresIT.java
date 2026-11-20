@@ -57,7 +57,7 @@ class StaffCredentialsConcurrencyPostgresIT {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+    static final PostgreSQLContainer<?> postgres = PgContainers.pgvector();
 
     private static final int THREADS = 8;
     private static final String PASSWORD = "password-original-123";

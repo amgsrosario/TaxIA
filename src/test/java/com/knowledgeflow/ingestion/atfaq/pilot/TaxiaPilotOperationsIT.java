@@ -13,6 +13,7 @@ import com.knowledgeflow.knowledge.service.KnowledgeQuestionAnswerCurationServic
 import com.knowledgeflow.knowledge.service.KnowledgeQuestionAnswerImportService;
 import com.knowledgeflow.organizations.entity.Organization;
 import com.knowledgeflow.organizations.repository.OrganizationRepository;
+import com.knowledgeflow.pgtest.PgContainers;
 import com.knowledgeflow.users.repository.UserRepository;
 import java.util.List;
 import java.util.UUID;
@@ -82,7 +83,7 @@ class TaxiaPilotOperationsIT {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("pgvector/pgvector:pg16")
+            PgContainers.pgvector()
                     .withDatabaseName("knowledgeflow_pilot");
 
     @Autowired KnowledgeQuestionAnswerRepository qaRepository;

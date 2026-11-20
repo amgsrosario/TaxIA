@@ -44,7 +44,7 @@ class StaffBreakGlassPostgresIT {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("pgvector/pgvector:pg16").withDatabaseName("knowledgeflow_pilot");
+            PgContainers.pgvector().withDatabaseName("knowledgeflow_pilot");
 
     private static final String ORIGINAL = "original-admin-password";
     private static final String TEMPORARY = "temporaria-break-glass-1";
