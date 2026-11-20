@@ -73,6 +73,10 @@ knowledgeflow:
     max-consultations: ${KNOWLEDGEFLOW_RESEARCH_MAX_CONSULTATIONS:4}
     max-model-hypotheses: ${KNOWLEDGEFLOW_RESEARCH_MAX_MODEL_HYPOTHESES:3}
     delay-ms: ${KNOWLEDGEFLOW_RESEARCH_DELAY_MS:1500}
+    # ADR-010-A / KF-CONV-01 §3.1: modo integrado no ecrã «Perguntar». Desligado por omissão. Ligado, desactiva o
+    # modo directo; o arranque recusa-o enquanto faltarem os pré-requisitos (AskIntegrationGuard).
+    ask-integration:
+      enabled: ${KNOWLEDGEFLOW_RESEARCH_ASK_INTEGRATION_ENABLED:false}
   ingestion:
     at-faq:
       # Pilot of automated ingestion of the AT public FAQs (Etapa 10A).
