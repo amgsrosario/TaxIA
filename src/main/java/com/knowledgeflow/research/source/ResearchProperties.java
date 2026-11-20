@@ -37,6 +37,13 @@ public class ResearchProperties {
     private int maxResponseBytes = 2_000_000;
     private String userAgent = "TaxIA-Research-Pilot/1.0";
 
+    /**
+     * Modo integrado no ecrã «Perguntar» (ADR-010-A; especificação KF-CONV-01 v13, §3.1). Desligado por omissão.
+     * Ligado, desactiva o modo directo de criação de investigações e exige os pré-requisitos verificados no arranque
+     * por {@code AskIntegrationGuard}.
+     */
+    private AskIntegration askIntegration = new AskIntegration();
+
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public String getLegislationBaseUrl() { return legislationBaseUrl; }
@@ -59,4 +66,15 @@ public class ResearchProperties {
     public void setMaxResponseBytes(int maxResponseBytes) { this.maxResponseBytes = maxResponseBytes; }
     public String getUserAgent() { return userAgent; }
     public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
+    public AskIntegration getAskIntegration() { return askIntegration; }
+    public void setAskIntegration(AskIntegration askIntegration) { this.askIntegration = askIntegration; }
+
+    /** Modo integrado (§3.1). */
+    public static class AskIntegration {
+        /** Interruptor do modo integrado; desligado por omissão. */
+        private boolean enabled = false;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    }
 }

@@ -8,6 +8,9 @@ import com.knowledgeflow.research.service.CriticalMemoryService;
 import com.knowledgeflow.research.service.InvestigationService;
 import com.knowledgeflow.research.service.InvestigationTraceService;
 import com.knowledgeflow.research.service.InvestigationTraceService.Trace;
+import com.knowledgeflow.research.source.ResearchProperties;
+import com.knowledgeflow.common.error.ApiErrorCode;
+import com.knowledgeflow.common.error.BusinessException;
 import com.knowledgeflow.security.AuthenticatedUser;
 import com.knowledgeflow.security.AuthenticatedUserContext;
 import jakarta.validation.Valid;
@@ -44,21 +47,32 @@ public class AdminResearchController {
     private final InvestigationTraceService traceService;
     private final CriticalMemoryService criticalMemoryService;
     private final AuthenticatedUserContext authContext;
+    private final ResearchProperties properties;
 
     public AdminResearchController(InvestigationService investigationService, InvestigationTraceService traceService,
-            CriticalMemoryService criticalMemoryService, AuthenticatedUserContext authContext) {
+            CriticalMemoryService criticalMemoryService, AuthenticatedUserContext authContext,
+            ResearchProperties properties) {
         this.investigationService = investigationService;
         this.traceService = traceService;
         this.criticalMemoryService = criticalMemoryService;
         this.authContext = authContext;
+        this.properties = properties;
     }
 
     public record InvestigationRequest(@NotBlank @Size(max = 4000) String question) {}
 
     public record StatusChangeRequest(@NotNull CriticalStatus status, @NotBlank @Size(max = 2000) String reason) {}
 
+    /**
+     * Modo directo (medição). Com o modo integrado ligado (§3.1), a criação directa é recusada (403): no circuito
+     * integrado só se cria uma investigação com título emitido pelo {@code /ask}.
+     */
     @PostMapping("/investigations")
     public ResearchTraceView investigate(@Valid @RequestBody InvestigationRequest request) {
+        if (properties.getAskIntegration().isEnabled()) {
+            throw new BusinessException(ApiErrorCode.FORBIDDEN,
+                    "Criação directa de investigações desactivada no modo integrado");
+        }
         AuthenticatedUser user = authContext.getRequiredUser();
         ResearchInvestigation investigation = investigationService.investigate(
                 user.organizationId(), user.userId(), request.question());
