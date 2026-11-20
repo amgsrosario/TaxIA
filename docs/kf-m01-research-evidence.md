@@ -51,6 +51,41 @@ knowledgeflow:
 
 A allowlist por omissão é `info.portaldasfinancas.gov.pt`.
 
+**Chamadas ao modelo (ADR-010-A).** A descoberta, a estruturação e a redacção chamam o modelo só pela porta
+`MeteredModelClient`, numa única tentativa e sem o `AIService` genérico, que repete tentativas. Enquanto não houver
+autoridade financeira do circuito (L6, decisão reservada), a implementação `UnfundedModelClient` só aceita o
+fornecedor `stub`, que não é facturável. Recusa qualquer fornecedor facturável, ou cuja facturação se desconheça,
+com `SpendRefusedException` e **sem enviar o pedido**: com o Anthropic ou o OpenAI configurados, a investigação não faz chamadas pagas.
+
+Efeito operacional da recusa no modo directo:
+- **descoberta:** sem hipóteses do modelo; prosseguem só as referências citadas na pergunta;
+- **estruturação:** extracção vazia, que leva a uma resposta-limite por falta de fundamento estruturado;
+- **redacção:** se o percurso chegar a ela, a recusa termina a investigação como `FAILED` (falha técnica,
+  `SpendRefusedException`), com auditoria `RESEARCH_INVESTIGATION_FAILED`;
+- a recusa nunca é repetida automaticamente.
+
+Prova de cobertura (`ResearchModelPortArchitectureTest`): partindo das classes de `research`, percorre no bytecode
+todas as classes da aplicação que elas alcançam, incluindo as implementações das interfaces alcançadas e as
+referências por literal de nome. Falha se alguma delas usar o `AIService`, os fornecedores ou o resolvedor, a não ser
+através da porta. Proíbe também, em todas as classes alcançadas, a obtenção dinâmica de beans pelo contexto Spring,
+`Class.forName` e a reflexão de métodos. O `ObjectProvider<T>` é permitido, porque o tipo fica na assinatura analisada.
+
+Limites da prova: nomes construídos em tempo de execução, `MethodHandle` construídos à mão e bibliotecas externas.
+
+**Contrato financeiro: implementado hoje vs futuro L6.**
+
+| | Implementado (`main`) | Futuro L6 (reservado à Administração, não implementado) |
+|---|---|---|
+| Implementação da porta | `UnfundedModelClient` | Uma implementação com autoridade própria do circuito, distinta do envelope experimental da R-4 |
+| Fornecedor facturável | Sempre recusado antes do envio (`SpendRefusedException`) | Admitido só depois de verificar a autoridade e reservar no envelope |
+| Fornecedor não facturável (`stub`) | Uma tentativa, sem custo | Igual |
+| Reserva, liquidação, preços, tecto, envelope | Inexistentes | Identidade da autoridade verificada em cada operação; reserva antes do envio; liquidação pelos tokens reportados; falha cobrada pelo reservado; indisponibilidade = recusa sem envio; concorrência serializada pelo bloqueio do envelope na base; tecto e preços na base, fora do alcance da aplicação |
+| Chamadas pagas | Nenhuma | Dependem de decisão da Administração |
+
+A interface `MeteredModelClient`, a excepção `SpendRefusedException` e os métodos por omissão de `AIProvider` vêm do ramo
+do piloto. Os seus comentários foram reescritos para separar estes dois planos; o código é igual ao do piloto. Nada
+neste pacote implementa o L6.
+
 ## Endpoints (ADMIN; só com `enabled=true`)
 
 ```

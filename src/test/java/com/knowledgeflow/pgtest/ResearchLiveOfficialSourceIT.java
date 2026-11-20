@@ -9,7 +9,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.knowledgeflow.ai.AIResponse;
-import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.spend.MeteredModelClient;
 import com.knowledgeflow.ai.documented.AnswerType;
 import com.knowledgeflow.research.controller.ResearchTraceView;
 import com.knowledgeflow.research.entity.ResearchInvestigation;
@@ -70,7 +70,7 @@ class ResearchLiveOfficialSourceIT {
 
     @MockBean DiscoveryHypothesisProvider hypothesisProvider;
     @MockBean PropositionExtractor extractor;
-    @MockBean AIService aiService;
+    @MockBean MeteredModelClient aiService;
 
     @Test
     @DisplayName("Pergunta inédita → consulta real ao Portal das Finanças → evidência, memória crítica, conhecimento e resposta")
