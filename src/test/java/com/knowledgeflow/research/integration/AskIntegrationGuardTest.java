@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.knowledgeflow.research.source.ResearchConfiguration;
 import com.knowledgeflow.research.source.ResearchProperties;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 /** Modo integrado desligado por omissão e recusado no arranque enquanto faltarem pré-requisitos (§3.1, §3.5). */
@@ -62,5 +63,16 @@ class AskIntegrationGuardTest {
                         .isInstanceOf(IllegalStateException.class).hasMessageContaining("L6"));
         runner.withPropertyValues("knowledgeflow.research.ask-integration.enabled=true")
                 .run(ctx -> assertThat(ctx).hasFailed());
+    }
+
+    /** Com inicialização preguiçosa global (spring.main.lazy-initialization=true), a guarda corre na mesma. */
+    @Test
+    void guardRunsEvenWithLazyInitialization() {
+        ApplicationContextRunner lazy = runner.withInitializer(
+                ctx -> ctx.addBeanFactoryPostProcessor(new LazyInitializationBeanFactoryPostProcessor()));
+        lazy.withPropertyValues("knowledgeflow.research.enabled=true",
+                        "knowledgeflow.research.ask-integration.enabled=true")
+                .run(ctx -> assertThat(ctx).hasFailed().getFailure().rootCause().hasMessageContaining("L6"));
+        lazy.run(ctx -> assertThat(ctx).hasNotFailed());
     }
 }

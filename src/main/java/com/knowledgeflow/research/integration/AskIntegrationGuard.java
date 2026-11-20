@@ -4,6 +4,7 @@ import com.knowledgeflow.research.source.ResearchProperties;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 /**
@@ -18,9 +19,14 @@ import org.springframework.stereotype.Component;
  *       experimental {@code ac84c04}.</li>
  * </ul>
  * Por isso o modo integrado <b>não pode ser ligado</b> nesta base. Cada pré-requisito só sai desta lista no
- * incremento que o implementar, com revisão.
+ * incremento que o implementar, com revisão. Quando os cenários (B5) forem integrados, a guarda passará também a
+ * exigir {@code scenarios.enabled=false} no modo integrado (§3.5).
+ * <p>
+ * {@code @Lazy(false)}: a guarda é sempre criada no arranque, também com
+ * {@code spring.main.lazy-initialization=true}, que de outro modo a podia adiar indefinidamente.
  */
 @Component
+@Lazy(false)
 public class AskIntegrationGuard implements InitializingBean {
 
     /** Pré-requisitos ainda ausentes nesta base. */
