@@ -12,8 +12,9 @@ public interface AIProvider {
     AIResponse generate(AIRequest request);
 
     /**
-     * O fornecedor factura as chamadas. Um fornecedor facturável só pode ser usado em percursos com
-     * controlo financeiro através de {@link #generateSingleAttempt} (KF-M02/CORR-05).
+     * O fornecedor factura as chamadas (omissão: {@code true}). No percurso de investigação, um fornecedor facturável é
+     * hoje sempre recusado antes do envio ({@code UnfundedModelClient}); só com o futuro controlo financeiro (L6,
+     * reservado) poderá ser usado, através de {@link #generateSingleAttempt}.
      */
     default boolean billable() {
         return true;
@@ -25,14 +26,15 @@ public interface AIProvider {
     }
 
     /**
-     * Uma única tentativa ao fornecedor, sem retries: cada tentativa facturável tem de ser reservada e
-     * liquidada pelo controlo financeiro. Só disponível se {@link #supportsSingleAttempt()}.
+     * Uma única tentativa ao fornecedor, sem retries. Só disponível se {@link #supportsSingleAttempt()}. Hoje só o
+     * {@code stub} (não facturável) a implementa. No futuro L6 (reservado), cada tentativa facturável terá de ser
+     * reservada antes e liquidada depois pelo controlo financeiro.
      */
     default AIResponse generateSingleAttempt(AIRequest request) {
         throw new UnsupportedOperationException("Provider sem chamada de tentativa única: " + providerId());
     }
 
-    /** Modelo efectivamente pedido ao fornecedor (para o preço); nulo se desconhecido. */
+    /** Modelo efectivamente pedido ao fornecedor (para o futuro cálculo de preço do L6); nulo se desconhecido. */
     default String model() {
         return null;
     }

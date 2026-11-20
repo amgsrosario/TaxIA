@@ -72,6 +72,20 @@ através da porta. Proíbe também, em todas as classes alcançadas, a obtençã
 
 Limites da prova: nomes construídos em tempo de execução, `MethodHandle` construídos à mão e bibliotecas externas.
 
+**Contrato financeiro: implementado hoje vs futuro L6.**
+
+| | Implementado (`main`) | Futuro L6 (reservado à Administração, não implementado) |
+|---|---|---|
+| Implementação da porta | `UnfundedModelClient` | Uma implementação com autoridade própria do circuito, distinta do envelope experimental da R-4 |
+| Fornecedor facturável | Sempre recusado antes do envio (`SpendRefusedException`) | Admitido só depois de verificar a autoridade e reservar no envelope |
+| Fornecedor não facturável (`stub`) | Uma tentativa, sem custo | Igual |
+| Reserva, liquidação, preços, tecto, envelope | Inexistentes | Reserva antes do envio; liquidação pelos tokens reportados; falha cobrada pelo reservado; tecto e preços na base |
+| Chamadas pagas | Nenhuma | Dependem de decisão da Administração |
+
+A interface `MeteredModelClient`, a excepção `SpendRefusedException` e os métodos por omissão de `AIProvider` vêm do ramo
+do piloto. Os seus comentários foram reescritos para separar estes dois planos; o código é igual ao do piloto. Nada
+neste pacote implementa o L6.
+
 ## Endpoints (ADMIN; só com `enabled=true`)
 
 ```
