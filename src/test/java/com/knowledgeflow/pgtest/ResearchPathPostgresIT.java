@@ -7,7 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.knowledgeflow.ai.AIResponse;
-import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.spend.MeteredModelClient;
 import com.knowledgeflow.ai.documented.AnswerType;
 import com.knowledgeflow.ai.documented.ParecerRequirement;
 import com.knowledgeflow.research.ResearchFixtures;
@@ -65,7 +65,7 @@ class ResearchPathPostgresIT {
     @MockBean OfficialSourceClient sourceClient;
     @MockBean DiscoveryHypothesisProvider hypothesisProvider;
     @MockBean PropositionExtractor extractor;
-    @MockBean AIService aiService;
+    @MockBean MeteredModelClient aiService;
 
     @Test
     @DisplayName("Persistência completa e rastreável em PostgreSQL; corpus de Q&A e embeddings intactos")

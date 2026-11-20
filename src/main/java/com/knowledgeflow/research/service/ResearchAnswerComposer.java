@@ -2,7 +2,7 @@ package com.knowledgeflow.research.service;
 
 import com.knowledgeflow.ai.AIRequest;
 import com.knowledgeflow.ai.AIResponse;
-import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.spend.MeteredModelClient;
 import com.knowledgeflow.ai.grounding.AnswerGroundingValidator;
 import com.knowledgeflow.ai.grounding.GroundingValidationResult;
 import com.knowledgeflow.rag.RagSearchService.RetrievedCase;
@@ -36,10 +36,10 @@ public class ResearchAnswerComposer {
                assenta em evidência de investigação não promovida.
             """;
 
-    private final AIService aiService;
+    private final MeteredModelClient aiService;
     private final AnswerGroundingValidator validator;
 
-    public ResearchAnswerComposer(AIService aiService, AnswerGroundingValidator validator) {
+    public ResearchAnswerComposer(MeteredModelClient aiService, AnswerGroundingValidator validator) {
         this.aiService = aiService;
         this.validator = validator;
     }

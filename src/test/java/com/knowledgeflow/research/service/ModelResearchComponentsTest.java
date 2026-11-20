@@ -7,7 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledgeflow.ai.AIResponse;
-import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.spend.MeteredModelClient;
 import com.knowledgeflow.research.enums.ConditionKind;
 import com.knowledgeflow.research.service.PropositionExtractor.EvidenceInput;
 import com.knowledgeflow.research.service.PropositionExtractor.Extraction;
@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 /** Leitura defensiva das respostas do modelo na descoberta e na estruturação. */
 class ModelResearchComponentsTest {
 
-    private final AIService ai = mock(AIService.class);
+    private final MeteredModelClient ai = mock(MeteredModelClient.class);
     private final ObjectMapper mapper = new ObjectMapper();
 
     private void modelSays(String content) {

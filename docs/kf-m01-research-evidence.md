@@ -51,6 +51,14 @@ knowledgeflow:
 
 A allowlist por omissão é `info.portaldasfinancas.gov.pt`.
 
+**Chamadas ao modelo (ADR-010-A).** A descoberta, a estruturação e a redacção chamam o modelo só pela porta
+`MeteredModelClient`, numa única tentativa e sem o `AIService` genérico, que repete tentativas. Enquanto não houver
+autoridade financeira do circuito (L6, decisão reservada), a implementação `UnfundedModelClient` só aceita o
+fornecedor `stub`, que não é facturável. Recusa qualquer fornecedor facturável, ou cuja facturação se desconheça,
+com `SpendRefusedException` e **sem enviar o pedido**: com o Anthropic ou o OpenAI configurados, a investigação não faz chamadas pagas. O
+teste `ResearchModelPortArchitectureTest` verifica no bytecode que nenhuma classe de `research` usa o `AIService`,
+os fornecedores ou o resolvedor.
+
 ## Endpoints (ADMIN; só com `enabled=true`)
 
 ```

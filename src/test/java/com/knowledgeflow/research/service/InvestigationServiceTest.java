@@ -12,7 +12,7 @@ import static org.mockito.Mockito.when;
 
 import com.knowledgeflow.ai.AIRequest;
 import com.knowledgeflow.ai.AIResponse;
-import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.spend.MeteredModelClient;
 import com.knowledgeflow.ai.documented.AnswerType;
 import com.knowledgeflow.ai.documented.ParecerRequirement;
 import com.knowledgeflow.audit.enums.AuditAction;
@@ -87,7 +87,7 @@ class InvestigationServiceTest {
     @MockBean CorpusCoverageChecker corpusChecker;
     @MockBean DiscoveryHypothesisProvider hypothesisProvider;
     @MockBean PropositionExtractor extractor;
-    @MockBean AIService aiService;
+    @MockBean MeteredModelClient aiService;
 
     UUID org;
     UUID user;

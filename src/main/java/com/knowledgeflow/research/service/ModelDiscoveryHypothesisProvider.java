@@ -3,7 +3,7 @@ package com.knowledgeflow.research.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledgeflow.ai.AIRequest;
-import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.spend.MeteredModelClient;
 import com.knowledgeflow.ai.AITaskType;
 import com.knowledgeflow.research.source.LegislationReference;
 import java.util.ArrayList;
@@ -35,10 +35,10 @@ public class ModelDiscoveryHypothesisProvider implements DiscoveryHypothesisProv
             Indica no máximo %d hipóteses. Se não souberes, devolve {"hypotheses":[]}.
             """;
 
-    private final AIService aiService;
+    private final MeteredModelClient aiService;
     private final ObjectMapper objectMapper;
 
-    public ModelDiscoveryHypothesisProvider(AIService aiService, ObjectMapper objectMapper) {
+    public ModelDiscoveryHypothesisProvider(MeteredModelClient aiService, ObjectMapper objectMapper) {
         this.aiService = aiService;
         this.objectMapper = objectMapper;
     }
