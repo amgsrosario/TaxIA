@@ -39,15 +39,20 @@
   - Para aceitar uma base nestas condições é preciso uma decisão humana, e a aplicação nunca o faz sozinha. As
     alternativas são:
     - repor a cópia de segurança;
-    - definir expressamente `spring.flyway.ignore-migration-patterns`, por exemplo
-      `SPRING_FLYWAY_IGNORE_MIGRATION_PATTERNS=*:missing`. Com a propriedade definida, o valor configurado
-      prevalece; sem ela, aplica-se a validação estrita.
+    - definir expressamente `spring.flyway.ignore-migration-patterns`. Com a propriedade definida, o valor configurado
+      prevalece; sem ela, aplica-se a validação estrita. O arranque só é aceite se o padrão cobrir o estado em que o
+      Flyway classifica as versões do piloto, e esse estado depende da versão local mais recente:
+      - com o `main` abaixo de V23 (por exemplo, em V22), as V23 e V24 aplicadas são **futuras**: é preciso `*:future`;
+      - com o `main` em V25 ou acima, são **em falta**: é preciso `*:missing`;
+      - `*:future,*:missing` cobre os dois casos.
+
+      Os quatro casos estão provados em `StrictFlywayValidationTest.documentedOverridesDependOnTheStateOfThePilotVersions`.
   - As migrações pendentes continuam a ser aplicadas.
   - Comportamento comprovado em base descartável (H2) por `StrictFlywayValidationTest`:
     - V23 aplicada com o `main` em V22 → recusa (o controlo sem a validação estrita aceita);
     - V23 aplicada com o `main` já em V25 → recusa;
     - pendentes V22 e V25 → aplicadas;
-    - arranque Spring com a base do piloto → falha; com a propriedade definida expressamente → aceite.
+    - arranque Spring com a base do piloto → falha; com `*:future` definido expressamente (`main` em V22) → aceite.
 - **Activação:** continua a ser uma acção humana separada, com cópia de segurança, verificação das migrações e plano
   de reversão.
 

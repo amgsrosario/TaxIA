@@ -19,8 +19,9 @@ import org.springframework.stereotype.Component;
  * falta, faz falhar a validação e, portanto, o arranque. As migrações pendentes continuam a ser aplicadas.
  * <p>
  * Aceitar uma base nessas condições é uma decisão humana, nunca da aplicação: repor a cópia de segurança, ou definir
- * expressamente {@value #PROPERTY} (por exemplo, {@code SPRING_FLYWAY_IGNORE_MIGRATION_PATTERNS=*:missing}). Com a
- * propriedade definida, o valor configurado prevalece e este componente não o altera.
+ * expressamente {@value #PROPERTY}. Com a propriedade definida, o valor configurado prevalece e este componente não o
+ * altera. O padrão tem de cobrir o estado das versões do piloto: {@code *:future} enquanto a versão local mais recente
+ * lhes for inferior, {@code *:missing} quando for superior (por exemplo, V25), ou {@code *:future,*:missing}.
  */
 @Component
 public class StrictFlywayValidation implements FlywayConfigurationCustomizer {

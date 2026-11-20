@@ -64,6 +64,32 @@ class StrictFlywayValidationTest {
         assertThat(c.getIgnoreMigrationPatterns()).isEmpty();
     }
 
+    private static ApplicationContextRunner startup(String url, Path locations, String... extra) {
+        String[] props = new String[4 + extra.length];
+        props[0] = "spring.datasource.url=" + url;
+        props[1] = "spring.datasource.username=sa";
+        props[2] = "spring.datasource.password=";
+        props[3] = "spring.flyway.locations=filesystem:" + locations;
+        System.arraycopy(extra, 0, props, 4, extra.length);
+        return new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(DataSourceAutoConfiguration.class, FlywayAutoConfiguration.class))
+                .withUserConfiguration(StrictFlywayValidation.class)
+                .withPropertyValues(props);
+    }
+
+    @Test
+    void documentedOverridesDependOnTheStateOfThePilotVersions() throws Exception {
+        String url = pilotDatabase();
+        String p = StrictFlywayValidation.PROPERTY + "=";
+        // main em V22: V23 é «future»; *:missing não basta.
+        startup(url, mainUpToV22, p + "*:missing").run(ctx -> assertThat(ctx).hasFailed());
+        startup(url, mainUpToV22, p + "*:future,*:missing").run(ctx -> assertThat(ctx).hasNotFailed());
+        // main em V25: V23 é «missing»; *:future não basta.
+        String url25 = pilotDatabase();
+        startup(url25, mainWithV25, p + "*:future").run(ctx -> assertThat(ctx).hasFailed());
+        startup(url25, mainWithV25, p + "*:missing").run(ctx -> assertThat(ctx).hasNotFailed());
+    }
+
     @Test
     void explicitPropertyPrevailsOverTheStrictDefault() {
         FluentConfiguration c = Flyway.configure().ignoreMigrationPatterns("*:missing");
