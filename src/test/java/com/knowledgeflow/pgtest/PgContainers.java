@@ -1,5 +1,6 @@
 package com.knowledgeflow.pgtest;
 
+import java.time.Duration;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.containers.wait.strategy.WaitAllStrategy;
@@ -30,6 +31,7 @@ public final class PgContainers {
     static WaitAllStrategy logAndPort() {
         return new WaitAllStrategy()
                 .withStrategy(Wait.forLogMessage(".*database system is ready to accept connections.*\\s", 2))
-                .withStrategy(Wait.forListeningPort());
+                .withStrategy(Wait.forListeningPort())
+                .withStartupTimeout(Duration.ofSeconds(60));
     }
 }
