@@ -79,7 +79,7 @@ Limites da prova: nomes construídos em tempo de execução, `MethodHandle` cons
 | Implementação da porta | `UnfundedModelClient` | Uma implementação com autoridade própria do circuito, distinta do envelope experimental da R-4 |
 | Fornecedor facturável | Sempre recusado antes do envio (`SpendRefusedException`) | Admitido só depois de verificar a autoridade e reservar no envelope |
 | Fornecedor não facturável (`stub`) | Uma tentativa, sem custo | Igual |
-| Reserva, liquidação, preços, tecto, envelope | Inexistentes | Reserva antes do envio; liquidação pelos tokens reportados; falha cobrada pelo reservado; tecto e preços na base |
+| Reserva, liquidação, preços, tecto, envelope | Inexistentes | Identidade da autoridade verificada em cada operação; reserva antes do envio; liquidação pelos tokens reportados; falha cobrada pelo reservado; indisponibilidade = recusa sem envio; concorrência serializada pelo bloqueio do envelope na base; tecto e preços na base, fora do alcance da aplicação |
 | Chamadas pagas | Nenhuma | Dependem de decisão da Administração |
 
 A interface `MeteredModelClient`, a excepção `SpendRefusedException` e os métodos por omissão de `AIProvider` vêm do ramo

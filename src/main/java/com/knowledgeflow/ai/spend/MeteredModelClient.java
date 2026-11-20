@@ -15,8 +15,9 @@ import com.knowledgeflow.ai.AIResponse;
  * <b>Contrato financeiro futuro (L6, reservado à Administração; ainda não implementado).</b> Quando houver decisão sobre a
  * autoridade e o envelope do circuito, uma implementação diferente desta porta deverá, para cada chamada facturável:
  * verificar a identidade da autoridade; reservar antes do envio; fazer uma única tentativa; liquidar com os tokens
- * reportados, ou cobrar o valor reservado em caso de falha; e recusar sem enviar em caso de indisponibilidade. Este
- * parágrafo descreve uma exigência da especificação, não um comportamento existente.
+ * reportados, ou cobrar o valor reservado em caso de falha; e recusar sem enviar em caso de indisponibilidade. A
+ * concorrência é serializada pelo bloqueio do envelope na base, e o tecto e os preços ficam na base, fora do alcance da
+ * aplicação. Este parágrafo descreve uma exigência da especificação, não um comportamento existente.
  */
 public interface MeteredModelClient {
 
