@@ -55,9 +55,21 @@ A allowlist por omissão é `info.portaldasfinancas.gov.pt`.
 `MeteredModelClient`, numa única tentativa e sem o `AIService` genérico, que repete tentativas. Enquanto não houver
 autoridade financeira do circuito (L6, decisão reservada), a implementação `UnfundedModelClient` só aceita o
 fornecedor `stub`, que não é facturável. Recusa qualquer fornecedor facturável, ou cuja facturação se desconheça,
-com `SpendRefusedException` e **sem enviar o pedido**: com o Anthropic ou o OpenAI configurados, a investigação não faz chamadas pagas. O
-teste `ResearchModelPortArchitectureTest` verifica no bytecode que nenhuma classe de `research` usa o `AIService`,
-os fornecedores ou o resolvedor.
+com `SpendRefusedException` e **sem enviar o pedido**: com o Anthropic ou o OpenAI configurados, a investigação não faz chamadas pagas.
+
+Efeito operacional da recusa no modo directo:
+- **descoberta:** sem hipóteses do modelo; prosseguem só as referências citadas na pergunta;
+- **estruturação:** extracção vazia, que leva a uma resposta-limite por falta de fundamento estruturado;
+- **redacção:** se o percurso chegar a ela, a recusa termina a investigação como `FAILED` (falha técnica,
+  `SpendRefusedException`), com auditoria `RESEARCH_INVESTIGATION_FAILED`;
+- a recusa nunca é repetida automaticamente.
+
+Prova de cobertura (`ResearchModelPortArchitectureTest`): partindo das classes de `research`, percorre no bytecode
+todas as classes da aplicação que elas alcançam, incluindo as implementações das interfaces alcançadas e as
+referências por literal de nome. Falha se alguma delas usar o `AIService`, os fornecedores ou o resolvedor, a não ser
+através da porta. Proíbe também, em `research`, a obtenção dinâmica de beans e `Class.forName`.
+
+Limites da prova: nomes construídos em tempo de execução, `MethodHandle` construídos à mão e bibliotecas externas.
 
 ## Endpoints (ADMIN; só com `enabled=true`)
 

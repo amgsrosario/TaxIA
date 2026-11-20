@@ -31,14 +31,22 @@
 
 - **Base nova, criada a partir do `main`:** aplica V1–V20, V21–V22 (quando existirem) e V25 em diante. A falta de
   V23 e V24 não incomoda o Flyway.
-- **Base que já tenha V23 ou V24 do piloto:** o `validate` do Flyway falha no arranque, porque há uma migração
-  aplicada que não existe localmente, e isso é intencional. Corrigir exige uma decisão humana:
-  - repor a cópia de segurança; ou
-  - aceitar expressamente essas versões (por exemplo, com `ignoreMigrationPatterns`).
-
-  A aplicação nunca o faz sozinha.
+- **Base que já tenha V23 ou V24 do piloto:** **o arranque falha.**
+  - Por omissão, o Flyway ignoraria essas versões enquanto fossem mais recentes do que todas as locais
+    (`ignoreMigrationPatterns = "*:future"`). Por isso, o `main` impõe uma validação estrita, com o
+    `StrictFlywayValidation` (`FlywayConfigurationCustomizer`): nenhum tipo de migração é ignorado, e uma migração
+    aplicada que não exista localmente, futura ou em falta, faz falhar a validação.
+  - Para aceitar uma base nestas condições é preciso uma decisão humana: repor a cópia de segurança ou configurar a
+    excepção expressamente. A aplicação nunca o faz sozinha.
+  - As migrações pendentes continuam a ser aplicadas.
+  - Comportamento comprovado em base descartável (H2) por `StrictFlywayValidationTest`:
+    - V23 aplicada com o `main` em V22 → recusa (o controlo sem a validação estrita aceita);
+    - V23 aplicada com o `main` já em V25 → recusa;
+    - pendentes V22 e V25 → aplicadas;
+    - arranque Spring com a base do piloto → falha.
 - **Activação:** continua a ser uma acção humana separada, com cópia de segurança, verificação das migrações e plano
   de reversão.
 
-A verificação está em `src/test/java/com/knowledgeflow/migration/MigrationNumberingTest.java`. Esse teste exige
+A verificação está em `src/test/java/com/knowledgeflow/migration/MigrationNumberingTest.java` e em
+`src/test/java/com/knowledgeflow/config/flyway/StrictFlywayValidationTest.java`. O primeiro exige
 nomes `V<n>__<desc>.sql` com versões únicas, e os casos acima foram confirmados por mutação.
