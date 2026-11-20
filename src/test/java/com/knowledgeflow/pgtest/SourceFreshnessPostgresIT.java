@@ -44,7 +44,7 @@ class SourceFreshnessPostgresIT {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+    static final PostgreSQLContainer<?> postgres = PgContainers.pgvector();
 
     private static final UUID CURATOR = UUID.fromString("c8000000-0000-0000-0000-000000000001");
 

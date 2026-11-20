@@ -106,7 +106,7 @@ class PublishedContentIntegrityPostgresIT {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+    static final PostgreSQLContainer<?> postgres = PgContainers.pgvector();
 
     private static final UUID USER = UUID.fromString("c5000000-0000-0000-0000-000000000010");
 

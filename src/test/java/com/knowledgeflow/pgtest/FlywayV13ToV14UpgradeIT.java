@@ -42,7 +42,7 @@ class FlywayV13ToV14UpgradeIT {
 
     @Container
     static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+            PgContainers.pgvector();
 
     private HikariDataSource dataSource;
     private JdbcTemplate jdbc;

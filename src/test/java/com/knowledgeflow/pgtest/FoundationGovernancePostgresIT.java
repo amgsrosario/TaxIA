@@ -38,7 +38,7 @@ class FoundationGovernancePostgresIT {
 
     @Container
     @ServiceConnection
-    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+    static final PostgreSQLContainer<?> postgres = PgContainers.pgvector();
 
     @Autowired private OrganizationRepository organizationRepository;
     @Autowired private KnowledgeQuestionAnswerRepository qaRepository;

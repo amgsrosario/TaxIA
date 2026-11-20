@@ -113,7 +113,7 @@ class KnowledgeQaTransactionalRollbackPostgresIT {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+            PgContainers.pgvector();
 
     @Autowired JdbcTemplate jdbc;
     @Autowired KnowledgeQuestionAnswerCurationService curationService;

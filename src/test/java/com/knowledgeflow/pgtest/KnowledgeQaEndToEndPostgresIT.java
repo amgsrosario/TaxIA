@@ -145,7 +145,7 @@ class KnowledgeQaEndToEndPostgresIT {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+            PgContainers.pgvector();
 
     // =========================================================================
     // Injected Spring beans

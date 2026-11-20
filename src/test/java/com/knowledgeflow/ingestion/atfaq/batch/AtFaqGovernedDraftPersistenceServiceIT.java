@@ -10,6 +10,7 @@ import com.knowledgeflow.knowledge.repository.KnowledgeQuestionAnswerRepository;
 import com.knowledgeflow.knowledge.repository.KnowledgeSourceReferenceRepository;
 import com.knowledgeflow.organizations.entity.Organization;
 import com.knowledgeflow.organizations.repository.OrganizationRepository;
+import com.knowledgeflow.pgtest.PgContainers;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -59,7 +60,7 @@ class AtFaqGovernedDraftPersistenceServiceIT {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+            PgContainers.pgvector();
 
     @Autowired KnowledgeQuestionAnswerRepository qaRepository;
     @Autowired KnowledgeSourceReferenceRepository sourceRepository;

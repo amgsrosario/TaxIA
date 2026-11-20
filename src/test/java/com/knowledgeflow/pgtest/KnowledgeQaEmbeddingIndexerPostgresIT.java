@@ -52,7 +52,7 @@ class KnowledgeQaEmbeddingIndexerPostgresIT {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+            PgContainers.pgvector();
 
     private static final int DIM = 768;
 

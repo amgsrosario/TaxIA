@@ -32,7 +32,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class FlywayV16ApplicabilityExclusionsIT {
 
     @Container
-    static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+    static final PostgreSQLContainer<?> postgres = PgContainers.pgvector();
 
     private static final UUID ORG_ID = UUID.fromString("a1600000-0000-0000-0000-000000000001");
     private static final UUID QA_ID = UUID.fromString("a1600000-0000-0000-0000-000000000002");
