@@ -67,7 +67,8 @@ Efeito operacional da recusa no modo directo:
 Prova de cobertura (`ResearchModelPortArchitectureTest`): partindo das classes de `research`, percorre no bytecode
 todas as classes da aplicação que elas alcançam, incluindo as implementações das interfaces alcançadas e as
 referências por literal de nome. Falha se alguma delas usar o `AIService`, os fornecedores ou o resolvedor, a não ser
-através da porta. Proíbe também, em `research`, a obtenção dinâmica de beans e `Class.forName`.
+através da porta. Proíbe também, em todas as classes alcançadas, a obtenção dinâmica de beans pelo contexto Spring,
+`Class.forName` e a reflexão de métodos. O `ObjectProvider<T>` é permitido, porque o tipo fica na assinatura analisada.
 
 Limites da prova: nomes construídos em tempo de execução, `MethodHandle` construídos à mão e bibliotecas externas.
 

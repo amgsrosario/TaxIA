@@ -14,6 +14,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.mock.env.MockEnvironment;
 
 /**
  * Comportamento comprovado da validação Flyway numa base descartável (H2 em memória), com migrações de ensaio que
@@ -51,7 +52,7 @@ class StrictFlywayValidationTest {
 
     private static FluentConfiguration config(String url, Path locations, boolean strict) {
         FluentConfiguration c = Flyway.configure().dataSource(url, "sa", "").locations("filesystem:" + locations);
-        if (strict) new StrictFlywayValidation().customize(c);
+        if (strict) new StrictFlywayValidation(new MockEnvironment()).customize(c);
         return c;
     }
 
@@ -59,8 +60,16 @@ class StrictFlywayValidationTest {
     void customizerIgnoresNoMigrationType() {
         FluentConfiguration c = Flyway.configure();
         assertThat(c.getIgnoreMigrationPatterns()).isNotEmpty(); // omissão do Flyway: *:future
-        new StrictFlywayValidation().customize(c);
+        new StrictFlywayValidation(new MockEnvironment()).customize(c);
         assertThat(c.getIgnoreMigrationPatterns()).isEmpty();
+    }
+
+    @Test
+    void explicitPropertyPrevailsOverTheStrictDefault() {
+        FluentConfiguration c = Flyway.configure().ignoreMigrationPatterns("*:missing");
+        new StrictFlywayValidation(new MockEnvironment().withProperty(StrictFlywayValidation.PROPERTY, "*:missing"))
+                .customize(c);
+        assertThat(c.getIgnoreMigrationPatterns()).hasSize(1);
     }
 
     @Test
@@ -101,13 +110,21 @@ class StrictFlywayValidationTest {
         String url = pilotDatabase();
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(DataSourceAutoConfiguration.class, FlywayAutoConfiguration.class))
-                .withBean(StrictFlywayValidation.class)
+                .withUserConfiguration(StrictFlywayValidation.class)
                 .withPropertyValues("spring.datasource.url=" + url, "spring.datasource.username=sa",
                         "spring.datasource.password=", "spring.flyway.locations=filesystem:" + mainUpToV22)
                 .run(ctx -> {
                     assertThat(ctx).hasFailed();
                     assertThat(ctx.getStartupFailure()).rootCause().hasMessageContaining("23");
                 });
+        // Excepção expressa e humana: com a propriedade definida, o valor configurado prevalece e o arranque é aceite.
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(DataSourceAutoConfiguration.class, FlywayAutoConfiguration.class))
+                .withUserConfiguration(StrictFlywayValidation.class)
+                .withPropertyValues("spring.datasource.url=" + url, "spring.datasource.username=sa",
+                        "spring.datasource.password=", "spring.flyway.locations=filesystem:" + mainUpToV22,
+                        "spring.flyway.ignore-migration-patterns=*:future")
+                .run(ctx -> assertThat(ctx).hasNotFailed());
         // Controlo: sem o customizador, o mesmo arranque é aceite.
         new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(DataSourceAutoConfiguration.class, FlywayAutoConfiguration.class))

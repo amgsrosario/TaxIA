@@ -36,8 +36,9 @@ import org.junit.jupiter.api.io.TempDir;
  * <p>
  * <b>O que não demonstra.</b> Não abrange nomes construídos em tempo de execução, nem a obtenção de beans por nome
  * ou por tipo dinâmico através do contexto Spring ({@code ApplicationContext}, {@code BeanFactory}). Por isso, também
- * se proíbe que o pacote {@code research} use directamente esses mecanismos, {@code Class.forName} e a reflexão de
- * métodos. {@code java.lang.invoke} não é proibido, porque o compilador o usa em todas as lambdas e records; os
+ * se proíbe que qualquer classe alcançada (de {@code research} ou intermediária) use esses mecanismos,
+ * {@code Class.forName} ou a reflexão de métodos. O {@code ObjectProvider<T>} é permitido: a injecção é por tipo, e o tipo
+ * fica na assinatura genérica analisada, pelo que um {@code ObjectProvider<AIService>} seria detectado pelo nome. {@code java.lang.invoke} não é proibido, porque o compilador o usa em todas as lambdas e records; os
  * {@code MethodHandle} construídos à mão ficam fora da prova. Bibliotecas externas não são analisadas.
  */
 class ResearchModelPortArchitectureTest {
@@ -53,12 +54,11 @@ class ResearchModelPortArchitectureTest {
             "com/knowledgeflow/ai/AIProviderResolver",
             "com/knowledgeflow/ai/provider/");
 
-    /** Mecanismos dinâmicos que o pacote {@code research} não pode usar directamente. */
-    private static final List<String> RESEARCH_DYNAMIC_FORBIDDEN = List.of(
+    /** Mecanismos dinâmicos que nenhuma classe alcançada a partir de {@code research} pode usar. */
+    private static final List<String> DYNAMIC_FORBIDDEN = List.of(
             "org/springframework/context/ApplicationContext",
             "org/springframework/beans/factory/BeanFactory",
             "org/springframework/beans/factory/ListableBeanFactory",
-            "org/springframework/beans/factory/ObjectProvider",
             "java/lang/reflect/Method");
 
     private static final Pattern INTERNAL = Pattern.compile("com/knowledgeflow/[A-Za-z0-9_/$]+");
@@ -165,6 +165,7 @@ class ResearchModelPortArchitectureTest {
         while (!queue.isEmpty()) {
             String current = queue.poll();
             ClassInfo c = classes.get(current);
+            for (String d : dynamicMechanisms(c)) found.add(path(via, current) + " -> " + d);
             List<String> next = new ArrayList<>(c.referenced());
             // A porta é a fronteira autorizada: as suas implementações não são percorridas.
             if (!current.equals(PORT)) next.addAll(subtypes.getOrDefault(current, List.of()));
@@ -182,6 +183,16 @@ class ResearchModelPortArchitectureTest {
         return new ArrayList<>(found);
     }
 
+    /** Mecanismos dinâmicos usados pela classe: obtenção de beans, {@code Class.forName} e reflexão de métodos. */
+    static List<String> dynamicMechanisms(ClassInfo c) {
+        List<String> out = new ArrayList<>();
+        for (String f : DYNAMIC_FORBIDDEN) {
+            if (c.utf8().stream().anyMatch(s -> s.contains(f))) out.add("dinâmico:" + f);
+        }
+        if (c.methodRefs().contains("java/lang/Class.forName")) out.add("dinâmico:Class.forName");
+        return out;
+    }
+
     private static String path(Map<String, String> via, String last) {
         List<String> chain = new ArrayList<>();
         for (String c = last; c != null; c = via.get(c)) chain.add(0, c.substring(c.lastIndexOf('/') + 1));
@@ -197,18 +208,6 @@ class ResearchModelPortArchitectureTest {
         Map<String, ClassInfo> classes = load(appClasses());
         assertThat(classes.keySet()).anyMatch(n -> n.startsWith(APP + "research/"));
         assertThat(violations(classes, APP + "research/")).isEmpty();
-    }
-
-    @Test
-    void researchDoesNotUseDynamicBeanLookupOrReflection() throws Exception {
-        List<String> found = new ArrayList<>();
-        for (ClassInfo c : load(appClasses().resolve("com/knowledgeflow/research")).values()) {
-            for (String s : c.utf8()) {
-                for (String f : RESEARCH_DYNAMIC_FORBIDDEN) if (s.contains(f)) found.add(c.name() + " -> " + f);
-            }
-            if (c.methodRefs().contains("java/lang/Class.forName")) found.add(c.name() + " -> Class.forName");
-        }
-        assertThat(found).isEmpty();
     }
 
     @Test
@@ -240,9 +239,15 @@ class ResearchModelPortArchitectureTest {
                 .endsWith("-> com/knowledgeflow/ai/AIService");
         assertThat(violations(probe, base + "ProbeInjected")).isNotEmpty().allSatisfy(v -> assertThat(v)
                 .contains("ProbeInjected > ResearchModelPortArchitectureTest$Gateway > ResearchModelPortArchitectureTest$GatewayImpl"));
-        assertThat(violations(probe, base + "ProbeReflective")).singleElement().asString()
-                .endsWith("-> com/knowledgeflow/ai/DefaultAIService");
+        assertThat(violations(probe, base + "ProbeReflective")).containsExactlyInAnyOrder(
+                "ResearchModelPortArchitectureTest$ProbeReflective -> com/knowledgeflow/ai/DefaultAIService",
+                "ResearchModelPortArchitectureTest$ProbeReflective -> dinâmico:Class.forName");
         assertThat(violations(probe, base + "ProbeViaPort")).isEmpty();
+        assertThat(violations(probe, base + "ProbeObjectProvider")).singleElement().asString()
+                .endsWith("-> com/knowledgeflow/ai/AIService");
+        assertThat(violations(probe, base + "ProbeBeanLookup")).singleElement().asString()
+                .contains("ProbeBeanLookup > ResearchModelPortArchitectureTest$BeanLookupIntermediary")
+                .endsWith("-> dinâmico:org/springframework/context/ApplicationContext");
         assertThat(probe.get(base + "ProbeReflective").methodRefs()).contains("java/lang/Class.forName");
         assertThat(probe.get(base + "ProbeDirect").methodRefs()).doesNotContain("java/lang/Class.forName");
     }
@@ -295,6 +300,27 @@ class ResearchModelPortArchitectureTest {
         Object load() throws Exception {
             return Class.forName("com.knowledgeflow.ai.DefaultAIService");
         }
+    }
+
+    /** Intermediário que obtém um bean pelo nome, sem nomear o tipo proibido. */
+    static class BeanLookupIntermediary {
+        org.springframework.context.ApplicationContext context;
+
+        Object model() {
+            return context.getBean("defaultAIService");
+        }
+    }
+
+    static class ProbeBeanLookup {
+        BeanLookupIntermediary intermediary;
+    }
+
+    static class ObjectProviderIntermediary {
+        org.springframework.beans.factory.ObjectProvider<com.knowledgeflow.ai.AIService> provider;
+    }
+
+    static class ProbeObjectProvider {
+        ObjectProviderIntermediary intermediary;
     }
 
     static class ProbeViaPort {

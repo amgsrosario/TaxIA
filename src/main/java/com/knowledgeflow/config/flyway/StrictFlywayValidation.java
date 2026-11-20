@@ -2,6 +2,9 @@ package com.knowledgeflow.config.flyway;
 
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.springframework.boot.autoconfigure.flyway.FlywayConfigurationCustomizer;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,15 +16,30 @@ import org.springframework.stereotype.Component;
  * acabasse em V22 ou antes.
  * <p>
  * Aqui não se ignora nenhum tipo de migração: qualquer migração aplicada que não exista localmente, futura ou em
- * falta, faz falhar a validação e, portanto, o arranque. Aceitar uma base nessas condições é uma decisão humana
- * (reposição da cópia de segurança, ou configuração expressa), nunca da aplicação. As migrações pendentes
- * continuam a ser aplicadas normalmente.
+ * falta, faz falhar a validação e, portanto, o arranque. As migrações pendentes continuam a ser aplicadas.
+ * <p>
+ * Aceitar uma base nessas condições é uma decisão humana, nunca da aplicação: repor a cópia de segurança, ou definir
+ * expressamente {@value #PROPERTY} (por exemplo, {@code SPRING_FLYWAY_IGNORE_MIGRATION_PATTERNS=*:missing}). Com a
+ * propriedade definida, o valor configurado prevalece e este componente não o altera.
  */
 @Component
 public class StrictFlywayValidation implements FlywayConfigurationCustomizer {
 
+    static final String PROPERTY = "spring.flyway.ignore-migration-patterns";
+
+    private final Environment environment;
+
+    public StrictFlywayValidation(Environment environment) {
+        this.environment = environment;
+    }
+
     @Override
     public void customize(FluentConfiguration configuration) {
+        if (explicitlyConfigured()) return;
         configuration.ignoreMigrationPatterns(new String[0]);
+    }
+
+    private boolean explicitlyConfigured() {
+        return Binder.get(environment).bind(PROPERTY, Bindable.listOf(String.class)).isBound();
     }
 }

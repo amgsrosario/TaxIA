@@ -36,14 +36,18 @@
     (`ignoreMigrationPatterns = "*:future"`). Por isso, o `main` impõe uma validação estrita, com o
     `StrictFlywayValidation` (`FlywayConfigurationCustomizer`): nenhum tipo de migração é ignorado, e uma migração
     aplicada que não exista localmente, futura ou em falta, faz falhar a validação.
-  - Para aceitar uma base nestas condições é preciso uma decisão humana: repor a cópia de segurança ou configurar a
-    excepção expressamente. A aplicação nunca o faz sozinha.
+  - Para aceitar uma base nestas condições é preciso uma decisão humana, e a aplicação nunca o faz sozinha. As
+    alternativas são:
+    - repor a cópia de segurança;
+    - definir expressamente `spring.flyway.ignore-migration-patterns`, por exemplo
+      `SPRING_FLYWAY_IGNORE_MIGRATION_PATTERNS=*:missing`. Com a propriedade definida, o valor configurado
+      prevalece; sem ela, aplica-se a validação estrita.
   - As migrações pendentes continuam a ser aplicadas.
   - Comportamento comprovado em base descartável (H2) por `StrictFlywayValidationTest`:
     - V23 aplicada com o `main` em V22 → recusa (o controlo sem a validação estrita aceita);
     - V23 aplicada com o `main` já em V25 → recusa;
     - pendentes V22 e V25 → aplicadas;
-    - arranque Spring com a base do piloto → falha.
+    - arranque Spring com a base do piloto → falha; com a propriedade definida expressamente → aceite.
 - **Activação:** continua a ser uma acção humana separada, com cópia de segurança, verificação das migrações e plano
   de reversão.
 
