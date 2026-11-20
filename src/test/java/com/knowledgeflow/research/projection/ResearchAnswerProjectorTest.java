@@ -154,7 +154,7 @@ class ResearchAnswerProjectorTest {
     void completedLimitAnswerIsTextoLimite() {
         ResearchInvestigation i = open();
         i.complete(AnswerType.RESPOSTA_LIMITE, ParecerRequirement.REQUIRED, "Resposta-limite", null, null, null, NOW);
-        ResearchAnswerProjection p = ResearchAnswerProjector.project(i, null, null);
+        ResearchAnswerProjection p = ResearchAnswerProjector.project(i, List.of(), null);
         assertThat(p.answerKind()).isEqualTo(AnswerKind.TEXTO_LIMITE);
         assertThat(p.parecerRequirement()).isEqualTo(ParecerRequirement.REQUIRED);
         assertThat(p.limitations()).isEmpty();
@@ -174,6 +174,61 @@ class ResearchAnswerProjectorTest {
         ReflectionTestUtils.setField(b, "parecerRequirement", null);
         assertThatThrownBy(() -> ResearchAnswerProjector.project(b, List.of(), List.of()))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void completedWithParecerNoneFailsClosed() {
+        ResearchInvestigation i = open();
+        i.complete(AnswerType.RESPOSTA_LIMITE, ParecerRequirement.SUGGESTED, "x", null, null, null, NOW);
+        ReflectionTestUtils.setField(i, "parecerRequirement", ParecerRequirement.NONE);
+        assertThatThrownBy(() -> ResearchAnswerProjector.project(i, List.of(), List.of()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void completedWithoutAnswerTextFailsClosed() {
+        // A entidade admite texto null em complete(): o projector tem de o recusar.
+        ResearchInvestigation a = open();
+        a.complete(AnswerType.CONSULTA_DOCUMENTADA_COM_LIMITACOES, ParecerRequirement.SUGGESTED, null, null, null, null, NOW);
+        assertThatThrownBy(() -> ResearchAnswerProjector.project(a, List.of(), List.of()))
+                .isInstanceOf(IllegalStateException.class);
+        ResearchInvestigation b = open();
+        b.complete(AnswerType.RESPOSTA_LIMITE, ParecerRequirement.SUGGESTED, "   ", null, null, null, NOW);
+        assertThatThrownBy(() -> ResearchAnswerProjector.project(b, List.of(), List.of()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void completedRequiresAnExplicitEvidenceList() {
+        ResearchInvestigation i = open();
+        i.complete(AnswerType.RESPOSTA_LIMITE, ParecerRequirement.SUGGESTED, "x", null, null, null, NOW);
+        assertThatThrownBy(() -> ResearchAnswerProjector.project(i, null, List.of()))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void relevantContentWithoutUsableTitlesFailsClosed() {
+        ResearchInvestigation i = new ResearchInvestigation(ORG, UUID.randomUUID(), SECRET_QUESTION,
+                InvestigationTrigger.RELEVANT_QA_EXISTS, NOW);
+        List<String> blank = new ArrayList<>(List.of("", "   "));
+        blank.add(null);
+        assertThatThrownBy(() -> ResearchAnswerProjector.project(i, List.of(), blank))
+                .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> ResearchAnswerProjector.project(i, List.of(), null))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void revokedEvidenceNotRejectedFailsClosed() {
+        // A entidade admite REVOKED com qualquer classificação: o projector só aceita REVOKED + REJECTED.
+        for (EvidenceClassification c : List.of(EvidenceClassification.ACCEPTED, EvidenceClassification.CONTRADICTED,
+                EvidenceClassification.INSUFFICIENT)) {
+            ResearchInvestigation i = open();
+            i.complete(AnswerType.RESPOSTA_LIMITE, ParecerRequirement.SUGGESTED, "x", null, null, null, NOW);
+            ResearchEvidence revoked = evidence(i, c, ValidityStatus.REVOKED);
+            assertThatThrownBy(() -> ResearchAnswerProjector.project(i, List.of(revoked), List.of()))
+                    .as("REVOKED + %s", c).isInstanceOf(IllegalStateException.class);
+        }
     }
 
     @Test

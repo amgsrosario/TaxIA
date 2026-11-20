@@ -1,10 +1,13 @@
 package com.knowledgeflow.research.projection;
 
 import com.knowledgeflow.ai.documented.AnswerType;
+import com.knowledgeflow.ai.documented.ParecerRequirement;
 import com.knowledgeflow.research.entity.ResearchEvidence;
 import com.knowledgeflow.research.entity.ResearchInvestigation;
 import com.knowledgeflow.research.enums.InvestigationStatus;
+import com.knowledgeflow.research.enums.EvidenceClassification;
 import com.knowledgeflow.research.enums.InvestigationTrigger;
+import com.knowledgeflow.research.enums.ValidityStatus;
 import com.knowledgeflow.research.projection.ResearchAnswerProjection.AnswerKind;
 import com.knowledgeflow.research.projection.ResearchAnswerProjection.EvidenceSummary;
 import java.util.Arrays;
@@ -32,15 +35,16 @@ public final class ResearchAnswerProjector {
 
     /**
      * @param investigation  investigação (obrigatória)
-     * @param evidence       evidências da investigação; usadas só com {@code COMPLETED}
+     * @param evidence       evidências da investigação; obrigatória (pode ser vazia) com {@code COMPLETED}, ignorada nos
+     *                       outros estados. A projecção não consulta a base: a <b>completude</b> da lista (todas as
+     *                       evidências da investigação) é responsabilidade de quem a obtém, na futura integração
      * @param coverageTitles títulos do conteúdo validado encontrado na verificação do corpus; usados só com
-     *                       {@code NOT_STARTED} por {@code RELEVANT_QA_EXISTS}
+     *                       {@code NOT_STARTED} por {@code RELEVANT_QA_EXISTS}, onde é exigido pelo menos um título
      */
     public static ResearchAnswerProjection project(ResearchInvestigation investigation,
             List<ResearchEvidence> evidence, List<String> coverageTitles) {
         Objects.requireNonNull(investigation, "investigation");
         InvestigationStatus status = Objects.requireNonNull(investigation.getStatus(), "status");
-        List<ResearchEvidence> ev = evidence == null ? List.of() : evidence;
         List<String> titles = coverageTitles == null ? List.of() : coverageTitles;
 
         return switch (status) {
@@ -52,10 +56,14 @@ public final class ResearchAnswerProjector {
                         && reason != InvestigationTrigger.CORPUS_CHECK_UNAVAILABLE) {
                     throw new IllegalStateException("Investigação NOT_STARTED com causa inadmissível: " + reason);
                 }
-                yield empty(investigation, reason,
-                        reason == InvestigationTrigger.RELEVANT_QA_EXISTS ? clean(titles) : List.of(), null);
+                List<String> clean = reason == InvestigationTrigger.RELEVANT_QA_EXISTS ? clean(titles) : List.of();
+                if (reason == InvestigationTrigger.RELEVANT_QA_EXISTS && clean.isEmpty()) {
+                    throw new IllegalStateException("Conteúdo relevante encontrado mas sem títulos para apresentar");
+                }
+                yield empty(investigation, reason, clean, null);
             }
-            case COMPLETED -> completed(investigation, ev);
+            case COMPLETED -> completed(investigation, Objects.requireNonNull(evidence,
+                    "evidence: lista explícita exigida numa investigação concluída"));
         };
     }
 
@@ -69,12 +77,20 @@ public final class ResearchAnswerProjector {
         } else {
             throw new IllegalStateException("Investigação concluída com tipo de resposta inadmissível: " + type);
         }
-        if (i.getParecerRequirement() == null) {
-            throw new IllegalStateException("Investigação concluída sem exigência de parecer");
+        ParecerRequirement parecer = i.getParecerRequirement();
+        if (parecer != ParecerRequirement.SUGGESTED && parecer != ParecerRequirement.REQUIRED) {
+            throw new IllegalStateException("Investigação concluída com exigência de parecer inadmissível: " + parecer);
+        }
+        if (i.getAnswerText() == null || i.getAnswerText().isBlank()) {
+            throw new IllegalStateException("Investigação concluída sem texto de resposta");
         }
         for (ResearchEvidence e : evidence) {
             if (!i.getId().equals(e.getInvestigationId())) {
                 throw new IllegalArgumentException("Evidência de outra investigação: " + e.getId());
+            }
+            if (e.getValidityStatus() == ValidityStatus.REVOKED
+                    && e.getClassification() != EvidenceClassification.REJECTED) {
+                throw new IllegalStateException("Evidência revogada não classificada como REJECTED: " + e.getId());
             }
         }
         return new ResearchAnswerProjection(i.getId(), InvestigationStatus.COMPLETED, null, List.of(), type,
