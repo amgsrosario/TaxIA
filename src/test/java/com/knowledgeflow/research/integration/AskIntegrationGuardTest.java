@@ -41,16 +41,28 @@ class AskIntegrationGuardTest {
     @Test
     void integrationWithoutResearchIsRefusedWithAllReasons() {
         assertThat(AskIntegrationGuard.problems(props(false, true)))
-                .hasSize(1 + AskIntegrationGuard.MISSING_PREREQUISITES.size())
+                .hasSize(2 + AskIntegrationGuard.MISSING_PREREQUISITES.size())
                 .first().asString().contains("knowledgeflow.research.enabled");
     }
 
     @Test
     void integrationIsRefusedWhileSpendControlAndEntailmentBarrierAreMissing() {
+        // Barreira desligada: recusada também por isso (A4: a barreira é exigida no modo integrado).
         assertThat(AskIntegrationGuard.problems(props(true, true)))
-                .hasSize(AskIntegrationGuard.MISSING_PREREQUISITES.size())
+                .hasSize(1 + AskIntegrationGuard.MISSING_PREREQUISITES.size())
                 .anySatisfy(p -> assertThat(p).contains("L6"))
-                .anySatisfy(p -> assertThat(p).contains("barreira de validação de implicação"));
+                .anySatisfy(p -> assertThat(p).contains("composição restrita"))
+                .anySatisfy(p -> assertThat(p).contains("knowledgeflow.research.entailment.enabled"));
+        // Barreira ligada: continua recusada por faltarem o L6 e a composição restrita.
+        ResearchProperties withBarrier = props(true, true);
+        withBarrier.getEntailment().setEnabled(true);
+        assertThat(AskIntegrationGuard.problems(withBarrier))
+                .hasSize(AskIntegrationGuard.MISSING_PREREQUISITES.size())
+                .noneSatisfy(p -> assertThat(p).contains("entailment"))
+                .anySatisfy(p -> assertThat(p).contains("L6"))
+                .anySatisfy(p -> assertThat(p).contains("composição restrita"));
+        assertThatThrownBy(() -> new AskIntegrationGuard(withBarrier).afterPropertiesSet())
+                .isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> new AskIntegrationGuard(props(true, true)).afterPropertiesSet())
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("Modo integrado");
     }

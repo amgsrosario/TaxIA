@@ -21,7 +21,14 @@ public class ResearchAnswerPolicy {
             int acceptedEvidence,
             int usablePropositions,
             boolean unresolvedConflict,
-            boolean uncertainValidity) {}
+            boolean uncertainValidity,
+            /** Proposições com implicação não demonstrada pela segunda barreira; sempre 0 com a barreira desligada. */
+            int entailmentNotDemonstrated) {
+
+        public Inputs(int acceptedEvidence, int usablePropositions, boolean unresolvedConflict, boolean uncertainValidity) {
+            this(acceptedEvidence, usablePropositions, unresolvedConflict, uncertainValidity, 0);
+        }
+    }
 
     public record Decision(AnswerType answerType, ParecerRequirement parecerRequirement, List<String> reasons) {
 
@@ -42,6 +49,10 @@ public class ResearchAnswerPolicy {
         if (in.uncertainValidity()) {
             return limit(ParecerRequirement.REQUIRED,
                     "Vigência incerta da evidência que sustentaria a conclusão.");
+        }
+        if (in.usablePropositions() == 0 && in.entailmentNotDemonstrated() > 0) {
+            return limit(ParecerRequirement.SUGGESTED,
+                    "Insuficiência de fundamento: implicação jurídica não demonstrada pela segunda barreira de validação.");
         }
         if (in.usablePropositions() == 0) {
             return limit(ParecerRequirement.SUGGESTED,

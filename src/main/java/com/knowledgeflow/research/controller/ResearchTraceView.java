@@ -31,10 +31,19 @@ public record ResearchTraceView(
         List<EvidenceView> evidence,
         List<PropositionView> propositions,
         List<RelationView> relations,
-        List<CriticalMemoryView> criticalMemory) {
+        List<CriticalMemoryView> criticalMemory,
+        List<EntailmentView> entailmentChecks) {
+
+    /** Segunda barreira (ADR-010-A, A4): veredicto, dimensões, passagem citada e decisão final. */
+    public record EntailmentView(UUID id, UUID propositionId, UUID evidenceId, UUID modelStepId, String verdict,
+            List<String> dimensions, String justification, String citedPassage, boolean citationVerified,
+            String decision, String decisionReason, OffsetDateTime createdAt) {}
+
+    /** Proveniência de uma chamada ao modelo; nunca prompt, resposta ou credencial. */
+    public record ModelView(String provider, String model, Integer inputTokens, Integer outputTokens, Long durationMs) {}
 
     public record StepView(int order, String phase, String origin, String target, String url, Integer httpStatus,
-            String outcome, String detail, OffsetDateTime occurredAt) {}
+            String outcome, String detail, OffsetDateTime occurredAt, ModelView model) {}
 
     public record EvidenceView(UUID id, String sourceType, String authority, String referenceKey,
             String legalReference, String title, String url, OffsetDateTime retrievedAt, String contentSha256,
@@ -76,12 +85,18 @@ public record ResearchTraceView(
                 t.propositions().stream().map(ResearchTraceView::proposition).toList(),
                 t.relations().stream().map(r -> new RelationView(r.getFromPropositionId(), r.getToPropositionId(),
                         r.getRelation().name(), r.isResolved(), r.getNote())).toList(),
-                t.criticalMemory().stream().map(CriticalMemoryView::from).toList());
+                t.criticalMemory().stream().map(CriticalMemoryView::from).toList(),
+                t.entailmentChecks().stream().map(c -> new EntailmentView(c.getId(), c.getPropositionId(),
+                        c.getEvidenceId(), c.getModelStepId(), c.getVerdict() == null ? null : c.getVerdict().name(),
+                        lines(c.getDimensions()), c.getJustification(), c.getCitedPassage(), c.isCitationVerified(),
+                        c.getDecision().name(), c.getDecisionReason(), c.getCreatedAt())).toList());
     }
 
     private static StepView step(ResearchStep s) {
         return new StepView(s.getStepOrder(), s.getPhase().name(), s.getOrigin().name(), s.getTarget(), s.getUrl(),
-                s.getHttpStatus(), s.getOutcome().name(), s.getDetail(), s.getOccurredAt());
+                s.getHttpStatus(), s.getOutcome().name(), s.getDetail(), s.getOccurredAt(),
+                s.getModelProvider() == null ? null : new ModelView(s.getModelProvider(), s.getModelName(),
+                        s.getModelInputTokens(), s.getModelOutputTokens(), s.getModelDurationMs()));
     }
 
     private static EvidenceView evidence(ResearchEvidence e) {
