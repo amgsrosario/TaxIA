@@ -43,8 +43,10 @@ class PgContainersUsageTest {
                 i = end < 0 ? n : end + 2;
                 out.append(' ');
             } else if (src.startsWith("\"\"\"", i)) {
-                int end = src.indexOf("\"\"\"", i + 3);
-                i = end < 0 ? n : end + 3;
+                // Text block: termina no primeiro """ não escapado; \x (incluindo \") salta dois caracteres.
+                int j = i + 3;
+                while (j < n && !src.startsWith("\"\"\"", j)) j += src.charAt(j) == '\\' ? 2 : 1;
+                i = Math.min(n, j + 3);
                 out.append("\"\"");
             } else if (c == '"' || c == '\'') {
                 int j = i + 1;
@@ -91,8 +93,10 @@ class PgContainersUsageTest {
         write(dir, "D.java", "class D { Object c = new PostgreSQLContainer(\"img\"); }");
         write(dir, "E.java", "class E { Object c = new   PostgreSQLContainer <PostgreSQLContainer<?>>(\"img\"); }");
         write(dir, "outro/PgContainers.java", "class PgContainers { Object c = new PostgreSQLContainer<>(\"img\"); }");
+        // Depois de um text block com \""" no conteúdo, uma construção real continua a ser detectada.
+        write(dir, "K.java", "class K { String t = \"\"\"\n a \\\"\"\" b \n\"\"\"; Object c = new PostgreSQLContainer<>(\"img\"); }");
         assertThat(directConstructions(dir)).containsExactly("A.java", "B.java", "C.java", "D.java", "E.java",
-                "outro/PgContainers.java");
+                "K.java", "outro/PgContainers.java");
     }
 
     @Test
@@ -101,6 +105,8 @@ class PgContainersUsageTest {
         write(dir, "G.java", "/** Não usar {@code new PostgreSQLContainer<>(...)}. */ class G {}");
         write(dir, "H.java", "class H { String s = \"new PostgreSQLContainer<>(x)\"; String t = \"\"\"\n new PostgreSQLContainer<>()\n\"\"\"; }");
         write(dir, "I.java", "class I { Object c = new PostgreSQLContainerFactory(); }");
+        // Text block com aspas escapadas: \""" não termina o bloco; o conteúdo continua a ser texto.
+        write(dir, "J.java", "class J { String t = \"\"\"\n a \\\"\"\" new PostgreSQLContainer<>() \n\"\"\"; }");
         write(dir, "com/knowledgeflow/pgtest/PgContainers.java", "class PgContainers { Object c = new PostgreSQLContainer<>(\"img\"); }");
         assertThat(directConstructions(dir)).isEmpty();
     }
