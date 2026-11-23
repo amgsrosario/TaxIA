@@ -5,7 +5,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -50,6 +52,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -191,6 +194,7 @@ class InvestigationEntailmentTest {
         Trace t = run(proposition(STATEMENT_A));
         verify(validator, never()).assess(any());
         verify(supportVerifier, never()).check(anyString(), anyString(), anyString(), anyString(), anyString(), anyList());
+        verify(supportVerifier, never()).checkCondition(anyString(), anyString(), anyString(), anyString(), anyString());
         assertThat(t.entailmentChecks()).singleElement().satisfies(c -> {
             assertThat(c.getDecision()).isEqualTo(EntailmentDecision.NOT_DEMONSTRATED);
             assertThat(c.getVerdict()).isNull();
@@ -230,5 +234,37 @@ class InvestigationEntailmentTest {
         // Verificado: a resposta não é limite e contém a afirmação rejeitada («em qualquer caso»).
         assertThat(t.investigation().getAnswerType()).isEqualTo(AnswerType.CONSULTA_DOCUMENTADA_COM_LIMITACOES);
         assertThat(t.investigation().getAnswerText()).contains("em qualquer caso");
+    }
+
+    @Test
+    @DisplayName("Validador indisponível → decisão local «não demonstrada», sem chamada")
+    void unavailableValidatorIsALocalDecision() {
+        when(validator.isAvailable()).thenReturn(false);
+        Trace t = run(proposition(STATEMENT_A));
+        verify(validator, never()).assess(any());
+        assertThat(reasons(t)).singleElement().asString().contains("indisponível");
+    }
+
+    @Test
+    @DisplayName("Ocorrência da âncora não identificável → decisão local «não demonstrada», sem chamada")
+    void unidentifiableOccurrenceIsALocalDecision() {
+        try (MockedStatic<SupportVerifier> sv = mockStatic(SupportVerifier.class, CALLS_REAL_METHODS)) {
+            sv.when(() -> SupportVerifier.occurrenceIdentified(anyString(), anyString())).thenReturn(false);
+            Trace t = run(proposition(STATEMENT_A));
+            verify(validator, never()).assess(any());
+            assertThat(reasons(t)).singleElement().asString().contains("ocorrência da âncora não identificável");
+        }
+    }
+
+    @Test
+    @DisplayName("Contexto normativo perdido → decisão local «não demonstrada», sem chamada")
+    void lostNormativeContextIsALocalDecision() {
+        try (MockedStatic<NormativeContextGuard> g = mockStatic(NormativeContextGuard.class, CALLS_REAL_METHODS)) {
+            g.when(() -> NormativeContextGuard.violation(anyString(), anyList(), any()))
+                    .thenReturn(Optional.of("contexto normativo perdido (teste)"));
+            Trace t = run(proposition(STATEMENT_A));
+            verify(validator, never()).assess(any());
+            assertThat(reasons(t)).singleElement().asString().contains("contexto normativo perdido (teste)");
+        }
     }
 }

@@ -34,6 +34,10 @@ import org.springframework.stereotype.Component;
  * do protocolo fica com um diagnóstico só da forma ({@link ResponseDiagnostics}). (Comentário adaptado ao {@code main};
  * o código é igual ao do piloto.)
  * <p>
+ * Os erros de protocolo nunca reproduzem texto recebido do modelo (nomes de chaves ou campos desconhecidos): só
+ * mensagens fixas e nomes já validados contra os vocabulários fechados, porque o erro é persistido no rasto
+ * (ADR-010-A, A4, revisão R1). Adaptação ao {@code main}.
+ * <p>
  * Desligado por omissão ({@code knowledgeflow.research.entailment.enabled=false}).
  */
 @Component
@@ -205,7 +209,7 @@ public class ModelEntailmentValidator implements EntailmentValidator {
         if (root == null || !root.isObject()) return failure("a resposta não é um objecto JSON", unparseable);
         for (var it = root.fieldNames(); it.hasNext(); ) {
             String k = it.next();
-            if (!TOP_LEVEL.contains(k)) return failure("chave desconhecida: " + k, unparseable);
+            if (!TOP_LEVEL.contains(k)) return failure("chave desconhecida no objecto principal", unparseable);
         }
         JsonNode v = root.get("veredicto");
         if (v == null || v.isNull()) return failure("sem veredicto", unparseable);
@@ -225,12 +229,12 @@ public class ModelEntailmentValidator implements EntailmentValidator {
             for (var it = d.fields(); it.hasNext(); ) {
                 var e = it.next();
                 Dimension dim = KEYS.get(e.getKey());
-                if (dim == null) return failure("dimensão desconhecida: " + e.getKey(), unparseable);
+                if (dim == null) return failure("dimensão desconhecida", unparseable);
                 JsonNode node = e.getValue();
                 if (!node.isObject()) return failure("dimensão " + e.getKey() + " não é um objecto", unparseable);
                 for (var fit = node.fieldNames(); fit.hasNext(); ) {
                     String f = fit.next();
-                    if (!DIMENSION_FIELDS.contains(f)) return failure("campo desconhecido em " + e.getKey() + ": " + f, unparseable);
+                    if (!DIMENSION_FIELDS.contains(f)) return failure("campo desconhecido na dimensão " + e.getKey(), unparseable);
                 }
                 JsonNode estado = node.get("estado");
                 DimensionStatus st = estado != null && estado.isTextual() ? enumValue(DimensionStatus.class, estado.asText()) : null;
