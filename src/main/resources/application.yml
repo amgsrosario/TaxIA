@@ -77,6 +77,11 @@ knowledgeflow:
     # modo directo; o arranque recusa-o enquanto faltarem os pré-requisitos (AskIntegrationGuard).
     ask-integration:
       enabled: ${KNOWLEDGEFLOW_RESEARCH_ASK_INTEGRATION_ENABLED:false}
+    # Segunda barreira de validação de implicação (ADR-010-A). Desligada por omissão; nunca faz chamadas pagas
+    # (a porta MeteredModelClient recusa fornecedores facturáveis sem L6).
+    entailment:
+      enabled: ${KNOWLEDGEFLOW_RESEARCH_ENTAILMENT_ENABLED:false}
+      max-checks: ${KNOWLEDGEFLOW_RESEARCH_ENTAILMENT_MAX_CHECKS:4}
   ingestion:
     at-faq:
       # Pilot of automated ingestion of the AT public FAQs (Etapa 10A).
