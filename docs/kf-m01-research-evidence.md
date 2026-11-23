@@ -166,6 +166,10 @@ Não é automática. Exige uma acção humana separada:
   CIRC ficam registadas como consulta `SKIPPED` com o motivo, sem pedido ao Portal nem evidência, e o modelo de
   descoberta não recebe o CIRC entre os códigos permitidos. O CIRC continua no catálogo e no conhecimento institucional
   (corpus validado). A suspensão só se levanta com uma fonte vigente demonstrada.
+- **Pastas históricas do Portal recusadas** (diagnóstico complementar de 23/11/2026): `civa/` (série do CIVA anterior
+  à republicação de 2008; a fonte do catálogo é `civa_rep/`) e `circ_rep/` (CIRC na redacção de 2011–2013). O catálogo
+  nunca as consulta; o cliente recusa-as antes do pedido, também como destino de redirecção, e o serviço recusa-as
+  como evidência, com a mesma regra por segmento da fonte do CIRC.
 - **Perímetro:** apenas CIRS, CIVA, CIRC e LGT consolidados pela AT. Ficam de fora:
   - o EBF;
   - o Diário da República;
