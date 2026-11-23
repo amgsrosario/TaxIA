@@ -67,6 +67,17 @@ public class OfficialLegislationCatalog {
                 : Optional.ofNullable(SUSPENDED_SOURCES.get(code.toUpperCase(Locale.ROOT)));
     }
 
+    /**
+     * O caminho de um URL pertence à fonte de um código suspenso ({@code /<pasta>/Pages/}). Usado pelo cliente HTTP para
+     * recusar, antes do pedido, URLs iniciais e destinos de redirecção, e pelo serviço como defesa em profundidade.
+     */
+    public static boolean isSuspendedSourcePath(String path) {
+        if (path == null) return false;
+        String p = path.toLowerCase(Locale.ROOT);
+        return SUSPENDED_SOURCES.keySet().stream().map(CODES::get).filter(e -> e != null)
+                .anyMatch(e -> p.contains("/" + e[0].toLowerCase(Locale.ROOT) + "/pages/"));
+    }
+
     /** Códigos do catálogo cuja fonte pode ser consultada (sem as fontes suspensas). */
     public Set<String> consultableCodes() {
         Set<String> codes = new java.util.TreeSet<>(CODES.keySet());

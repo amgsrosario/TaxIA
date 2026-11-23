@@ -70,12 +70,44 @@ class CircSourceSuspensionTest {
         // Nenhuma evidência CIRC.
         assertThat(t.evidence()).noneMatch(e -> e.getReferenceKey() != null && e.getReferenceKey().startsWith("CIRC"));
         // Passos SKIPPED com o motivo da suspensão, para a referência da pergunta e para a hipótese do modelo.
-        assertThat(t.steps()).filteredOn(s -> s.getPhase() == ResearchPhase.CONSULTATION && s.getOutcome() == StepOutcome.SKIPPED)
-                .extracting(s -> s.getDetail())
-                .anySatisfy(d -> assertThat(d).contains("Fonte do CIRC no Portal das Finanças suspensa"));
+        // Um passo SKIPPED por referência: a da pergunta (art. 87.º) e a hipótese do modelo (art. 90.º).
+        assertThat(t.steps()).filteredOn(s -> s.getPhase() == ResearchPhase.CONSULTATION && s.getOutcome() == StepOutcome.SKIPPED
+                        && s.getDetail() != null && s.getDetail().contains("Fonte do CIRC no Portal das Finanças suspensa"))
+                .extracting(s -> s.getTarget())
+                .hasSize(2)
+                .anySatisfy(target -> assertThat(target).contains("87"))
+                .anySatisfy(target -> assertThat(target).contains("90"));
+        // A limitação da resposta menciona a suspensão e o perímetro já não inclui o CIRC.
+        assertThat(t.investigation().getLimitations()).contains("Fontes suspensas").contains("(CIRS, CIVA, LGT)");
         // O modelo de descoberta não recebe o CIRC entre os códigos permitidos.
         verify(hypothesisProvider).propose(anyString(), argThat(codes -> !codes.contains("CIRC") && codes.contains("CIRS")), anyInt());
         // Sem fundamento: resposta-limite.
         assertThat(t.investigation().getAnswerType()).isEqualTo(AnswerType.RESPOSTA_LIMITE);
+    }
+
+    @Test
+    void aFetchedPageWhoseFinalUrlIsASuspendedSourceNeverBecomesEvidence() {
+        UUID org = UUID.randomUUID();
+        String cirs78 = "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/cirs_rep/Pages/irs78.aspx";
+        String circFinal = "https://info.portaldasfinancas.gov.pt/pt/informacao_fiscal/codigos_tributarios/circ/Pages/irc78.aspx";
+        when(corpusChecker.check(any(), anyString()))
+                .thenReturn(new CorpusCoverageChecker.Result(Coverage.NO_RELEVANT_QA, List.of(), "Sem Q&A relevante"));
+        when(hypothesisProvider.propose(anyString(), any(), anyInt())).thenReturn(List.of(
+                new Hypothesis(new LegislationReference("CIRS", 78, null), "deduções")));
+        // Cliente substituído: simula uma redirecção para o CIRC que o cliente real recusaria.
+        when(sourceClient.fetch(cirs78)).thenReturn(FetchedPage.fetched(200, circFinal,
+                com.knowledgeflow.research.ResearchFixtures.page(com.knowledgeflow.research.ResearchFixtures.CIRS_78)));
+        when(extractor.extract(anyString(), any())).thenReturn(new Extraction(List.of(), List.of()));
+        when(modelClient.complete(any())).thenReturn(new AIResponse("stub", "stub", "Resposta.", 0, 0, 0));
+
+        ResearchInvestigation i = service.investigate(org, UUID.randomUUID(), "As deduções à coleta aplicam-se a não residentes?");
+        Trace t = traceService.trace(org, i.getId());
+
+        assertThat(t.evidence()).isEmpty();
+        assertThat(t.steps()).anySatisfy(s -> {
+            assertThat(s.getOutcome()).isEqualTo(StepOutcome.BLOCKED);
+            assertThat(s.getDetail()).contains("Fonte suspensa");
+        });
+        verify(extractor, never()).extract(anyString(), any());
     }
 }

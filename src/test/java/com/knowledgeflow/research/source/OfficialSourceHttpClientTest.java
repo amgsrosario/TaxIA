@@ -100,6 +100,7 @@ class OfficialSourceHttpClientTest {
          */
         static final long CUT_BOUND = 8L * 1024 * 1024;
 
+        final java.util.concurrent.atomic.AtomicInteger circHits = new java.util.concurrent.atomic.AtomicInteger();
         HttpServer server;
         OfficialSourceHttpClient client;
         String base;
@@ -119,6 +120,11 @@ class OfficialSourceHttpClientTest {
             server.createContext("/redirect-huge", ex -> redirect(ex, "/huge-chunked"));
             server.createContext("/redirect-https", ex -> redirect(ex, "https://127.0.0.1/below"));
             server.createContext("/redirect-external", ex -> redirect(ex, "http://example.com/below"));
+            server.createContext("/codigos_tributarios/circ/Pages/irc87.aspx", ex -> {
+                circHits.incrementAndGet();
+                respond(ex, 200, 10, true);
+            });
+            server.createContext("/redirect-circ", ex -> redirect(ex, "/codigos_tributarios/circ/Pages/irc87.aspx"));
             server.start();
             base = "http://127.0.0.1:" + server.getAddress().getPort();
 
@@ -175,6 +181,18 @@ class OfficialSourceHttpClientTest {
             FetchedPage page = client.fetch(base + "/below");
             assertThat(page.outcome()).isEqualTo(Outcome.FETCHED);
             assertThat(page.body()).hasSize(LIMIT - 1);
+        }
+
+        @Test
+        @org.junit.jupiter.api.DisplayName("Fonte suspensa (CIRC): pedido directo e destino de redirecção recusados antes do pedido")
+        void suspendedSourceIsRefusedBeforeTheRequestIncludingRedirects() {
+            FetchedPage direct = client.fetch(base + "/codigos_tributarios/circ/Pages/irc87.aspx");
+            assertThat(direct.outcome()).isEqualTo(Outcome.BLOCKED);
+            assertThat(direct.detail()).contains("Fonte suspensa");
+            FetchedPage redirected = client.fetch(base + "/redirect-circ");
+            assertThat(redirected.outcome()).isEqualTo(Outcome.BLOCKED);
+            assertThat(redirected.detail()).contains("Fonte suspensa");
+            assertThat(circHits.get()).as("nenhum pedido chega à fonte suspensa").isZero();
         }
 
         @Test

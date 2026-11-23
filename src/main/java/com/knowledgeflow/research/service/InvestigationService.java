@@ -312,6 +312,16 @@ public class InvestigationService {
                 case BLOCKED -> StepOutcome.BLOCKED;
                 case FAILED -> StepOutcome.FAILED;
             };
+            // Defesa em profundidade (ponto 4.1): uma página cujo URL final pertence a uma fonte suspensa (por exemplo,
+            // depois de uma redirecção) nunca é analisada nem origina evidência, seja qual for o cliente.
+            if (outcome == StepOutcome.FETCHED && page.finalUrl() != null) {
+                String finalPath = java.net.URI.create(page.finalUrl()).getPath();
+                if (OfficialLegislationCatalog.isSuspendedSourcePath(finalPath)) {
+                    outcome = StepOutcome.BLOCKED;
+                    page = FetchedPage.blocked(page.httpStatus(), page.finalUrl(),
+                            "Fonte suspensa (redacção histórica): página recusada como evidência");
+                }
+            }
             ResearchStep consultation = run.step(ResearchPhase.CONSULTATION, StepOrigin.OFFICIAL_SOURCE,
                     ref.display(), page.finalUrl() == null ? url : page.finalUrl(), page.httpStatus(), outcome,
                     page.detail());
@@ -716,8 +726,13 @@ public class InvestigationService {
         for (ResearchEvidence e : decision.isLimit() ? accepted : used) {
             limitations.add("%s: %s.".formatted(e.getLegalReference(), e.getValidityReason()));
         }
-        limitations.add("Perímetro desta investigação: códigos consolidados da AT (CIRS, CIVA, CIRC, LGT); "
+        limitations.add("Perímetro desta investigação: códigos consolidados da AT ("
+                + String.join(", ", catalog.consultableCodes().stream().sorted().toList()) + "); "
                 + "jurisprudência e outras fontes não foram consultadas.");
+        if (!OfficialLegislationCatalog.SUSPENDED_SOURCES.isEmpty()) {
+            limitations.add("Fontes suspensas, não consultadas nem usadas como fundamento: "
+                    + String.join("; ", OfficialLegislationCatalog.SUSPENDED_SOURCES.values()) + ".");
+        }
         List<String> assumptions = decision.isLimit() ? List.of() : usable.stream()
                 .flatMap(p -> p.getConditions().stream())
                 .filter(KnowledgeProposition.Condition::isAnchored)
