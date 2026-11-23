@@ -4,6 +4,12 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    # Ensaio delimitado (ordem executiva de 23/11, ponto 5): tolera recusas transitórias da porta mapeada do
+    # contentor (Docker Desktop/WSL, medição B.2). Só neste perfil de testes; produção não muda. O Flyway espera
+    # 1 s, 2 s, ... até ao intervalo máximo entre tentativas. Uma falha persistente continua a falhar, depois de
+    # esgotadas as tentativas (FlywayConnectRetriesIT).
+    connect-retries: 5
+    connect-retries-interval: 2s
   jpa:
     hibernate:
       ddl-auto: validate
