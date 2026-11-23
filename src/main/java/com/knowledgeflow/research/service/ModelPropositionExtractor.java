@@ -3,7 +3,7 @@ package com.knowledgeflow.research.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledgeflow.ai.AIRequest;
-import com.knowledgeflow.ai.AIService;
+import com.knowledgeflow.ai.spend.MeteredModelClient;
 import com.knowledgeflow.ai.AITaskType;
 import com.knowledgeflow.research.enums.ConditionKind;
 import com.knowledgeflow.research.enums.PropositionKind;
@@ -42,10 +42,10 @@ public class ModelPropositionExtractor implements PropositionExtractor {
             Se o texto não permitir extrair nada relevante, devolve {"propositions":[],"conflicts":[]}.
             """;
 
-    private final AIService aiService;
+    private final MeteredModelClient aiService;
     private final ObjectMapper objectMapper;
 
-    public ModelPropositionExtractor(AIService aiService, ObjectMapper objectMapper) {
+    public ModelPropositionExtractor(MeteredModelClient aiService, ObjectMapper objectMapper) {
         this.aiService = aiService;
         this.objectMapper = objectMapper;
     }

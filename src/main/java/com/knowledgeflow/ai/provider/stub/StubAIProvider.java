@@ -28,4 +28,25 @@ public class StubAIProvider implements AIProvider {
         String answer = STUB_ANSWER_PREFIX + request.userMessage();
         return new AIResponse(PROVIDER_ID, STUB_MODEL, answer, 0, 0, 0L);
     }
+
+    /** Sem chamada externa: não é facturável. */
+    @Override
+    public boolean billable() {
+        return false;
+    }
+
+    @Override
+    public boolean supportsSingleAttempt() {
+        return true;
+    }
+
+    @Override
+    public AIResponse generateSingleAttempt(AIRequest request) {
+        return generate(request);
+    }
+
+    @Override
+    public String model() {
+        return STUB_MODEL;
+    }
 }

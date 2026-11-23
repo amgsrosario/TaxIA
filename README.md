@@ -261,3 +261,6 @@ V20  research: investigações, evidência não promovida, memória crítica, pr
 ```
 
 As migrations antigas não são reescritas. A `V5` converte instalações já existentes sem perder dados.
+
+V21 a V24 estão reservadas ao conteúdo do ramo do piloto. As migrações novas da ADR-010-A começam em V25. Ver
+[`docs/flyway-numeracao-adr010a.md`](docs/flyway-numeracao-adr010a.md).
