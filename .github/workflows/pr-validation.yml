@@ -117,7 +117,9 @@ jobs:
   integration:
     name: Integração PostgreSQL (Testcontainers)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Calibrado pela primeira execução no ubuntu-latest (PR #35, 23/11/2026): 4 CPUs, 15 GiB,
+    # Docker 29.4.2; 298 ITs em 2 min 42 s. 15 min dá cerca de 5x de margem.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
