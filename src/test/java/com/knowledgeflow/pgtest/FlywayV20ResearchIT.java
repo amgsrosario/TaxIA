@@ -80,7 +80,7 @@ class FlywayV20ResearchIT {
                         + " VALUES (?,?,?,?,'VALIDATED',NOW(),'Publicador',NOW(),NOW(),3)",
                 QA_ID, ORG_ID, "Pergunta publicada?", "Resposta publicada.");
 
-        assertThat(flyway(null).migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(flyway("20").migrate().migrationsExecuted).isEqualTo(1);
 
         assertThat(jdbc.queryForObject("SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1",
                 String.class))

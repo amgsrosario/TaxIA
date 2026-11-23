@@ -6,5 +6,9 @@ public enum StepOrigin {
     QUESTION_REFERENCE,
     MODEL_HYPOTHESIS,
     CRITICAL_MEMORY,
-    OFFICIAL_SOURCE
+    OFFICIAL_SOURCE,
+    /** Chamada ao modelo (provider, modelo, tokens e duração registados no passo). */
+    MODEL,
+    /** Decisão determinística da plataforma sobre um resultado do modelo (ex.: implicação jurídica). */
+    VERIFICATION
 }

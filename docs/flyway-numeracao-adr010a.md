@@ -27,6 +27,15 @@
 5. **As migrações novas da ADR-010-A começam em V25** (L5: `research_ask_tickets`, posse, gatilhos). Ficam sempre
    acima de todas as versões do piloto, por isso não é preciso `outOfOrder`.
 
+## Migrações da ADR-010-A já atribuídas
+
+| Versão | Conteúdo | Incremento |
+|---|---|---|
+| V21, V22 | Do piloto, sem alterações: proveniência das chamadas ao modelo nos passos e `research_entailment_checks` | A3 |
+| **V25** | `ck_rec_demonstrated_requires_verdict`: DEMONSTRATED exige `verdict` não nulo igual a SUPORTA e citação verificada. A CHECK da V22 aceitava `verdict` NULL (lógica de três valores) e não pode ser alterada | A3 (revisão R1) |
+
+As migrações seguintes (L5) começam em V26.
+
 ## Consequências
 
 - **Base nova, criada a partir do `main`:** aplica V1–V20, V21–V22 (quando existirem) e V25 em diante. A falta de

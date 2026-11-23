@@ -88,8 +88,8 @@ class PgTestApplicationContextIT {
         Integer maxVersion = jdbc.queryForObject(
                 "SELECT MAX(installed_rank) FROM flyway_schema_history WHERE success = true",
                 Integer.class);
-        // All 20 migrations applied (V1 through V20 — ADR-010)
-        assertThat(maxVersion).isEqualTo(20);
+        // 23 migrations applied: V1–V22 and V25 (ADR-010-A A3; V23/V24 reserved, never on main)
+        assertThat(maxVersion).isEqualTo(23);
     }
 
     @Test

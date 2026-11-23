@@ -228,7 +228,19 @@ class EntailmentProtocolTest {
         assertThat(gate.decide(null, STATEMENT, art78, unit).demonstrated()).isFalse();
     }
 
-    // recordRoundTrip (entidade EntailmentCheck) entra com o incremento A3 (V22).
+    @Test
+    @DisplayName("O registo é re-verificável: as dimensões gravadas reproduzem a decisão; o registo recusa DEMONSTRATED sem SUPORTA")
+    void recordRoundTrip() {
+        Map<Dimension, DimensionStatus> dims = new EnumMap<>(allDimensions(DimensionStatus.CONFORME));
+        var check = new com.knowledgeflow.research.entity.EntailmentCheck(java.util.UUID.randomUUID(), java.util.UUID.randomUUID(),
+                java.util.UUID.randomUUID(), null, Verdict.SUPORTA, dims, Map.of(Dimension.SUJEITO, "mesmo sujeito"), "j", N5_ANCHOR,
+                true, com.knowledgeflow.research.enums.EntailmentDecision.DEMONSTRATED, "ok", java.time.OffsetDateTime.now());
+        assertThat(check.dimensionStatuses()).isEqualTo(dims);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new com.knowledgeflow.research.entity.EntailmentCheck(
+                java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), null, Verdict.INDETERMINADO, dims,
+                Map.of(), "j", N5_ANCHOR, true, com.knowledgeflow.research.enums.EntailmentDecision.DEMONSTRATED, "x",
+                java.time.OffsetDateTime.now())).isInstanceOf(IllegalArgumentException.class);
+    }
 
     @Test
     @DisplayName("CORR-05: exactamente um objecto JSON — qualquer texto antes ou depois é rejeitado; só espaço em branco é tolerado")
