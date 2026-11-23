@@ -10,6 +10,7 @@ import com.knowledgeflow.research.entity.KnowledgeProposition;
 import com.knowledgeflow.research.entity.KnowledgePropositionRelation;
 import com.knowledgeflow.research.entity.ResearchEvidence;
 import com.knowledgeflow.research.entity.ResearchInvestigation;
+import com.knowledgeflow.research.entity.EntailmentCheck;
 import com.knowledgeflow.research.entity.ResearchStep;
 import com.knowledgeflow.research.enums.CriticalClassification;
 import com.knowledgeflow.research.enums.CriticalStatus;
@@ -41,6 +42,7 @@ import com.knowledgeflow.research.source.OfficialLegislationCatalog;
 import com.knowledgeflow.research.source.OfficialSourceClient;
 import com.knowledgeflow.research.source.OfficialSourceClient.FetchedPage;
 import com.knowledgeflow.research.source.ResearchProperties;
+import com.knowledgeflow.research.repository.EntailmentCheckRepository;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.time.OffsetDateTime;
@@ -48,6 +50,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -97,6 +100,12 @@ public class InvestigationService {
     private final KnowledgePropositionRepository propositionRepository;
     private final KnowledgePropositionRelationRepository relationRepository;
     private final AuditService auditService;
+    // Segunda barreira de implicação (ADR-010-A, A4). Só usada com knowledgeflow.research.entailment.enabled=true.
+    private final SupportVerifier supportVerifier;
+    private final ModelIdentity modelIdentity;
+    private final EntailmentValidator entailmentValidator;
+    private final EntailmentGate entailmentGate;
+    private final EntailmentCheckRepository entailmentRepository;
     /** Datas civis em Europe/Lisbon (data de consulta das fontes e vigência). */
     private final Clock clock = Clock.system(ZoneId.of("Europe/Lisbon"));
 
@@ -107,7 +116,9 @@ public class InvestigationService {
             ResearchAnswerComposer composer, ResearchInvestigationRepository investigationRepository,
             ResearchStepRepository stepRepository, ResearchEvidenceRepository evidenceRepository,
             KnowledgePropositionRepository propositionRepository,
-            KnowledgePropositionRelationRepository relationRepository, AuditService auditService) {
+            KnowledgePropositionRelationRepository relationRepository, AuditService auditService,
+            SupportVerifier supportVerifier, ModelIdentity modelIdentity, EntailmentValidator entailmentValidator,
+            EntailmentGate entailmentGate, EntailmentCheckRepository entailmentRepository) {
         this.properties = properties;
         this.corpusChecker = corpusChecker;
         this.catalog = catalog;
@@ -125,6 +136,11 @@ public class InvestigationService {
         this.propositionRepository = propositionRepository;
         this.relationRepository = relationRepository;
         this.auditService = auditService;
+        this.supportVerifier = supportVerifier;
+        this.modelIdentity = modelIdentity;
+        this.entailmentValidator = entailmentValidator;
+        this.entailmentGate = entailmentGate;
+        this.entailmentRepository = entailmentRepository;
     }
 
     /** Candidato de descoberta, com a sua origem. */
@@ -135,6 +151,10 @@ public class InvestigationService {
         final ResearchInvestigation investigation;
         final UUID userId;
         int nextStep = 1;
+        /** Chamadas ao validador de implicação nesta investigação (só com a barreira ligada). */
+        int entailmentCalls = 0;
+        /** Proposições com âncora literal cuja implicação não foi demonstrada (só com a barreira ligada). */
+        int entailmentNotDemonstrated = 0;
 
         Run(ResearchInvestigation investigation, UUID userId) {
             this.investigation = investigation;
@@ -153,6 +173,11 @@ public class InvestigationService {
                 StepOutcome outcome, String detail) {
             return stepRepository.save(new ResearchStep(id(), nextStep++, phase, origin, target, url, httpStatus,
                     outcome, detail, now()));
+        }
+
+        ResearchStep modelStep(ResearchPhase phase, String target, ModelCall call) {
+            if (call == null) return null;
+            return stepRepository.save(ResearchStep.modelCall(id(), nextStep++, phase, target, call, now()));
         }
 
         CriticalMemoryEntry remember(Observation observation) {
@@ -381,7 +406,7 @@ public class InvestigationService {
         for (ExtractedProposition p : extraction.propositions()) {
             ResearchEvidence e = byLabel.get(p.evidenceLabel());
             if (e == null && accepted.size() == 1) e = accepted.get(0);
-            propositions.add(e == null ? null : recordProposition(run, p, e));
+            propositions.add(e == null ? null : recordProposition(run, question, p, e));
             if (e == null) {
                 run.remember(new Observation(p.statement(), CriticalClassification.REJECTED,
                         "Proposição extraída sem indicação de evidência válida", "Extracção pelo modelo",
@@ -392,7 +417,18 @@ public class InvestigationService {
         return propositions.stream().filter(p -> p != null).toList();
     }
 
-    private KnowledgeProposition recordProposition(Run run, ExtractedProposition p, ResearchEvidence e) {
+    /**
+     * Decisão por proposição. Com a barreira de implicação desligada (omissão), executa exactamente a decisão actual
+     * (âncora literal e números; resultados, passos, auditoria e memória crítica iguais aos de antes do A4). Com ela
+     * ligada, aplica a orquestração do piloto, adaptada (delimitação v3, A.3/A.4).
+     */
+    private KnowledgeProposition recordProposition(Run run, String question, ExtractedProposition p, ResearchEvidence e) {
+        if (!properties.getEntailment().isEnabled()) return recordPropositionWithoutBarrier(run, p, e);
+        return recordPropositionWithBarrier(run, question, p, e);
+    }
+
+    /** Decisão actual do {@code main}, sem alterações (barreira desligada). */
+    private KnowledgeProposition recordPropositionWithoutBarrier(Run run, ExtractedProposition p, ResearchEvidence e) {
         String referenceAndContent = e.getLegalReference() + "\n" + e.getContent();
         boolean anchored = anchorVerifier.isAnchored(p.anchor(), e.getContent())
                 && anchorVerifier.numbersSupported(p.statement(), referenceAndContent);
@@ -431,6 +467,167 @@ public class InvestigationService {
                     "sha256:" + e.getContentSha256(), e.getId(), proposition.getId(), null, null));
         }
         return proposition;
+    }
+
+    /**
+     * Decisão com a segunda barreira (ADR-010-A, A4; orquestração do piloto {@code ac84c04}, adaptada):
+     * presença literal, suporte substantivo ({@link SupportVerifier}) e implicação jurídica ({@link EntailmentGate}),
+     * fail-closed. Adaptação A.3: um diploma sem identificação verificada no catálogo (o CIRC) dá «não demonstrada»
+     * por decisão local, antes do {@code SupportVerifier} e do validador, registada no rasto.
+     */
+    private KnowledgeProposition recordPropositionWithBarrier(Run run, String question, ExtractedProposition p, ResearchEvidence e) {
+        String referenceAndContent = e.getLegalReference() + "\n" + e.getContent();
+        String code = e.getReferenceKey() == null ? "" : e.getReferenceKey().split(":")[0];
+        Optional<String> identification = catalog.identification(code);
+        // Condições/excepções primeiro: o suporte da afirmação depende de as ter estruturadas (KF-M02/CORR-04).
+        // Sem identificação verificada, as condições ficam só com a verificação literal (não sustentam nada: a
+        // proposição é «não demonstrada» por decisão local).
+        List<KnowledgeProposition.Condition> conditions = new ArrayList<>();
+        List<ExtractedCondition> unanchoredConditions = new ArrayList<>();
+        for (ExtractedCondition c : p.conditions()) {
+            boolean ok = anchorVerifier.isAnchored(c.anchor(), e.getContent(), c.description())
+                    && anchorVerifier.numbersSupported(c.description(), referenceAndContent)
+                    && (identification.isEmpty() || supportVerifier.checkCondition(c.description(), c.anchor(),
+                            e.getContent(), e.getLegalReference(), identification.get()).supported());
+            conditions.add(new KnowledgeProposition.Condition(c.kind(), c.description(), c.anchor(), ok));
+            if (!ok) unanchoredConditions.add(c);
+        }
+        List<KnowledgeProposition.Condition> verifiedConditions = conditions.stream().filter(KnowledgeProposition.Condition::isAnchored).toList();
+        List<String> conditionAnchors = verifiedConditions.stream().map(KnowledgeProposition.Condition::getAnchorText).toList();
+
+        boolean literal = anchorVerifier.isAnchored(p.anchor(), e.getContent(), p.statement())
+                && anchorVerifier.numbersSupported(p.statement(), referenceAndContent);
+        boolean identificationMissing = literal && identification.isEmpty();
+        SupportVerifier.Result support = literal && !identificationMissing
+                ? supportVerifier.check(p.statement(), p.anchor(), e.getContent(), e.getLegalReference(), identification.get(),
+                        conditionAnchors)
+                : new SupportVerifier.Result(false, 0.0, List.of());
+        boolean deterministic = literal && !identificationMissing && support.supported();
+        // A barreira só actua sobre o que as verificações determinísticas não rejeitaram: nunca converte uma rejeição
+        // em aprovação. Decisões locais «não demonstrada» não chamam o validador.
+        Entailment entailment = identificationMissing
+                ? new Entailment(null, EntailmentGate.notDemonstrated(
+                        "diploma sem identificação verificada no catálogo: " + code), null)
+                : deterministic ? validateEntailment(run, question, p, e, verifiedConditions) : null;
+        boolean usable = deterministic && entailment.decision().demonstrated();
+        if (identificationMissing || (deterministic && !usable)) run.entailmentNotDemonstrated++;
+
+        String coverage = "cobertura %d%%".formatted(Math.round(support.coverage() * 100));
+        String statusReason = usable
+                ? "Âncora literal com suporte substantivo na unidade legal (" + coverage + ") e implicação jurídica "
+                        + "demonstrada pela segunda barreira (" + entailment.decision().reason() + "); não promovida (B4 bloqueada)"
+                : identificationMissing
+                        ? "Âncora literal presente, mas implicação não demonstrada: " + entailment.decision().reason()
+                : deterministic
+                        ? "Âncora literal e verificações determinísticas sem objecção (" + coverage + "), mas implicação "
+                                + "jurídica não demonstrada pela segunda barreira: " + entailment.decision().reason()
+                : literal
+                        ? "Âncora literal presente, mas sem suporte substantivo na unidade legal (" + coverage
+                                + "; " + String.join("; ", support.reasons())
+                                + (support.uncoveredTerms().isEmpty() ? "" : "; termos sem cobertura: "
+                                        + String.join(", ", support.uncoveredTerms())) + ")"
+                        : "Sem âncora literal na evidência, ou números ausentes da evidência";
+        KnowledgeProposition proposition = propositionRepository.save(new KnowledgeProposition(run.org(), run.id(),
+                p.kind(), p.statement(), e.getLegalReference(), p.scope(), p.applicability(), e.getValidityStatus(),
+                usable ? PropositionConfidence.ANCHORED : PropositionConfidence.UNSUPPORTED,
+                usable ? PropositionStatus.CANDIDATE : PropositionStatus.REJECTED,
+                statusReason,
+                List.of(new KnowledgeProposition.Support(e.getId(), p.anchor(), literal)), conditions, now()));
+        if (entailment != null) recordEntailment(run, entailment, proposition, e);
+        auditService.record(run.org(), run.userId, AuditAction.KNOWLEDGE_PROPOSITION_RECORDED, "KNOWLEDGE_PROPOSITION",
+                proposition.getId(), "status=%s;confidence=%s;evidence=%s;entailment=%s"
+                        .formatted(proposition.getStatus(), proposition.getConfidence(), e.getId(),
+                                entailment == null ? "NOT_EVALUATED" : entailment.decision().decision()));
+
+        if (literal && !usable) {
+            run.remember(new Observation(p.statement(), CriticalClassification.INSUFFICIENT, statusReason,
+                    "Extracção pelo modelo sobre " + provenance(e), e.getReferenceKey(), e.getUrl(),
+                    "sha256:" + e.getContentSha256(), e.getId(), proposition.getId(), null, null));
+        }
+        if (!literal) {
+            run.remember(new Observation(p.statement(), CriticalClassification.REJECTED,
+                    "Afirmação extraída sem âncora literal na evidência oficial (ou com números ausentes dela)",
+                    "Extracção pelo modelo sobre " + provenance(e), e.getReferenceKey(), e.getUrl(),
+                    "sha256:" + e.getContentSha256(), e.getId(), proposition.getId(), null, null));
+        }
+        for (ExtractedCondition c : unanchoredConditions) {
+            run.remember(new Observation((c.kind().name().equals("EXCEPTION") ? "Excepção: " : "Condição: ")
+                    + c.description(), CriticalClassification.REJECTED,
+                    "Condição/excepção extraída sem âncora literal ou sem suporte substantivo na evidência oficial",
+                    "Extracção pelo modelo sobre " + provenance(e), e.getReferenceKey(), e.getUrl(),
+                    "sha256:" + e.getContentSha256(), e.getId(), proposition.getId(), null, null));
+        }
+        return proposition;
+    }
+
+    /** Resultado da barreira para uma proposição: avaliação do validador (nula nas decisões locais) e decisão final. */
+    private record Entailment(EntailmentValidator.Assessment assessment, EntailmentGate.Decision decision,
+            ResearchStep modelStep) {}
+
+    /** Decisões locais «não demonstrada» (sem chamada) e, nos restantes casos, uma chamada pela porta do modelo. */
+    private Entailment validateEntailment(Run run, String question, ExtractedProposition p, ResearchEvidence e,
+            List<KnowledgeProposition.Condition> verifiedConditions) {
+        List<String> verifiedConditionAnchors = verifiedConditions.stream().map(KnowledgeProposition.Condition::getAnchorText).toList();
+        if (!entailmentValidator.isAvailable()) {
+            return new Entailment(null, EntailmentGate.notDemonstrated(
+                    "segunda barreira de implicação indisponível (validador desligado)"), null);
+        }
+        int maxChecks = properties.getEntailment().effectiveMaxChecks();
+        if (maxChecks == 0) {
+            return new Entailment(null, EntailmentGate.notDemonstrated(
+                    "max-checks inválido (" + properties.getEntailment().getMaxChecks() + "): nenhuma validação permitida"), null);
+        }
+        if (run.entailmentCalls >= maxChecks) {
+            return new Entailment(null, EntailmentGate.notDemonstrated("limite de validações de implicação por investigação "
+                    + "atingido (" + maxChecks + "; configurado " + properties.getEntailment().getMaxChecks() + ", limite KF-M02 "
+                    + ResearchProperties.Entailment.KF_M02_MAX_CHECKS_LIMIT + ")"), null);
+        }
+        if (!SupportVerifier.occurrenceIdentified(p.anchor(), e.getContent())) {
+            return new Entailment(null, EntailmentGate.notDemonstrated(
+                    "ocorrência da âncora não identificável: texto repetido ou janela que atravessa outra unidade legal"), null);
+        }
+        Optional<String> lostContext = NormativeContextGuard.violation(p.statement(), verifiedConditionAnchors,
+                SupportVerifier.normativeUnit(p.anchor(), e.getContent()));
+        if (lostContext.isPresent()) return new Entailment(null, EntailmentGate.notDemonstrated(lostContext.get()), null);
+        run.entailmentCalls++;
+        String unit = SupportVerifier.unitContext(p.anchor(), e.getContent());
+        EntailmentValidator.Request request = new EntailmentValidator.Request(question, p.statement(),
+                // Só condições verificadas: o modelo não recebe o que a validação rejeitou.
+                verifiedConditions.stream().map(c -> new EntailmentValidator.Qualifier(c.getKind().name(), c.getDescription())).toList(),
+                e.getLegalReference(), unit, e.getContent());
+        EntailmentValidator.Assessment assessment;
+        try {
+            assessment = entailmentValidator.assess(request);
+        } catch (RuntimeException ex) {
+            log.warn("Validação de implicação falhou: {}", ex.getClass().getSimpleName());
+            assessment = EntailmentValidator.Assessment.protocolFailure("falha do validador",
+                    ModelCall.failed(modelIdentity.current(), ex));
+        }
+        ResearchStep modelStep = run.modelStep(ResearchPhase.ENTAILMENT, "Validação de implicação: " + abbreviate(p.statement()),
+                assessment == null ? null : assessment.call());
+        return new Entailment(assessment, entailmentGate.decide(assessment, p.statement(), e.getContent(), unit,
+                SupportVerifier.contiguousUnit(p.anchor(), e.getContent()), SupportVerifier.normativeUnit(p.anchor(), e.getContent()),
+                verifiedConditionAnchors), modelStep);
+    }
+
+    /** Registo da barreira: linha em {@code research_entailment_checks} e passo VERIFICATION, também nas decisões locais. */
+    private void recordEntailment(Run run, Entailment entailment, KnowledgeProposition proposition, ResearchEvidence e) {
+        EntailmentValidator.Assessment a = entailment.assessment();
+        EntailmentGate.Decision d = entailment.decision();
+        entailmentRepository.save(new EntailmentCheck(run.id(), proposition.getId(), e.getId(),
+                entailment.modelStep() == null ? null : entailment.modelStep().getId(),
+                a == null ? null : a.verdict(), a == null ? null : a.dimensions(), a == null ? null : a.notes(),
+                a == null ? null : a.justification(), a == null ? null : a.citedPassage(), d.citationVerified(),
+                d.decision(), d.reason(), now()));
+        run.step(ResearchPhase.ENTAILMENT, StepOrigin.VERIFICATION, abbreviate(proposition.getStatement()), e.getUrl(), null,
+                a == null ? StepOutcome.SKIPPED : d.demonstrated() ? StepOutcome.CONFIRMED : StepOutcome.NOT_CONFIRMED,
+                "proposição=%s; evidência=%s; veredicto=%s; passagem verificada=%s; decisão=%s: %s".formatted(
+                        proposition.getId(), e.getId(), a == null || a.verdict() == null ? "—" : a.verdict(),
+                        d.citationVerified(), d.decision(), d.reason()));
+    }
+
+    private static String abbreviate(String s) {
+        return s == null ? null : s.length() <= 200 ? s : s.substring(0, 199) + "…";
     }
 
     private void recordConflicts(Run run, List<ExtractedConflict> conflicts, List<KnowledgeProposition> propositions) {
@@ -479,7 +676,8 @@ public class InvestigationService {
                         .anyMatch(e -> e.getValidityStatus() != ValidityStatus.CONSOLIDATED_AT_RETRIEVAL));
 
         ResearchAnswerPolicy.Decision decision = policy.decide(
-                new ResearchAnswerPolicy.Inputs(accepted.size(), usable.size(), conflict, uncertain));
+                new ResearchAnswerPolicy.Inputs(accepted.size(), usable.size(), conflict, uncertain,
+                        run.entailmentNotDemonstrated));
 
         Set<UUID> usedEvidenceIds = usable.stream()
                 .flatMap(p -> p.getSupports().stream())

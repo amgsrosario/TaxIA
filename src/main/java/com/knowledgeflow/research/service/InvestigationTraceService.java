@@ -2,6 +2,7 @@ package com.knowledgeflow.research.service;
 
 import com.knowledgeflow.common.error.ApiErrorCode;
 import com.knowledgeflow.common.error.BusinessException;
+import com.knowledgeflow.research.entity.EntailmentCheck;
 import com.knowledgeflow.research.entity.CriticalMemoryEntry;
 import com.knowledgeflow.research.entity.CriticalMemoryHistory;
 import com.knowledgeflow.research.entity.KnowledgeProposition;
@@ -9,6 +10,7 @@ import com.knowledgeflow.research.entity.KnowledgePropositionRelation;
 import com.knowledgeflow.research.entity.ResearchEvidence;
 import com.knowledgeflow.research.entity.ResearchInvestigation;
 import com.knowledgeflow.research.entity.ResearchStep;
+import com.knowledgeflow.research.repository.EntailmentCheckRepository;
 import com.knowledgeflow.research.repository.CriticalMemoryEntryRepository;
 import com.knowledgeflow.research.repository.CriticalMemoryHistoryRepository;
 import com.knowledgeflow.research.repository.KnowledgePropositionRelationRepository;
@@ -36,7 +38,17 @@ public class InvestigationTraceService {
             List<ResearchEvidence> evidence,
             List<KnowledgeProposition> propositions,
             List<KnowledgePropositionRelation> relations,
-            List<CriticalMemoryEntry> criticalMemory) {}
+            List<CriticalMemoryEntry> criticalMemory,
+            /** Validações de implicação (ADR-010-A, A4); vazia com a barreira desligada. */
+            List<EntailmentCheck> entailmentChecks) {
+
+        /** Trace sem validações de implicação. */
+        public Trace(ResearchInvestigation investigation, List<ResearchStep> steps, List<ResearchEvidence> evidence,
+                List<KnowledgeProposition> propositions, List<KnowledgePropositionRelation> relations,
+                List<CriticalMemoryEntry> criticalMemory) {
+            this(investigation, steps, evidence, propositions, relations, criticalMemory, List.of());
+        }
+    }
 
     private final ResearchInvestigationRepository investigationRepository;
     private final ResearchStepRepository stepRepository;
@@ -44,13 +56,15 @@ public class InvestigationTraceService {
     private final KnowledgePropositionRepository propositionRepository;
     private final KnowledgePropositionRelationRepository relationRepository;
     private final CriticalMemoryEntryRepository criticalMemoryRepository;
+    private final EntailmentCheckRepository entailmentRepository;
     private final CriticalMemoryHistoryRepository historyRepository;
 
     public InvestigationTraceService(ResearchInvestigationRepository investigationRepository,
             ResearchStepRepository stepRepository, ResearchEvidenceRepository evidenceRepository,
             KnowledgePropositionRepository propositionRepository,
             KnowledgePropositionRelationRepository relationRepository,
-            CriticalMemoryEntryRepository criticalMemoryRepository, CriticalMemoryHistoryRepository historyRepository) {
+            CriticalMemoryEntryRepository criticalMemoryRepository, CriticalMemoryHistoryRepository historyRepository,
+            EntailmentCheckRepository entailmentRepository) {
         this.investigationRepository = investigationRepository;
         this.stepRepository = stepRepository;
         this.evidenceRepository = evidenceRepository;
@@ -58,6 +72,7 @@ public class InvestigationTraceService {
         this.relationRepository = relationRepository;
         this.criticalMemoryRepository = criticalMemoryRepository;
         this.historyRepository = historyRepository;
+        this.entailmentRepository = entailmentRepository;
     }
 
     @Transactional(readOnly = true)
@@ -77,6 +92,7 @@ public class InvestigationTraceService {
                 propositions,
                 propositions.isEmpty() ? List.of()
                         : relationRepository.findByFromPropositionIdIn(propositions.stream().map(KnowledgeProposition::getId).toList()),
-                criticalMemoryRepository.findAllById(entryIds));
+                criticalMemoryRepository.findAllById(entryIds),
+                entailmentRepository.findByInvestigationIdOrderByCreatedAtAsc(investigationId));
     }
 }
