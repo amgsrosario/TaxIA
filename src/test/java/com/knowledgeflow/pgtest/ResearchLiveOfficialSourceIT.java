@@ -59,7 +59,7 @@ class ResearchLiveOfficialSourceIT {
 
     @Container
     @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("pgvector/pgvector:pg16");
+    static PostgreSQLContainer<?> postgres = PgContainers.pgvector();
 
     static final String ANCHOR = "aplicam-se apenas aos sujeitos passivos residentes em território português";
 
