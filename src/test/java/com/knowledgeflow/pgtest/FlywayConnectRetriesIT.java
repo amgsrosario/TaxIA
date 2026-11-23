@@ -19,6 +19,11 @@ import org.flywaydb.core.internal.exception.FlywaySqlException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import com.knowledgeflow.config.flyway.StrictFlywayValidation;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.env.PropertySource;
@@ -147,8 +152,9 @@ class FlywayConnectRetriesIT {
         try (FlakyProxy proxy = new FlakyProxy(2)) {
             long t0 = System.nanoTime();
             var result = flyway(proxy, retries).migrate();
-            report.append(String.format("Transitória (%d tentativas configuradas), 2 recusas: SUCESSO (%d migrações) após %d "
-                    + "recusas observadas, %.1f s%n", retries, result.migrationsExecuted, proxy.rejected.get(),
+            report.append(String.format("Transitória (%d tentativas configuradas), 2 recusas: SUCESSO (%d migrações aplicadas nesta chamada; 0 se outro cenário já migrou a base partilhada); "
+                    + "ligações recusadas=%d, ligações aceites=%d (inclui as que o Flyway abre durante a migração), %.1f s%n",
+                    retries, result.migrationsExecuted, proxy.rejected.get(), proxy.accepted.get() - proxy.rejected.get(),
                     (System.nanoTime() - t0) / 1e9));
             assertThat(proxy.rejected.get()).isEqualTo(2);
             assertThat(result.success).isTrue();
@@ -164,6 +170,63 @@ class FlywayConnectRetriesIT {
             double secs = (System.nanoTime() - t0) / 1e9;
             report.append(String.format("Persistente (%d tentativas configuradas): FALHA EXPLÍCITA após %d tentativas "
                     + "observadas, %.1f s%n", retries, proxy.rejected.get(), secs));
+            assertThat(proxy.rejected.get()).isEqualTo(retries + 1);
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------------------
+    // Configuração EFECTIVA do Spring Boot: o próprio application-pgtest.yml, a autoconfiguração do Flyway e o
+    // StrictFlywayValidation do main. Prova que spring.flyway.connect-retries chega ao Flyway criado pelo Spring.
+    // ---------------------------------------------------------------------------------------------------------
+
+    private static ApplicationContextRunner springWithPgtestProfile(FlakyProxy proxy) {
+        return new ApplicationContextRunner()
+                .withInitializer(ctx -> {
+                    try {
+                        new YamlPropertySourceLoader().load("pgtest", new ClassPathResource("application-pgtest.yml"))
+                                .forEach(ps -> ctx.getEnvironment().getPropertySources().addLast(ps));
+                    } catch (IOException e) {
+                        throw new IllegalStateException(e);
+                    }
+                })
+                .withConfiguration(AutoConfigurations.of(DataSourceAutoConfiguration.class, FlywayAutoConfiguration.class))
+                .withUserConfiguration(StrictFlywayValidation.class)
+                .withPropertyValues("spring.datasource.url=" + proxy.url(),
+                        "spring.datasource.username=" + postgres.getUsername(),
+                        "spring.datasource.password=" + postgres.getPassword());
+    }
+
+    @Test
+    void springProfileRecoversFromTransientRefusals() throws IOException {
+        try (FlakyProxy proxy = new FlakyProxy(2)) {
+            long t0 = System.nanoTime();
+            springWithPgtestProfile(proxy).run(ctx -> {
+                assertThat(ctx).hasNotFailed();
+                assertThat(ctx.getBean(Flyway.class).getConfiguration().getConnectRetries()).isEqualTo(5);
+                assertThat(ctx.getBean(Flyway.class).getConfiguration().getConnectRetriesInterval()).isEqualTo(2);
+            });
+            report.append(String.format("Spring (perfil pgtest efectivo), transitória, 2 recusas: ARRANQUE OK; recusadas=%d, "
+                    + "aceites=%d, %.1f s%n", proxy.rejected.get(), proxy.accepted.get() - proxy.rejected.get(),
+                    (System.nanoTime() - t0) / 1e9));
+            assertThat(proxy.rejected.get()).isEqualTo(2);
+            assertThat(proxy.accepted.get()).isGreaterThan(2);
+        }
+    }
+
+    @Test
+    void springProfileFailsExplicitlyOnPersistentRefusal() throws IOException {
+        try (FlakyProxy proxy = new FlakyProxy(Integer.MAX_VALUE)) {
+            long t0 = System.nanoTime();
+            springWithPgtestProfile(proxy).run(ctx -> {
+                assertThat(ctx).hasFailed();
+                Throwable t = ctx.getStartupFailure();
+                boolean flywaySql = false;
+                for (Throwable c = t; c != null; c = c.getCause()) flywaySql |= c instanceof FlywaySqlException;
+                assertThat(flywaySql).as("falha explícita do Flyway na cadeia de causas").isTrue();
+            });
+            report.append(String.format("Spring (perfil pgtest efectivo), persistente: ARRANQUE FALHA EXPLICITAMENTE "
+                    + "(FlywaySqlException) após %d tentativas observadas, %.1f s%n", proxy.rejected.get(),
+                    (System.nanoTime() - t0) / 1e9));
             assertThat(proxy.rejected.get()).isEqualTo(retries + 1);
         }
     }
