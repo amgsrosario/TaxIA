@@ -61,6 +61,18 @@ public class OfficialLegislationCatalog {
             "CIRC", "Fonte do CIRC no Portal das Finanças suspensa: redacção histórica (numeração de 2001), "
                     + "não utilizável como fundamento (ordem executiva de 23/11/2026)");
 
+    /**
+     * Pastas históricas do Portal das Finanças que não pertencem ao catálogo, mas que servem redacções desactualizadas
+     * de códigos (diagnóstico complementar de 23/11/2026): {@code civa} (série do CIVA anterior à republicação de 2008;
+     * a fonte do catálogo é {@code civa_rep}) e {@code circ_rep} (CIRC na redacção de 2011–2013). Nunca são consultadas
+     * pelo catálogo; ficam recusadas como destino de redirecção e na defesa em profundidade do serviço, nos mesmos
+     * termos da fonte suspensa do CIRC.
+     */
+    public static final Map<String, String> HISTORICAL_FOLDERS = Map.of(
+            "civa", "Pasta antiga do CIVA no Portal das Finanças (série anterior à republicação de 2008), "
+                    + "não utilizável como fundamento",
+            "circ_rep", "Pasta do CIRC no Portal das Finanças com redacção de 2011–2013, não utilizável como fundamento");
+
     /** Motivo da suspensão da fonte do código, ou vazio se a fonte pode ser consultada. */
     public Optional<String> sourceSuspension(String code) {
         return code == null ? Optional.empty()
@@ -70,7 +82,7 @@ public class OfficialLegislationCatalog {
     /**
      * O caminho (já descodificado) toca a fonte de um código suspenso. Regra conservadora por segmento: basta que
      * <b>qualquer</b> segmento, sem parâmetros ({@code ;...}) e sem distinção de maiúsculas, seja a pasta da fonte
-     * suspensa ({@code circ}). Cobre, por isso, segmentos {@code .} e {@code ..}, barras repetidas, maiúsculas,
+     * suspensa ({@code circ}) ou uma pasta histórica ({@link #HISTORICAL_FOLDERS}). Cobre, por isso, segmentos {@code .} e {@code ..}, barras repetidas, maiúsculas,
      * parâmetros de segmento e codificação percentual (o {@code URI.getPath()} já vem descodificado). Usado pelo
      * cliente HTTP antes de cada pedido (URL inicial e cada redirecção) e pelo serviço como defesa em profundidade.
      */
@@ -79,6 +91,7 @@ public class OfficialLegislationCatalog {
         Set<String> folders = new java.util.HashSet<>();
         SUSPENDED_SOURCES.keySet().stream().map(CODES::get).filter(e -> e != null)
                 .forEach(e -> folders.add(e[0].toLowerCase(Locale.ROOT)));
+        folders.addAll(HISTORICAL_FOLDERS.keySet());
         for (String raw : path.replace('\\', '/').split("/")) {
             int semicolon = raw.indexOf(';');
             String segment = (semicolon >= 0 ? raw.substring(0, semicolon) : raw).trim().toLowerCase(Locale.ROOT);

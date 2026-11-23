@@ -127,6 +127,16 @@ class OfficialSourceHttpClientTest {
             server.createContext("/redirect-circ", ex -> redirect(ex, "/codigos_tributarios/circ/Pages/irc87.aspx"));
             server.createContext("/redirect-circ-dot", ex -> redirect(ex, "/codigos_tributarios/circ/./Pages/irc87.aspx"));
             server.createContext("/redirect-circ-encoded", ex -> redirect(ex, "/codigos_tributarios/%63irc/Pages/irc87.aspx"));
+            server.createContext("/codigos_tributarios/civa/Pages/iva19.aspx", ex -> {
+                circHits.incrementAndGet();
+                respond(ex, 200, 10, true);
+            });
+            server.createContext("/codigos_tributarios/circ_rep/Pages/irc87.aspx", ex -> {
+                circHits.incrementAndGet();
+                respond(ex, 200, 10, true);
+            });
+            server.createContext("/redirect-civa-antigo", ex -> redirect(ex, "/codigos_tributarios/civa/Pages/iva19.aspx"));
+            server.createContext("/redirect-circ-rep", ex -> redirect(ex, "/codigos_tributarios/%63irc_rep/Pages/irc87.aspx"));
             server.start();
             base = "http://127.0.0.1:" + server.getAddress().getPort();
 
@@ -196,7 +206,8 @@ class OfficialSourceHttpClientTest {
             assertThat(redirected.detail()).contains("Fonte suspensa");
             for (String variant : List.of("/codigos_tributarios/circ/./Pages/irc87.aspx",
                     "/codigos_tributarios/x/../circ/Pages/irc87.aspx", "/codigos_tributarios/CIRC/Pages/irc87.aspx",
-                    "/redirect-circ-dot", "/redirect-circ-encoded")) {
+                    "/redirect-circ-dot", "/redirect-circ-encoded", "/codigos_tributarios/civa/Pages/iva19.aspx",
+                    "/codigos_tributarios/circ_rep/Pages/irc87.aspx", "/redirect-civa-antigo", "/redirect-circ-rep")) {
                 FetchedPage p = client.fetch(base + variant);
                 assertThat(p.outcome()).as(variant).isEqualTo(Outcome.BLOCKED);
             }
