@@ -161,6 +161,11 @@ Não é automática. Exige uma acção humana separada:
 
 ## Limitações conhecidas
 
+- **Fonte do CIRC suspensa** (ordem executiva de 23/11/2026, ponto 4.1): o Portal das Finanças serve o CIRC numa
+  redacção histórica (numeração de 2001; o URL do art. 87.º devolve o art. 84.º, revogado em 2001). As referências ao
+  CIRC ficam registadas como consulta `SKIPPED` com o motivo, sem pedido ao Portal nem evidência, e o modelo de
+  descoberta não recebe o CIRC entre os códigos permitidos. O CIRC continua no catálogo e no conhecimento institucional
+  (corpus validado). A suspensão só se levanta com uma fonte vigente demonstrada.
 - **Perímetro:** apenas CIRS, CIVA, CIRC e LGT consolidados pela AT. Ficam de fora:
   - o EBF;
   - o Diário da República;

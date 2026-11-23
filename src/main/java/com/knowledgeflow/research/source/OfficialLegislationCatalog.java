@@ -51,6 +51,29 @@ public class OfficialLegislationCatalog {
         this.properties = properties;
     }
 
+    /**
+     * Fontes suspensas (ordem executiva de 23/11/2026, ponto 4.1): o código continua conhecido (o conhecimento
+     * institucional não muda), mas a sua fonte no Portal das Finanças não é consultada nem usada como evidência. O
+     * CIRC é servido numa redacção histórica (numeração de 2001: o URL do art. 87.º devolve o art. 84.º, revogado em
+     * 2001), verificado a 23/11/2026.
+     */
+    public static final Map<String, String> SUSPENDED_SOURCES = Map.of(
+            "CIRC", "Fonte do CIRC no Portal das Finanças suspensa: redacção histórica (numeração de 2001), "
+                    + "não utilizável como fundamento (ordem executiva de 23/11/2026)");
+
+    /** Motivo da suspensão da fonte do código, ou vazio se a fonte pode ser consultada. */
+    public Optional<String> sourceSuspension(String code) {
+        return code == null ? Optional.empty()
+                : Optional.ofNullable(SUSPENDED_SOURCES.get(code.toUpperCase(Locale.ROOT)));
+    }
+
+    /** Códigos do catálogo cuja fonte pode ser consultada (sem as fontes suspensas). */
+    public Set<String> consultableCodes() {
+        Set<String> codes = new java.util.TreeSet<>(CODES.keySet());
+        codes.removeAll(SUSPENDED_SOURCES.keySet());
+        return Set.copyOf(codes);
+    }
+
     public boolean supports(String code) {
         return code != null && CODES.containsKey(code.toUpperCase(Locale.ROOT));
     }

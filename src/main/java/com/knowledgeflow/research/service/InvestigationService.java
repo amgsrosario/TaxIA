@@ -245,7 +245,7 @@ public class InvestigationService {
             run.step(ResearchPhase.DISCOVERY, StepOrigin.QUESTION_REFERENCE, ref.display(), null, null,
                     StepOutcome.PROPOSED, "Referência explícita na pergunta");
         }
-        for (Hypothesis h : hypothesisProvider.propose(question, catalog.supportedCodes(), properties.getMaxModelHypotheses())) {
+        for (Hypothesis h : hypothesisProvider.propose(question, catalog.consultableCodes(), properties.getMaxModelHypotheses())) {
             if (candidates.containsKey(h.reference().key())) continue;
             candidates.put(h.reference().key(), new Candidate(h.reference(), StepOrigin.MODEL_HYPOTHESIS, h.rationale()));
             run.step(ResearchPhase.DISCOVERY, StepOrigin.MODEL_HYPOTHESIS, h.reference().display(), null, null,
@@ -285,6 +285,13 @@ public class InvestigationService {
         int consultations = 0;
         for (Candidate c : candidates) {
             LegislationReference ref = c.reference();
+            // Fonte suspensa (ponto 4.1): não é consultada nem pode originar evidência; fica o passo com o motivo.
+            Optional<String> suspension = catalog.sourceSuspension(ref.code());
+            if (suspension.isPresent()) {
+                run.step(ResearchPhase.CONSULTATION, StepOrigin.OFFICIAL_SOURCE, ref.display(), null, null,
+                        StepOutcome.SKIPPED, suspension.get());
+                continue;
+            }
             String url = catalog.urlFor(ref).orElse(null);
             if (url == null) {
                 run.step(ResearchPhase.CONSULTATION, StepOrigin.OFFICIAL_SOURCE, ref.display(), null, null,

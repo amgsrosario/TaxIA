@@ -57,4 +57,15 @@ class OfficialLegislationCatalogTest {
         assertThat(catalog.identification("XYZ")).isEmpty();
         assertThat(catalog.identification(null)).isEmpty();
     }
+
+    @Test
+    void circSourceIsSuspendedButTheCodeStaysKnown() {
+        assertThat(catalog.supports("CIRC")).isTrue();
+        assertThat(catalog.sourceSuspension("CIRC")).hasValueSatisfying(r -> assertThat(r).contains("redacção histórica"));
+        assertThat(catalog.sourceSuspension("circ")).isPresent();
+        assertThat(catalog.sourceSuspension("CIRS")).isEmpty();
+        assertThat(catalog.sourceSuspension(null)).isEmpty();
+        assertThat(catalog.consultableCodes()).containsExactlyInAnyOrder("CIRS", "CIVA", "LGT");
+        assertThat(catalog.supportedCodes()).contains("CIRC");
+    }
 }
