@@ -75,13 +75,25 @@ class OfficialLegislationCatalogTest {
         for (String p : List.of("/codigos_tributarios/circ/Pages/irc87.aspx", "/codigos_tributarios/circ/./Pages/irc87.aspx",
                 "/codigos_tributarios/x/../circ/Pages/irc87.aspx", "//codigos_tributarios//circ//Pages//irc87.aspx",
                 "/codigos_tributarios/CIRC/pages/irc87.aspx", "/codigos_tributarios/circ;v=1/Pages/irc87.aspx",
-                "/codigos_tributarios/circ", "\\codigos_tributarios\\circ\\Pages\\irc87.aspx")) {
+                "/codigos_tributarios/circ", "\\codigos_tributarios\\circ\\Pages\\irc87.aspx",
+                "/codigos_tributarios/civa/Pages/iva19.aspx", "/codigos_tributarios/CIVA/./Pages/iva19.aspx",
+                "/codigos_tributarios/x/../civa;v=1/Pages/iva19.aspx", "/codigos_tributarios/circ_rep/Pages/irc87.aspx",
+                "/codigos_tributarios/CIRC_REP/pages/irc87.aspx")) {
             assertThat(OfficialLegislationCatalog.isSuspendedSourcePath(p)).as(p).isTrue();
         }
         for (String p : List.of("/codigos_tributarios/cirs_rep/Pages/irs78.aspx", "/codigos_tributarios/civa_rep/Pages/iva9.aspx",
-                "/codigos_tributarios/lgt/Pages/lgt1.aspx", "/codigos_tributarios/circular/Pages/x.aspx", "", "/")) {
+                "/codigos_tributarios/lgt/Pages/lgt1.aspx", "/codigos_tributarios/circular/Pages/x.aspx", "", "/",
+                "/codigos_tributarios/civa_rep/Pages/iva19.aspx", "/codigos_tributarios/civar/Pages/x.aspx",
+                "/codigos_tributarios/circ_reps/Pages/x.aspx", "/codigos_tributarios/cimi/Pages/cimi112.aspx")) {
             assertThat(OfficialLegislationCatalog.isSuspendedSourcePath(p)).as(p).isFalse();
         }
         assertThat(OfficialLegislationCatalog.isSuspendedSourcePath(null)).isFalse();
+    }
+
+    @Test
+    void historicalFoldersAreRefusedWithoutChangingTheCatalog() {
+        assertThat(OfficialLegislationCatalog.HISTORICAL_FOLDERS).containsOnlyKeys("civa", "circ_rep");
+        assertThat(catalog.consultableCodes()).containsExactlyInAnyOrder("CIRS", "CIVA", "LGT");
+        assertThat(catalog.sourceSuspension("CIVA")).isEmpty();
     }
 }
