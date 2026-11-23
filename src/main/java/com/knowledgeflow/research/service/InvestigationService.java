@@ -245,7 +245,7 @@ public class InvestigationService {
             run.step(ResearchPhase.DISCOVERY, StepOrigin.QUESTION_REFERENCE, ref.display(), null, null,
                     StepOutcome.PROPOSED, "Referência explícita na pergunta");
         }
-        for (Hypothesis h : hypothesisProvider.propose(question, catalog.supportedCodes(), properties.getMaxModelHypotheses())) {
+        for (Hypothesis h : hypothesisProvider.propose(question, catalog.consultableCodes(), properties.getMaxModelHypotheses())) {
             if (candidates.containsKey(h.reference().key())) continue;
             candidates.put(h.reference().key(), new Candidate(h.reference(), StepOrigin.MODEL_HYPOTHESIS, h.rationale()));
             run.step(ResearchPhase.DISCOVERY, StepOrigin.MODEL_HYPOTHESIS, h.reference().display(), null, null,
@@ -285,6 +285,13 @@ public class InvestigationService {
         int consultations = 0;
         for (Candidate c : candidates) {
             LegislationReference ref = c.reference();
+            // Fonte suspensa (ponto 4.1): não é consultada nem pode originar evidência; fica o passo com o motivo.
+            Optional<String> suspension = catalog.sourceSuspension(ref.code());
+            if (suspension.isPresent()) {
+                run.step(ResearchPhase.CONSULTATION, StepOrigin.OFFICIAL_SOURCE, ref.display(), null, null,
+                        StepOutcome.SKIPPED, suspension.get());
+                continue;
+            }
             String url = catalog.urlFor(ref).orElse(null);
             if (url == null) {
                 run.step(ResearchPhase.CONSULTATION, StepOrigin.OFFICIAL_SOURCE, ref.display(), null, null,
@@ -305,6 +312,16 @@ public class InvestigationService {
                 case BLOCKED -> StepOutcome.BLOCKED;
                 case FAILED -> StepOutcome.FAILED;
             };
+            // Defesa em profundidade (ponto 4.1): uma página cujo URL final pertence a uma fonte suspensa (por exemplo,
+            // depois de uma redirecção) nunca é analisada nem origina evidência, seja qual for o cliente.
+            if (outcome == StepOutcome.FETCHED && page.finalUrl() != null) {
+                String finalPath = java.net.URI.create(page.finalUrl()).getPath();
+                if (OfficialLegislationCatalog.isSuspendedSourcePath(finalPath)) {
+                    outcome = StepOutcome.BLOCKED;
+                    page = FetchedPage.blocked(page.httpStatus(), page.finalUrl(),
+                            "Fonte suspensa (redacção histórica): página recusada como evidência");
+                }
+            }
             ResearchStep consultation = run.step(ResearchPhase.CONSULTATION, StepOrigin.OFFICIAL_SOURCE,
                     ref.display(), page.finalUrl() == null ? url : page.finalUrl(), page.httpStatus(), outcome,
                     page.detail());
@@ -709,8 +726,13 @@ public class InvestigationService {
         for (ResearchEvidence e : decision.isLimit() ? accepted : used) {
             limitations.add("%s: %s.".formatted(e.getLegalReference(), e.getValidityReason()));
         }
-        limitations.add("Perímetro desta investigação: códigos consolidados da AT (CIRS, CIVA, CIRC, LGT); "
+        limitations.add("Perímetro desta investigação: códigos consolidados da AT ("
+                + String.join(", ", catalog.consultableCodes().stream().sorted().toList()) + "); "
                 + "jurisprudência e outras fontes não foram consultadas.");
+        if (!OfficialLegislationCatalog.SUSPENDED_SOURCES.isEmpty()) {
+            limitations.add("Fontes suspensas, não consultadas nem usadas como fundamento: "
+                    + String.join("; ", OfficialLegislationCatalog.SUSPENDED_SOURCES.values()) + ".");
+        }
         List<String> assumptions = decision.isLimit() ? List.of() : usable.stream()
                 .flatMap(p -> p.getConditions().stream())
                 .filter(KnowledgeProposition.Condition::isAnchored)

@@ -51,6 +51,49 @@ public class OfficialLegislationCatalog {
         this.properties = properties;
     }
 
+    /**
+     * Fontes suspensas (ordem executiva de 23/11/2026, ponto 4.1): o código continua conhecido (o conhecimento
+     * institucional não muda), mas a sua fonte no Portal das Finanças não é consultada nem usada como evidência. O
+     * CIRC é servido numa redacção histórica (numeração de 2001: o URL do art. 87.º devolve o art. 84.º, revogado em
+     * 2001), verificado a 23/11/2026.
+     */
+    public static final Map<String, String> SUSPENDED_SOURCES = Map.of(
+            "CIRC", "Fonte do CIRC no Portal das Finanças suspensa: redacção histórica (numeração de 2001), "
+                    + "não utilizável como fundamento (ordem executiva de 23/11/2026)");
+
+    /** Motivo da suspensão da fonte do código, ou vazio se a fonte pode ser consultada. */
+    public Optional<String> sourceSuspension(String code) {
+        return code == null ? Optional.empty()
+                : Optional.ofNullable(SUSPENDED_SOURCES.get(code.toUpperCase(Locale.ROOT)));
+    }
+
+    /**
+     * O caminho (já descodificado) toca a fonte de um código suspenso. Regra conservadora por segmento: basta que
+     * <b>qualquer</b> segmento, sem parâmetros ({@code ;...}) e sem distinção de maiúsculas, seja a pasta da fonte
+     * suspensa ({@code circ}). Cobre, por isso, segmentos {@code .} e {@code ..}, barras repetidas, maiúsculas,
+     * parâmetros de segmento e codificação percentual (o {@code URI.getPath()} já vem descodificado). Usado pelo
+     * cliente HTTP antes de cada pedido (URL inicial e cada redirecção) e pelo serviço como defesa em profundidade.
+     */
+    public static boolean isSuspendedSourcePath(String path) {
+        if (path == null || path.isEmpty()) return false;
+        Set<String> folders = new java.util.HashSet<>();
+        SUSPENDED_SOURCES.keySet().stream().map(CODES::get).filter(e -> e != null)
+                .forEach(e -> folders.add(e[0].toLowerCase(Locale.ROOT)));
+        for (String raw : path.replace('\\', '/').split("/")) {
+            int semicolon = raw.indexOf(';');
+            String segment = (semicolon >= 0 ? raw.substring(0, semicolon) : raw).trim().toLowerCase(Locale.ROOT);
+            if (folders.contains(segment)) return true;
+        }
+        return false;
+    }
+
+    /** Códigos do catálogo cuja fonte pode ser consultada (sem as fontes suspensas). */
+    public Set<String> consultableCodes() {
+        Set<String> codes = new java.util.TreeSet<>(CODES.keySet());
+        codes.removeAll(SUSPENDED_SOURCES.keySet());
+        return Set.copyOf(codes);
+    }
+
     public boolean supports(String code) {
         return code != null && CODES.containsKey(code.toUpperCase(Locale.ROOT));
     }

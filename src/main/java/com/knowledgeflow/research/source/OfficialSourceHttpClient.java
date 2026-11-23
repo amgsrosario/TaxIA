@@ -171,6 +171,11 @@ public class OfficialSourceHttpClient implements OfficialSourceClient {
         if (properties.getAllowedHosts().stream().noneMatch(h -> h.equalsIgnoreCase(host))) {
             throw new IllegalArgumentException("Host '%s' fora da allowlist".formatted(host));
         }
+        // Fonte suspensa (ordem executiva de 23/11/2026, ponto 4.1): recusada antes do pedido, também quando é o destino
+        // de uma redirecção (validateUrl é chamado para cada salto).
+        if (OfficialLegislationCatalog.isSuspendedSourcePath(uri.getPath())) {
+            throw new IllegalArgumentException("Fonte suspensa (redacção histórica), pedido recusado: " + uri.getPath());
+        }
         return uri;
     }
 
