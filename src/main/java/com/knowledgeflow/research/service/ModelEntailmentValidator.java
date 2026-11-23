@@ -26,10 +26,13 @@ import org.springframework.stereotype.Component;
  * objecto JSON, sem texto à volta, sem chaves duplicadas ou desconhecidas e com vocabulário fechado; o
  * resto são erros de protocolo — e a decisão ({@link EntailmentGate}) trata-os como suporte não demonstrado.
  * <p>
- * Formato (KF-M02/CORR-09): o pedido leva o {@link #outputSchema()} (structured outputs — a resposta é
- * gerada já restringida ao schema). O schema não substitui a leitura estrita, que se mantém: uma resposta
- * truncada ({@code max_tokens}) ou recusada ({@code refusal}) é erro de protocolo antes de qualquer leitura,
- * e uma resposta fora do protocolo fica com um diagnóstico só da forma ({@link ResponseDiagnostics}).
+ * Formato (KF-M02/CORR-09): o pedido leva o {@link #outputSchema()}. Structured outputs e o motivo de paragem
+ * ({@code stopReason}) são <b>capacidades dependentes do fornecedor</b>: no {@code main}, nenhum fornecedor envia o
+ * schema nem devolve {@code stopReason} (é nulo), e a porta sem L6 recusa os fornecedores facturáveis antes do envio.
+ * Por isso a leitura estrita é sempre a garantia: quando o fornecedor os reporte, uma resposta truncada
+ * ({@code max_tokens}) ou recusada ({@code refusal}) é erro de protocolo antes de qualquer leitura; uma resposta fora
+ * do protocolo fica com um diagnóstico só da forma ({@link ResponseDiagnostics}). (Comentário adaptado ao {@code main};
+ * o código é igual ao do piloto.)
  * <p>
  * Desligado por omissão ({@code knowledgeflow.research.entailment.enabled=false}).
  */

@@ -38,17 +38,19 @@ public class ResearchProperties {
     private String userAgent = "TaxIA-Research-Pilot/1.0";
 
     /**
+     * Segunda barreira de validação de implicação jurídica (ADR-010-A; importada do piloto, KF-M02/ARCH-01).
+     * Desligada por omissão. <b>Neste incremento (A2) o validador ainda não está ligado ao fluxo de investigação</b>:
+     * ligar a propriedade só o disponibiliza; a integração no {@code InvestigationService} é o incremento A4. Quando
+     * integrada (delimitação v3, A.4): com a barreira desligada, o modo directo mantém exactamente o comportamento
+     * actual; só com ela ligada se aplica a validação de implicação, fail-closed.
+     */
+    private Entailment entailment = new Entailment();
+
+    /**
      * Modo integrado no ecrã «Perguntar» (ADR-010-A; especificação KF-CONV-01 v13, §3.1). Desligado por omissão.
      * Ligado, desactiva o modo directo de criação de investigações e exige os pré-requisitos verificados no arranque
      * por {@code AskIntegrationGuard}.
      */
-    /**
-     * Segunda barreira de validação de implicação jurídica (ADR-010-A, A2; importada do piloto, KF-M02/ARCH-01).
-     * Desligada por omissão. Adaptação ao {@code main} (delimitação v3, A.4): com a barreira desligada, o modo directo
-     * mantém exactamente o comportamento actual; só com ela ligada se aplica a validação de implicação, fail-closed.
-     */
-    private Entailment entailment = new Entailment();
-
     private AskIntegration askIntegration = new AskIntegration();
 
     public boolean isEnabled() { return enabled; }
