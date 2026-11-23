@@ -56,6 +56,22 @@ public class ResearchStep {
     @Column(name = "occurred_at", nullable = false)
     private OffsetDateTime occurredAt;
 
+    /** Proveniência da chamada ao modelo (origem MODEL); nula nos restantes passos. */
+    @Column(name = "model_provider", length = 60)
+    private String modelProvider;
+
+    @Column(name = "model_name", length = 120)
+    private String modelName;
+
+    @Column(name = "model_input_tokens")
+    private Integer modelInputTokens;
+
+    @Column(name = "model_output_tokens")
+    private Integer modelOutputTokens;
+
+    @Column(name = "model_duration_ms")
+    private Long modelDurationMs;
+
     protected ResearchStep() {
     }
 
@@ -75,6 +91,19 @@ public class ResearchStep {
         this.occurredAt = occurredAt;
     }
 
+    /** Passo de uma chamada ao modelo: provider, modelo, tokens e duração; nunca prompt nem resposta. */
+    public static ResearchStep modelCall(UUID investigationId, int stepOrder, ResearchPhase phase, String target,
+            com.knowledgeflow.research.service.ModelCall call, OffsetDateTime occurredAt) {
+        ResearchStep step = new ResearchStep(investigationId, stepOrder, phase, StepOrigin.MODEL, target, null, null,
+                call.outcome(), call.detail(), occurredAt);
+        step.modelProvider = call.provider();
+        step.modelName = call.model();
+        step.modelInputTokens = call.inputTokens();
+        step.modelOutputTokens = call.outputTokens();
+        step.modelDurationMs = call.durationMs();
+        return step;
+    }
+
     public UUID getId() { return id; }
     public UUID getInvestigationId() { return investigationId; }
     public int getStepOrder() { return stepOrder; }
@@ -86,4 +115,9 @@ public class ResearchStep {
     public StepOutcome getOutcome() { return outcome; }
     public String getDetail() { return detail; }
     public OffsetDateTime getOccurredAt() { return occurredAt; }
+    public String getModelProvider() { return modelProvider; }
+    public String getModelName() { return modelName; }
+    public Integer getModelInputTokens() { return modelInputTokens; }
+    public Integer getModelOutputTokens() { return modelOutputTokens; }
+    public Long getModelDurationMs() { return modelDurationMs; }
 }
