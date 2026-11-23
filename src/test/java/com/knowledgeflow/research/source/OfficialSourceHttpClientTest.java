@@ -125,6 +125,8 @@ class OfficialSourceHttpClientTest {
                 respond(ex, 200, 10, true);
             });
             server.createContext("/redirect-circ", ex -> redirect(ex, "/codigos_tributarios/circ/Pages/irc87.aspx"));
+            server.createContext("/redirect-circ-dot", ex -> redirect(ex, "/codigos_tributarios/circ/./Pages/irc87.aspx"));
+            server.createContext("/redirect-circ-encoded", ex -> redirect(ex, "/codigos_tributarios/%63irc/Pages/irc87.aspx"));
             server.start();
             base = "http://127.0.0.1:" + server.getAddress().getPort();
 
@@ -192,6 +194,12 @@ class OfficialSourceHttpClientTest {
             FetchedPage redirected = client.fetch(base + "/redirect-circ");
             assertThat(redirected.outcome()).isEqualTo(Outcome.BLOCKED);
             assertThat(redirected.detail()).contains("Fonte suspensa");
+            for (String variant : List.of("/codigos_tributarios/circ/./Pages/irc87.aspx",
+                    "/codigos_tributarios/x/../circ/Pages/irc87.aspx", "/codigos_tributarios/CIRC/Pages/irc87.aspx",
+                    "/redirect-circ-dot", "/redirect-circ-encoded")) {
+                FetchedPage p = client.fetch(base + variant);
+                assertThat(p.outcome()).as(variant).isEqualTo(Outcome.BLOCKED);
+            }
             assertThat(circHits.get()).as("nenhum pedido chega à fonte suspensa").isZero();
         }
 

@@ -3,6 +3,7 @@ package com.knowledgeflow.research.source;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.DisplayName;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class OfficialLegislationCatalogTest {
@@ -67,5 +68,20 @@ class OfficialLegislationCatalogTest {
         assertThat(catalog.sourceSuspension(null)).isEmpty();
         assertThat(catalog.consultableCodes()).containsExactlyInAnyOrder("CIRS", "CIVA", "LGT");
         assertThat(catalog.supportedCodes()).contains("CIRC");
+    }
+
+    @Test
+    void suspendedSourcePathIsRecognisedInEveryEquivalentForm() {
+        for (String p : List.of("/codigos_tributarios/circ/Pages/irc87.aspx", "/codigos_tributarios/circ/./Pages/irc87.aspx",
+                "/codigos_tributarios/x/../circ/Pages/irc87.aspx", "//codigos_tributarios//circ//Pages//irc87.aspx",
+                "/codigos_tributarios/CIRC/pages/irc87.aspx", "/codigos_tributarios/circ;v=1/Pages/irc87.aspx",
+                "/codigos_tributarios/circ", "\\codigos_tributarios\\circ\\Pages\\irc87.aspx")) {
+            assertThat(OfficialLegislationCatalog.isSuspendedSourcePath(p)).as(p).isTrue();
+        }
+        for (String p : List.of("/codigos_tributarios/cirs_rep/Pages/irs78.aspx", "/codigos_tributarios/civa_rep/Pages/iva9.aspx",
+                "/codigos_tributarios/lgt/Pages/lgt1.aspx", "/codigos_tributarios/circular/Pages/x.aspx", "", "/")) {
+            assertThat(OfficialLegislationCatalog.isSuspendedSourcePath(p)).as(p).isFalse();
+        }
+        assertThat(OfficialLegislationCatalog.isSuspendedSourcePath(null)).isFalse();
     }
 }

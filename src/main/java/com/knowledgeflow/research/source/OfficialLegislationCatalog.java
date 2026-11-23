@@ -68,14 +68,23 @@ public class OfficialLegislationCatalog {
     }
 
     /**
-     * O caminho de um URL pertence à fonte de um código suspenso ({@code /<pasta>/Pages/}). Usado pelo cliente HTTP para
-     * recusar, antes do pedido, URLs iniciais e destinos de redirecção, e pelo serviço como defesa em profundidade.
+     * O caminho (já descodificado) toca a fonte de um código suspenso. Regra conservadora por segmento: basta que
+     * <b>qualquer</b> segmento, sem parâmetros ({@code ;...}) e sem distinção de maiúsculas, seja a pasta da fonte
+     * suspensa ({@code circ}). Cobre, por isso, segmentos {@code .} e {@code ..}, barras repetidas, maiúsculas,
+     * parâmetros de segmento e codificação percentual (o {@code URI.getPath()} já vem descodificado). Usado pelo
+     * cliente HTTP antes de cada pedido (URL inicial e cada redirecção) e pelo serviço como defesa em profundidade.
      */
     public static boolean isSuspendedSourcePath(String path) {
-        if (path == null) return false;
-        String p = path.toLowerCase(Locale.ROOT);
-        return SUSPENDED_SOURCES.keySet().stream().map(CODES::get).filter(e -> e != null)
-                .anyMatch(e -> p.contains("/" + e[0].toLowerCase(Locale.ROOT) + "/pages/"));
+        if (path == null || path.isEmpty()) return false;
+        Set<String> folders = new java.util.HashSet<>();
+        SUSPENDED_SOURCES.keySet().stream().map(CODES::get).filter(e -> e != null)
+                .forEach(e -> folders.add(e[0].toLowerCase(Locale.ROOT)));
+        for (String raw : path.replace('\\', '/').split("/")) {
+            int semicolon = raw.indexOf(';');
+            String segment = (semicolon >= 0 ? raw.substring(0, semicolon) : raw).trim().toLowerCase(Locale.ROOT);
+            if (folders.contains(segment)) return true;
+        }
+        return false;
     }
 
     /** Códigos do catálogo cuja fonte pode ser consultada (sem as fontes suspensas). */
