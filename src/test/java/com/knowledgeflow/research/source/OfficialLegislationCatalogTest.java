@@ -45,4 +45,16 @@ class OfficialLegislationCatalogTest {
         assertThat(catalog.referencesIn("Posso deduzir as despesas do ginásio no IRS?")).isEmpty();
         assertThat(catalog.referencesIn("artigo 1.º do EBF")).isEmpty();
     }
+
+    @Test
+    void identificationOnlyForCodesWithVerifiedIdentification() {
+        assertThat(catalog.identification("CIRS")).contains("IRS imposto sobre o rendimento das pessoas singulares");
+        assertThat(catalog.identification("civa")).contains("IVA imposto sobre o valor acrescentado");
+        assertThat(catalog.identification("LGT")).contains("LGT lei geral tributária");
+        // CIRC: mantém-se no catálogo (supports/urlFor inalterados), mas sem identificação verificada.
+        assertThat(catalog.supports("CIRC")).isTrue();
+        assertThat(catalog.identification("CIRC")).isEmpty();
+        assertThat(catalog.identification("XYZ")).isEmpty();
+        assertThat(catalog.identification(null)).isEmpty();
+    }
 }

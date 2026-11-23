@@ -22,11 +22,18 @@ import org.springframework.stereotype.Component;
 public class OfficialLegislationCatalog {
 
     /** code → (pasta, prefixo da página). Padrões verificados por consulta read-only em 2026-10-22. */
+    /**
+     * code → (pasta, prefixo da página, identificação do imposto/diploma). A identificação (textos do ramo do piloto
+     * {@code ac84c04}) alimenta a verificação de suporte substantivo da barreira de implicação. O CIRC fica <b>sem</b>
+     * identificação: o piloto retirou-o (KF-M02/CORR-03) por as páginas da AT conterem uma redacção histórica, e a
+     * retirada ou alteração do CIRC no {@code main} não está autorizada (deliberação de 23/11/2026, ponto 3). Com a
+     * barreira ligada, uma proposição sem identificação é «não demonstrada» (delimitação v3, A.3).
+     */
     private static final Map<String, String[]> CODES = Map.of(
-            "CIRS", new String[] {"cirs_rep", "irs"},
-            "CIVA", new String[] {"civa_rep", "iva"},
-            "CIRC", new String[] {"circ", "irc"},
-            "LGT", new String[] {"lgt", "lgt"});
+            "CIRS", new String[] {"cirs_rep", "irs", "IRS imposto sobre o rendimento das pessoas singulares"},
+            "CIVA", new String[] {"civa_rep", "iva", "IVA imposto sobre o valor acrescentado"},
+            "CIRC", new String[] {"circ", "irc", ""},
+            "LGT", new String[] {"lgt", "lgt", "LGT lei geral tributária"});
 
     private static final Map<String, String> CODE_ALIASES = Map.of(
             "CIRS", "CIRS", "CÓDIGO DO IRS", "CIRS", "CODIGO DO IRS", "CIRS",
@@ -57,6 +64,16 @@ public class OfficialLegislationCatalog {
         if (entry == null) return Optional.empty();
         String page = entry[1] + ref.article() + (ref.suffix() == null ? "" : ref.suffix().toLowerCase(Locale.ROOT));
         return Optional.of(properties.getLegislationBaseUrl() + "/" + entry[0] + "/Pages/" + page + ".aspx");
+    }
+
+    /**
+     * Identificação do imposto/diploma do código, para a verificação de suporte substantivo. Vazio para códigos
+     * desconhecidos ou sem identificação verificada (o CIRC). Nunca lança excepção por entrada incompleta.
+     */
+    public Optional<String> identification(String code) {
+        String[] entry = code == null ? null : CODES.get(code.toUpperCase(Locale.ROOT));
+        if (entry == null || entry.length < 3 || entry[2] == null || entry[2].isBlank()) return Optional.empty();
+        return Optional.of(entry[2]);
     }
 
     public String authority() {
