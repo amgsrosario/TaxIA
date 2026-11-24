@@ -43,8 +43,11 @@ public class ValidatedCasesPolicy {
     private static boolean isPilotOrUnknown(DataSource dataSource) {
         try (Connection connection = dataSource.getConnection()) {
             String catalog = connection.getCatalog();
-            return catalog == null || catalog.isBlank()
-                    || PILOT_DATABASE.equals(catalog.trim().toLowerCase(Locale.ROOT));
+            if (catalog == null || catalog.isBlank()) {
+                log.warn("RAG validated cases: database not identified; cases excluded until restart");
+                return true;
+            }
+            return PILOT_DATABASE.equals(catalog.trim().toLowerCase(Locale.ROOT));
         } catch (SQLException e) {
             log.warn("RAG validated cases: database not identified ({}); cases excluded until restart",
                     e.getClass().getSimpleName());
