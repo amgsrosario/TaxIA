@@ -24,6 +24,7 @@ import com.knowledgeflow.pgtest.PgContainers;
 import com.knowledgeflow.rag.EmbeddingProperties;
 import com.knowledgeflow.rag.EmbeddingService;
 import com.knowledgeflow.rag.RagSearchService;
+import com.knowledgeflow.rag.ValidatedCasesPolicy;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.ArrayList;
 import java.util.List;
@@ -143,7 +144,8 @@ class TaxiaPilotGovernedRunnerIT {
         ragSearch = new RagSearchService(
                 embedding, jdbc,
                 new EmbeddingProperties(null, TOP_K, null, null, null, null, null),
-                new KnowledgeFlowMetrics(new SimpleMeterRegistry()));
+                new KnowledgeFlowMetrics(new SimpleMeterRegistry()),
+                new ValidatedCasesPolicy(true, jdbc.getDataSource()));
 
         fix001QaId = newEligibleQa(org, FIX_001).getId();
     }

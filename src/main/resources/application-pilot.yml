@@ -47,6 +47,8 @@ spring:
 
 knowledgeflow:
   rag:
+    # M0: piloto sem casos VALIDATED nas respostas. Sem variável de ambiente, de propósito.
+    validated-cases-enabled: false
     embeddings:
       # Real, self-hosted sentence-transformers microservice — never a stub,
       # never an external provider. Dimension is fixed at 768.
