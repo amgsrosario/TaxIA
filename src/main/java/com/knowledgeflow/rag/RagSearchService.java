@@ -35,6 +35,7 @@ public class RagSearchService {
             WHERE kc.organization_id = ?
               AND kc.status = 'VALIDATED'
               AND kc.deleted_at IS NULL
+              AND current_database() <> 'knowledgeflow_pilot'
             UNION ALL
             """;
 
@@ -89,7 +90,8 @@ public class RagSearchService {
         String vectorLiteral = toVectorLiteral(queryEmbedding);
         int topK = props.topK() > 0 ? props.topK() : 5;
 
-        // M0: com os casos excluídos, o ramo dos casos nem chega à consulta (não ocupa lugares do topK).
+        // M0: com os casos excluídos, o ramo dos casos nem chega à consulta (não ocupa lugares do topK). O ramo repete a
+        // recusa na própria ligação (current_database), para o caso de a ligação mudar depois do arranque.
         boolean withCases = validatedCasesPolicy.included();
         List<Object> params = new ArrayList<>();
         if (withCases) {

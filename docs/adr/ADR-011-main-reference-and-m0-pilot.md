@@ -13,9 +13,11 @@ A linha experimental de medição divergiu da `main`. O piloto convencional usa 
 1. A `main` é a referência única, a partir de `f5730ee`. As linhas experimentais ficam preservadas, sem desenvolvimento
    e sem fusão integral. Qualquer recuperação é selectiva e tem decisão própria.
 2. **M0:** no piloto, os casos `VALIDATED` não fundamentam respostas. `ValidatedCasesPolicy` decide no arranque:
-   - perfil `pilot`: `knowledgeflow.rag.validated-cases-enabled: false`, sem variável de ambiente;
-   - base `knowledgeflow_pilot`: excluídos **sempre**, seja qual for o perfil ou a propriedade (o launcher usa `dev`);
-   - base não identificável: excluídos.
+   - perfil `pilot`: `knowledgeflow.rag.validated-cases-enabled: false` (uma fonte Spring de maior precedência pode
+     alterá-la; a regra seguinte não);
+   - base `knowledgeflow_pilot`: excluídos seja qual for o perfil ou a propriedade. A consulta repete a recusa com
+     `current_database()`, por isso a garantia não depende só da leitura feita no arranque;
+   - base não identificável no arranque: excluídos até ao reinício, com aviso no log.
 3. A exclusão é feita na consulta, por isso os casos não ocupam lugares do `topK`. Nenhum caso é apagado ou muda de estado.
 
 ## Consequências
@@ -24,4 +26,5 @@ A linha experimental de medição divergiu da `main`. O piloto convencional usa 
 - O portal (`/api/v1/portal/cases`) continua a mostrar ao cliente os seus casos: não é fundamentação e não foi alterado.
 - `/api/v1/interactions/{id}/ask` e o equivalente do portal chamam o modelo **sem RAG nem grounding**. Não usam casos,
   mas não dão as garantias do `/ask`; não foram alterados e não devem ser usados no piloto.
-- Fora do piloto, o comportamento mantém-se (omissão `true` em `application.yml`).
+- Fora do piloto, os casos continuam incluídos por omissão (`true` em `application.yml`), salvo propriedade desligada
+  ou base não identificável no arranque.

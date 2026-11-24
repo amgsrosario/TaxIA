@@ -46,6 +46,8 @@ public class ValidatedCasesPolicy {
             return catalog == null || catalog.isBlank()
                     || PILOT_DATABASE.equals(catalog.trim().toLowerCase(Locale.ROOT));
         } catch (SQLException e) {
+            log.warn("RAG validated cases: database not identified ({}); cases excluded until restart",
+                    e.getClass().getSimpleName());
             return true;
         }
     }

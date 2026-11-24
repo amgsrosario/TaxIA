@@ -44,6 +44,12 @@ class ValidatedCasesExclusionPostgresIT {
         JdbcTemplate jdbc = seeded(pilot);
         List<RetrievedCase> results = search(jdbc, true);
         assertThat(results).extracting(RetrievedCase::sourceKind).containsExactly(SourceKind.KNOWLEDGE_QA);
+        // Política decidida noutra base e pesquisa feita depois na piloto: a própria consulta recusa.
+        var elsewhere = new DriverManagerDataSource(other.getJdbcUrl(), other.getUsername(), other.getPassword());
+        ValidatedCasesPolicy included = new ValidatedCasesPolicy(true, elsewhere);
+        assertThat(included.included()).isTrue();
+        assertThat(search(jdbc, included)).extracting(RetrievedCase::sourceKind)
+                .containsExactly(SourceKind.KNOWLEDGE_QA);
         assertCasesUntouched(jdbc);
     }
 
@@ -57,13 +63,17 @@ class ValidatedCasesExclusionPostgresIT {
     }
 
     private static List<RetrievedCase> search(JdbcTemplate jdbc, boolean enabled) {
+        return search(jdbc, new ValidatedCasesPolicy(enabled, jdbc.getDataSource()));
+    }
+
+    private static List<RetrievedCase> search(JdbcTemplate jdbc, ValidatedCasesPolicy policy) {
         EmbeddingService embedding = new EmbeddingService() {
             @Override public List<Float> embedQuery(String text) { return vector(0f); }
             @Override public List<Float> embedPassage(String text) { return vector(0f); }
         };
         return new RagSearchService(embedding, jdbc, new EmbeddingProperties(null, 5, null, null, null, null, null),
                 new KnowledgeFlowMetrics(new SimpleMeterRegistry()),
-                new ValidatedCasesPolicy(enabled, jdbc.getDataSource())).findSimilar(ORG, "pergunta");
+                policy).findSimilar(ORG, "pergunta");
     }
 
     private static void assertCasesUntouched(JdbcTemplate jdbc) {
