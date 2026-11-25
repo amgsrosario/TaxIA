@@ -18,6 +18,7 @@ import com.knowledgeflow.pgtest.PgContainers;
 import com.knowledgeflow.rag.EmbeddingProperties;
 import com.knowledgeflow.rag.EmbeddingService;
 import com.knowledgeflow.rag.RagSearchService;
+import com.knowledgeflow.rag.ValidatedCasesPolicy;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
@@ -112,7 +113,8 @@ class AtFaqGovernedRagBatchIndexingServiceIT {
         ragSearch = new RagSearchService(
                 embedding, jdbc,
                 new EmbeddingProperties(null, 5, null, null, null, null, null),
-                new KnowledgeFlowMetrics(new SimpleMeterRegistry()));
+                new KnowledgeFlowMetrics(new SimpleMeterRegistry()),
+                new ValidatedCasesPolicy(true, jdbc.getDataSource()));
 
         // The main small batch: three published, VALIDATED, LOW-risk, RAG-eligible Q&A.
         mainA = newPublishedQa("AT-FAQ-2001", KnowledgeRiskLevel.LOW, org).getId();

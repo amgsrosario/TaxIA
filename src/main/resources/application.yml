@@ -123,6 +123,9 @@ knowledgeflow:
       stub:
         enabled: ${STUB_AI_ENABLED:false}
   rag:
+    # M0: casos VALIDATED (knowledge_cases) na pesquisa RAG. Na knowledgeflow_pilot ficam sempre excluídos
+    # (ValidatedCasesPolicy), seja qual for este valor.
+    validated-cases-enabled: ${RAG_VALIDATED_CASES_ENABLED:true}
     embeddings:
       base-url: ${EMBEDDINGS_SERVICE_URL:http://localhost:8000}
       top-k: ${RAG_TOP_K:5}
